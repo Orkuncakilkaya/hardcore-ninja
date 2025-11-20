@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SkillSystem, SkillType } from '../systems/SkillSystem';
 import { Box } from './Box';
+import { NetworkManager } from '../network/NetworkManager';
 
 export class Player {
     public id: string;
@@ -8,8 +9,13 @@ export class Player {
     private bodyMesh: THREE.Mesh;
     private spotLight?: THREE.SpotLight;
     private speed: number = 10;
-    private velocity: THREE.Vector3 = new THREE.Vector3();
+    public velocity: THREE.Vector3 = new THREE.Vector3(); // Public for server access
     public skillSystem: SkillSystem;
+    private networkManager: NetworkManager;
+
+    // Movement
+    public destination: THREE.Vector3 | null = null;
+    public isMoving: boolean = false;
 
     // Health & Status
     public maxHealth: number = 100;
@@ -20,10 +26,11 @@ export class Player {
     // Network
     public lastInput: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null } | null = null;
 
-    constructor(id: string, entityManager: any, color: number = 0x00ff00, isLocal: boolean = false) {
+    constructor(id: string, entityManager: any, color: number = 0x00ff00, isLocal: boolean = false, networkManager: NetworkManager) {
         this.id = id;
         this.mesh = new THREE.Group();
         this.skillSystem = new SkillSystem(this, entityManager);
+        this.networkManager = networkManager;
 
         // Player Body (Simple Capsule/Cylinder)
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
@@ -57,61 +64,90 @@ export class Player {
         this.mesh.position.set(x, 0, z);
     }
 
-    public update(delta: number, input: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null }, boxes: Box[] = [], otherPlayers: Player[] = []) {
-        // Movement
+    public setDestination(point: THREE.Vector3) {
+        this.destination = point.clone();
+        this.destination.y = this.mesh.position.y; // Ensure y is the same
+        this.isMoving = true;
+
+        const direction = this.destination.clone().sub(this.mesh.position).normalize();
+        this.velocity.copy(direction);
+    }
+
+    public stopMovement() {
+        this.isMoving = false;
+        this.destination = null;
         this.velocity.set(0, 0, 0);
-        if (input.keys['KeyW']) this.velocity.z -= 1;
-        if (input.keys['KeyS']) this.velocity.z += 1;
-        if (input.keys['KeyA']) this.velocity.x -= 1;
-        if (input.keys['KeyD']) this.velocity.x += 1;
+    }
 
-        if (this.velocity.lengthSq() > 0) {
-            const moveVector = this.velocity.clone().normalize().multiplyScalar(this.speed * delta);
-            const potentialPosition = this.mesh.position.clone().add(moveVector);
+    // This update method will now be used on the server-side for movement calculation
+    public update(delta: number, boxes: Box[] = [], otherPlayers: Player[] = []) {
+        if (this.isMoving && this.destination) {
+            const distanceToDestination = this.mesh.position.distanceTo(this.destination);
+            const moveDistance = this.speed * delta;
 
-            // Collision Detection
-            const playerBox = new THREE.Box3().setFromCenterAndSize(
-                potentialPosition.clone().add(new THREE.Vector3(0, 1, 0)), // Center (y=1 matches bodyMesh)
-                new THREE.Vector3(1, 2, 1) // Size (matches Capsule radius 0.5*2, height 1+capsule_ends? Capsule is radius 0.5, length 1. Total height approx 2)
-            );
+            if (distanceToDestination <= moveDistance) {
+                // Reached destination
+                this.mesh.position.copy(this.destination);
+                this.stopMovement();
+            } else {
+                const moveVector = this.velocity.clone().multiplyScalar(moveDistance);
+                const potentialPosition = this.mesh.position.clone().add(moveVector);
 
-            let collision = false;
+                // Collision Detection
+                const playerBox = new THREE.Box3().setFromCenterAndSize(
+                    potentialPosition.clone().add(new THREE.Vector3(0, 1, 0)),
+                    new THREE.Vector3(1, 2, 1)
+                );
 
-            // Check collision with boxes
-            for (const box of boxes) {
-                const boxBoundingBox = new THREE.Box3().setFromObject(box.mesh);
-                if (playerBox.intersectsBox(boxBoundingBox)) {
-                    collision = true;
-                    break;
+                let collision = false;
+
+                // Check collision with boxes
+                for (const box of boxes) {
+                    const boxBoundingBox = new THREE.Box3().setFromObject(box.mesh);
+                    if (playerBox.intersectsBox(boxBoundingBox)) {
+                        collision = true;
+                        break;
+                    }
                 }
-            }
 
-            // Check collision with other players
-            if (!collision) {
-                for (const otherPlayer of otherPlayers) {
-                    if (otherPlayer.id !== this.id) {
-                        const otherPlayerBox = new THREE.Box3().setFromCenterAndSize(
-                            otherPlayer.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
-                            new THREE.Vector3(1, 2, 1)
-                        );
-                        if (playerBox.intersectsBox(otherPlayerBox)) {
-                            collision = true;
-                            break;
+                // Check collision with other players
+                if (!collision) {
+                    for (const otherPlayer of otherPlayers) {
+                        if (otherPlayer.id !== this.id) {
+                            const otherPlayerBox = new THREE.Box3().setFromCenterAndSize(
+                                otherPlayer.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
+                                new THREE.Vector3(1, 2, 1)
+                            );
+                            if (playerBox.intersectsBox(otherPlayerBox)) {
+                                collision = true;
+                                // If two players collide, they should both stop.
+                                // The other player will be stopped on their own update loop.
+                                break;
+                            }
                         }
                     }
                 }
-            }
 
-            if (!collision) {
-                this.mesh.position.add(moveVector);
+                if (collision) {
+                    this.stopMovement();
+                } else {
+                    this.mesh.position.add(moveVector);
+                }
             }
 
             // Map Boundary Collision (70x70 playable area = ±35 from center)
             const MAP_LIMIT = 35;
-            this.mesh.position.x = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.mesh.position.x));
-            this.mesh.position.z = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.mesh.position.z));
+            if (this.mesh.position.x > MAP_LIMIT || this.mesh.position.x < -MAP_LIMIT ||
+                this.mesh.position.z > MAP_LIMIT || this.mesh.position.z < -MAP_LIMIT) {
+                this.mesh.position.x = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.mesh.position.x));
+                this.mesh.position.z = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.mesh.position.z));
+                this.stopMovement();
+            }
         }
+    }
 
+    // Client-side update
+    public clientUpdate(delta: number, input: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null }) {
         // Rotation (Look at mouse)
         if (input.mouse) {
             const target = new THREE.Vector3(input.mouse.x, this.mesh.position.y, input.mouse.z);
@@ -123,7 +159,6 @@ export class Player {
         if (input.keys['KeyE']) this.skillSystem.activateSkill(SkillType.SLASH);
         if (input.keys['KeyR']) this.skillSystem.activateSkill(SkillType.TANK);
         if (input.keys['Space']) this.skillSystem.activateSkill(SkillType.ULTIMATE);
-        // Basic Attack needs mouse click, handling in InputManager or here if passed
 
         this.skillSystem.update(delta);
 
@@ -139,6 +174,7 @@ export class Player {
             }
         }
     }
+
 
     public setInvulnerable(duration: number) {
         this.isInvulnerable = true;
@@ -158,8 +194,6 @@ export class Player {
 
     private die() {
         console.log(`Player ${this.id} died!`);
-        // TODO: Handle death (respawn or game over)
-        this.health = this.maxHealth;
-        this.setPosition(0, 0); // Respawn at center for now
+        this.networkManager.sendToHost({ type: 'PLAYER_DIED', id: this.id });
     }
 }

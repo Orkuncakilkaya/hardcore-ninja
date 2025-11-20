@@ -1,5 +1,6 @@
 import type { Player } from '../entities/Player';
 import type { EntityManager } from '../entities/EntityManager';
+import * as THREE from 'three';
 
 export interface PlayerStateData {
     id: string;
@@ -53,7 +54,7 @@ export class PlayerSync {
             // Create player if doesn't exist
             if (!player) {
                 const isLocal = pData.id === entityManager.localPlayerId;
-                entityManager.createPlayer(pData.id, isLocal);
+                entityManager.spawnPlayer(pData.id, new THREE.Vector2(pData.position.x, pData.position.z), isLocal);
                 player = entityManager.players.get(pData.id);
             }
 

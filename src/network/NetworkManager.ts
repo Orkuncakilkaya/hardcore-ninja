@@ -45,8 +45,10 @@ export class NetworkManager {
             console.log('Connected to:', conn.peer);
             this.connections.push(conn);
 
-            // Send initial data or handshake
-            conn.send({ type: 'HANDSHAKE', message: 'Hello from ' + this.peer.id });
+            // On connection, client requests spawn points from host
+            if (!this.isHost) {
+                conn.send({ type: 'SPAWN_POINTS_REQUEST' });
+            }
         });
 
         conn.on('data', (data: any) => {

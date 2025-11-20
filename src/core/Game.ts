@@ -16,11 +16,15 @@ export class Game {
     private groundPlane: THREE.Plane;
     private clock: THREE.Clock;
 
+    // Tick-based state synchronization
+    private tickRate: number = 1 / 20; // 20 ticks per second
+    private timeSinceLastTick: number = 0;
+
     constructor() {
         this.renderer = new Renderer();
         this.inputManager = new InputManager();
         this.networkManager = new NetworkManager();
-        this.entityManager = new EntityManager(this.renderer.scene);
+        this.entityManager = new EntityManager(this.renderer.scene, this.networkManager);
         this.uiManager = new UIManager();
         this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         this.clock = new THREE.Clock();
@@ -30,55 +34,17 @@ export class Game {
     }
 
     private setupScene() {
-        // Scene setup (lights, etc. if any, currently empty or just ground which is in constructor)
-        // Ground is already created in constructor but not added to scene?
-        // Ah, groundPlane is just a mathematical plane for raycasting.
-        // We need a visual ground?
-        // The previous code didn't seem to have a visual ground mesh, just the plane for math.
-        // Wait, looking at previous Game.ts content...
-        // It had `this.groundPlane = ...`
-        // And `setupScene` had box creation.
-        // It seems there is no visual ground? Or maybe Renderer adds it?
-        // Let's check Renderer later if needed, but for now just remove box creation.
+        // Scene setup is now handled in initializeLevel
     }
 
     private async initializeLevel() {
         try {
-            // Load map configuration from JSON
             const mapConfig = await MapLoader.loadMap('/maps/default_map.json');
-
             console.log(`Loading map: ${mapConfig.name} (v${mapConfig.version})`);
-
-            // Initialize EntityManager with map config
             this.entityManager.setMapConfig(mapConfig);
-
-            // Create walls from config
-            mapConfig.walls.forEach(wall => {
-                this.entityManager.createWall(
-                    wall.id,
-                    MapLoader.toVector3(wall.position),
-                    wall.dimensions.width,
-                    wall.dimensions.height,
-                    wall.dimensions.depth,
-                    wall.color
-                );
-            });
-
-            // Create boxes from config
-            mapConfig.boxes.forEach(box => {
-                this.entityManager.createBox(
-                    box.id,
-                    MapLoader.toVector3(box.position),
-                    box.dimensions.width,
-                    box.dimensions.height,
-                    box.dimensions.depth,
-                    box.color
-                );
-            });
-
-            // Update renderer with playable area size
+            mapConfig.walls.forEach(wall => this.entityManager.createWall(wall.id, MapLoader.toVector3(wall.position), wall.dimensions.width, wall.dimensions.height, wall.dimensions.depth, wall.color));
+            mapConfig.boxes.forEach(box => this.entityManager.createBox(box.id, MapLoader.toVector3(box.position), box.dimensions.width, box.dimensions.height, box.dimensions.depth, box.color));
             this.renderer.updateGridSize(mapConfig.playableArea.size);
-
             console.log(`Map loaded successfully: ${mapConfig.boxes.length} boxes, ${mapConfig.walls.length} walls, ${mapConfig.spawnPoints.length} spawn points`);
         } catch (error) {
             console.error('Failed to initialize level:', error);
@@ -102,28 +68,45 @@ export class Game {
 
         window.addEventListener('network-data', (e: any) => {
             const { from, data } = e.detail;
+
+            if (data.type === 'SPAWN_POINT_RESPONSE') {
+                data.players.forEach((p: any) => {
+                    const isLocal = p.id === this.networkManager.peerId;
+                    this.entityManager.spawnPlayer(p.id, p.position, isLocal);
+                });
+                return;
+            }
+
             if (this.networkManager.isHost) {
-                // Host receiving input or handshake
-                if (data.type === 'HANDSHAKE') {
-                    console.log(`[HOST] Received HANDSHAKE from ${from}`);
-                    // New player connected, create their player entity
-                    this.entityManager.createPlayer(from, false);
-                    // Send initial state to the new player
-                    const state = this.entityManager.getState();
-                    console.log(`[HOST] Sending initial state to ${from}, players in state:`, state.players.map((p: any) => p.id));
-                    this.networkManager.sendToClient(from, { type: 'STATE', state: state });
+                if (data.type === 'SPAWN_POINTS_REQUEST') {
+                    console.log(`[HOST] Received SPAWN_POINTS_REQUEST from ${from}`);
+
+                    // Spawn the new player on the host
+                    const spawnDetails = this.entityManager.claimSpawnPoint(from);
+                    if (spawnDetails) {
+                        this.entityManager.spawnPlayer(from, spawnDetails.position, false);
+                        this.networkManager.broadcast({ type: 'CLAIM_SPAWN_POINT', playerId: from, spawnIndex: spawnDetails.index });
+                    }
+
+                    // Get all player positions
+                    const playerPositions = Array.from(this.entityManager.players.values()).map(p => ({
+                        id: p.id,
+                        position: { x: p.mesh.position.x, y: p.mesh.position.z }
+                    }));
+
+                    // Send the response back to the requester
+                    this.networkManager.sendToClient(from, { type: 'SPAWN_POINT_RESPONSE', players: playerPositions });
                 } else if (data.type === 'INPUT') {
                     const player = this.entityManager.players.get(from);
                     if (player) {
-                        // Apply input to player
-                        // We need to store this input and apply it in update loop
-                        player['lastInput'] = data.input; // Hack: Store on player
+                        player.lastInput = data.input;
+                        if (data.destination) {
+                            player.setDestination(new THREE.Vector3(data.destination.x, data.destination.y, data.destination.z));
+                        }
                     }
                 }
             } else {
-                // Client receiving state
                 if (data.type === 'STATE') {
-                    console.log(`[CLIENT] Received state, players:`, data.state.players.map((p: any) => p.id));
                     this.entityManager.applyState(data.state);
                 }
             }
@@ -138,11 +121,12 @@ export class Game {
             hostControls.style.display = 'none';
             lobbyControls.style.display = 'block';
             myIdDisplay.textContent = `Hosting on ID: ${this.networkManager.peerId}`;
-
-            // Initialize level first to load map config and spawn positions
             await this.initializeLevel();
-            // Then create local player (needs spawn positions to be ready)
-            this.entityManager.createPlayer(this.networkManager.peerId, true);
+            const spawnDetails = this.entityManager.claimSpawnPoint(this.networkManager.peerId!);
+            if (spawnDetails) {
+                this.entityManager.spawnPlayer(this.networkManager.peerId!, spawnDetails.position, true);
+                this.networkManager.broadcast({ type: 'CLAIM_SPAWN_POINT', playerId: this.networkManager.peerId, spawnIndex: spawnDetails.index });
+            }
             this.start();
         });
 
@@ -152,10 +136,7 @@ export class Game {
                 this.networkManager.joinGame(hostId);
                 hostControls.style.display = 'none';
                 statusEl.textContent = 'Joining...';
-
-                // Initialize level first to load map config
                 await this.initializeLevel();
-                // Set local player ID (client player will be created when receiving state from host)
                 this.entityManager.localPlayerId = this.networkManager.peerId;
                 this.start();
             }
@@ -172,70 +153,53 @@ export class Game {
 
     private animate = () => {
         if (!this.isRunning) return;
-
         requestAnimationFrame(this.animate);
-
         const delta = this.clock.getDelta();
         this.update(delta);
         this.renderer.render();
     }
 
     private update(delta: number) {
+        this.timeSinceLastTick += delta;
+
+        const localPlayer = this.entityManager.getLocalPlayer();
         const mouseIntersection = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
         const input = {
             keys: this.inputManager.keys,
             mouse: mouseIntersection ? { x: mouseIntersection.x, y: mouseIntersection.y, z: mouseIntersection.z } : null
         };
 
+        let destination: { x: number, y: number, z: number } | null = null;
+        if (localPlayer && this.inputManager.isLeftMouseDown() && mouseIntersection) {
+            destination = { x: mouseIntersection.x, y: mouseIntersection.y, z: mouseIntersection.z };
+        }
+
         if (this.networkManager.isHost) {
             // Host Logic
-            // Update local player
-            this.entityManager.update(delta, input);
+            if (localPlayer && destination) {
+                localPlayer.setDestination(new THREE.Vector3(destination.x, destination.y, destination.z));
+            }
+            this.entityManager.update(delta, input); // Server-side update
 
-            // Update other players with their last known input
-            const allPlayers = Array.from(this.entityManager.players.values());
-            const allObstacles = [...this.entityManager.walls, ...this.entityManager.boxes];
-            this.entityManager.players.forEach(p => {
-                if (p.id !== this.entityManager.localPlayerId && p['lastInput']) {
-                    p.update(delta, p['lastInput'], allObstacles, allPlayers);
-                }
-            });
-
-            // Broadcast State
-            const state = this.entityManager.getState();
-            this.networkManager.broadcast({ type: 'STATE', state: state });
+            if (this.timeSinceLastTick > this.tickRate) {
+                const state = this.entityManager.getState();
+                this.networkManager.broadcast({ type: 'STATE', state: state });
+                this.timeSinceLastTick = 0;
+            }
         } else {
             // Client Logic
-            // Send Input
-            this.networkManager.sendToHost({ type: 'INPUT', input: input });
-
-            // Local prediction or just wait for state?
-            // For smoothness, we should predict local movement
-            // But for simplicity, let's rely on state first, or just predict movement
-            if (this.entityManager.localPlayerId) {
-                // Predict local movement for responsiveness
-                // Note: This might conflict with applyState if not handled carefully
-                // For this prototype, let's just run local update for responsiveness and let state correct it (snap)
-                const localPlayer = this.entityManager.players.get(this.entityManager.localPlayerId);
-                const allPlayers = Array.from(this.entityManager.players.values());
-                const allObstacles = [...this.entityManager.walls, ...this.entityManager.boxes];
-                if (localPlayer) {
-                    localPlayer.update(delta, input, allObstacles, allPlayers);
-                }
+            this.networkManager.sendToHost({ type: 'INPUT', input: input, destination: destination });
+            if (localPlayer) {
+                localPlayer.clientUpdate(delta, input);
             }
         }
 
-        // Camera follow local player
-        if (this.entityManager.localPlayerId) {
-            const player = this.entityManager.players.get(this.entityManager.localPlayerId);
-            if (player) {
-                this.renderer.camera.position.x = player.mesh.position.x;
-                this.renderer.camera.position.z = player.mesh.position.z + 10; // Offset
-                this.renderer.camera.lookAt(player.mesh.position);
-
-                // Update HUD
-                this.uiManager.update(player);
-            }
+        // Camera and UI updates are client-side only
+        if (localPlayer) {
+            this.renderer.camera.position.x = localPlayer.mesh.position.x;
+            this.renderer.camera.position.z = localPlayer.mesh.position.z + 10;
+            this.renderer.camera.lookAt(localPlayer.mesh.position);
+            this.uiManager.update(localPlayer);
         }
     }
 }
