@@ -61,7 +61,7 @@ export class PlayerSync {
             if (player) {
                 // Always update position and rotation from authoritative state
                 player.mesh.position.set(pData.position.x, pData.position.y, pData.position.z);
-                player.mesh.rotation.set(pData.rotation.x, pData.rotation.y, pData.rotation.z, pData.rotation.order);
+                player.mesh.rotation.set(pData.rotation.x, pData.rotation.y, pData.rotation.z, "XYZ");
                 player.health = pData.health;
                 player.isInvulnerable = pData.isInvulnerable;
             }

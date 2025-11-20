@@ -43,7 +43,7 @@ export class SlashSync {
         // Create slash areas from state
         data.forEach(sData => {
             const pos = new THREE.Vector3(sData.position.x, sData.position.y, sData.position.z);
-            const rot = new THREE.Euler(sData.rotation.x, sData.rotation.y, sData.rotation.z, sData.rotation.order);
+            const rot = new THREE.Euler(sData.rotation.x, sData.rotation.y, sData.rotation.z, "XYZ");
             entityManager.spawnSlash(sData.ownerId, pos, rot);
 
             // Restore scale

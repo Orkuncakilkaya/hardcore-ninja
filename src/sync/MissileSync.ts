@@ -41,7 +41,7 @@ export class MissileSync {
         // Create missiles from state
         data.forEach(mData => {
             const pos = new THREE.Vector3(mData.position.x, mData.position.y, mData.position.z);
-            const rot = new THREE.Euler(mData.rotation.x, mData.rotation.y, mData.rotation.z, mData.rotation.order);
+            const rot = new THREE.Euler(mData.rotation.x, mData.rotation.y, mData.rotation.z, "XYZ");
             entityManager.spawnMissile(mData.ownerId, pos, rot);
         });
     }

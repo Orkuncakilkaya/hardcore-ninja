@@ -7,7 +7,7 @@ import type { MapConfig } from '../core/MapLoader';
 import { MapLoader } from '../core/MapLoader';
 
 export class EntityManager {
-    private scene: THREE.Scene;
+    public scene: THREE.Scene;
     public players: Map<string, Player> = new Map();
     public missiles: Missile[] = [];
     public slashAreas: SlashArea[] = [];
