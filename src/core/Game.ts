@@ -189,9 +189,7 @@ export class Game {
         } else {
             // Client Logic
             this.networkManager.sendToHost({ type: 'INPUT', input: input, destination: destination });
-            if (localPlayer) {
-                localPlayer.clientUpdate(delta, input);
-            }
+            this.entityManager.update(delta, input); // Client-side prediction and interpolation
         }
 
         // Camera and UI updates are client-side only

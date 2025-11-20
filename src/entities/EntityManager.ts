@@ -132,16 +132,13 @@ export class EntityManager {
         }
     }
 
-LAGI
     public getState(): any {
         const playersData = Array.from(this.players.values()).map(p => ({
             id: p.id,
             position: { x: p.mesh.position.x, y: p.mesh.position.y, z: p.mesh.position.z },
-            rotation: { x: p.mesh.rotation.x, y: p.mesh.rotation.y, z: p.mesh.rotation.z, order: p.mesh.rotation.order },
+            rotation: { x: p.mesh.quaternion.x, y: p.mesh.quaternion.y, z: p.mesh.quaternion.z, w: p.mesh.quaternion.w },
             health: p.health,
             isInvulnerable: p.isInvulnerable,
-            isMoving: p.isMoving,
-            velocity: { x: p.velocity.x, y: p.velocity.y, z: p.velocity.z }
         }));
         // ... (rest of getState is the same)
         return { players: playersData, /* ... */ };
@@ -159,12 +156,9 @@ LAGI
         state.players.forEach((pData: any) => {
             const player = this.players.get(pData.id);
             if (player) {
-                player.mesh.position.set(pData.position.x, pData.position.y, pData.position.z);
-                player.mesh.rotation.set(pData.rotation.x, pData.rotation.y, pData.rotation.z, pData.rotation.order);
+                player.updateState(pData.position, pData.rotation);
                 player.health = pData.health;
                 player.isInvulnerable = pData.isInvulnerable;
-                player.isMoving = pData.isMoving;
-                player.velocity.set(pData.velocity.x, pData.velocity.y, pData.velocity.z);
             }
         });
         // ... (rest of applyState is the same)
@@ -174,16 +168,21 @@ LAGI
         const allPlayers = Array.from(this.players.values());
         const allObstacles = [...this.walls, ...this.boxes];
 
-        // Server-side movement calculation for all players
-        this.players.forEach(player => {
-            // The `update` method now handles movement and collision
-            player.update(delta, allObstacles, allPlayers);
-
-            // For the local player on the host, we also apply client-side logic
-            if (player.id === this.localPlayerId) {
-                player.clientUpdate(delta, input);
-            }
-        });
+        if (this.networkManager.isHost) {
+            // Server-side movement calculation for all players
+            this.players.forEach(player => {
+                player.update(delta, allObstacles, allPlayers);
+                // Host also needs to update its own client-side logic
+                if (player.id === this.localPlayerId) {
+                    player.clientUpdate(delta, input);
+                }
+            });
+        } else {
+            // Client-side interpolation for all players
+            this.players.forEach(player => {
+                player.clientUpdate(delta, player.id === this.localPlayerId ? input : undefined);
+            });
+        }
 
         // Update Missiles, Slashes, etc.
         // ... (rest of the update logic is the same)

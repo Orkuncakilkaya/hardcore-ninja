@@ -25,12 +25,21 @@ export class Player {
 
     // Network
     public lastInput: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null } | null = null;
+    private serverPosition: THREE.Vector3;
+    private serverRotation: THREE.Quaternion;
+    private isLocal: boolean;
+
 
     constructor(id: string, entityManager: any, color: number = 0x00ff00, isLocal: boolean = false, networkManager: NetworkManager) {
         this.id = id;
         this.mesh = new THREE.Group();
         this.skillSystem = new SkillSystem(this, entityManager);
         this.networkManager = networkManager;
+        this.isLocal = isLocal;
+
+        // For interpolation
+        this.serverPosition = new THREE.Vector3();
+        this.serverRotation = new THREE.Quaternion();
 
         // Player Body (Simple Capsule/Cylinder)
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
@@ -62,6 +71,14 @@ export class Player {
 
     public setPosition(x: number, z: number) {
         this.mesh.position.set(x, 0, z);
+        this.serverPosition.set(x, 0, z); // Keep server position in sync
+    }
+
+    public updateState(position: { x: number, y: number, z: number }, rotation: { x: number, y: number, z: number, w: number }) {
+        this.serverPosition.set(position.x, position.y, position.z);
+        if (!this.isLocal) { // Local player rotation is controlled by mouse
+            this.serverRotation.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        }
     }
 
     public setDestination(point: THREE.Vector3) {
@@ -147,18 +164,28 @@ export class Player {
     }
 
     // Client-side update
-    public clientUpdate(delta: number, input: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null }) {
-        // Rotation (Look at mouse)
-        if (input.mouse) {
+    public clientUpdate(delta: number, input?: { keys: { [key: string]: boolean }, mouse: { x: number, y: number, z: number } | null }) {
+        // Interpolate position and rotation
+        this.mesh.position.lerp(this.serverPosition, 0.25);
+        if (!this.isLocal) {
+            this.mesh.quaternion.slerp(this.serverRotation, 0.25);
+        }
+
+
+        // Rotation (Look at mouse) for local player
+        if (this.isLocal && input && input.mouse) {
             const target = new THREE.Vector3(input.mouse.x, this.mesh.position.y, input.mouse.z);
             this.mesh.lookAt(target);
         }
 
         // Skills Input
-        if (input.keys['KeyQ']) this.skillSystem.activateSkill(SkillType.MISSILE);
-        if (input.keys['KeyE']) this.skillSystem.activateSkill(SkillType.SLASH);
-        if (input.keys['KeyR']) this.skillSystem.activateSkill(SkillType.TANK);
-        if (input.keys['Space']) this.skillSystem.activateSkill(SkillType.ULTIMATE);
+        if (this.isLocal && input) {
+            if (input.keys['KeyQ']) this.skillSystem.activateSkill(SkillType.MISSILE);
+            if (input.keys['KeyE']) this.skillSystem.activateSkill(SkillType.SLASH);
+            if (input.keys['KeyR']) this.skillSystem.activateSkill(SkillType.TANK);
+            if (input.keys['Space']) this.skillSystem.activateSkill(SkillType.ULTIMATE);
+        }
+
 
         this.skillSystem.update(delta);
 
