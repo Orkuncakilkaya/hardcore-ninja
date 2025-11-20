@@ -1,0 +1,23 @@
+{
+  "name": "hardcore-ninja",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/peerjs": "^0.0.30",
+    "@types/three": "^0.181.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.5",
+    "three": "^0.181.2",
+    "uuid": "^13.0.0"
+  }
+}

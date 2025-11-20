@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hardcore-ninja</title>
+</head>
+
+<body>
+  <div id="app">
+    <div id="ui-layer"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
+      <div id="menu"
+        style="pointer-events: auto; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; text-align: center;">
+        <h1>Hardcore Ninja</h1>
+        <div id="connection-status">Connecting to network...</div>
+        <div id="host-controls" style="margin-top: 20px; display: none;">
+          <button id="btn-host">Host Game</button>
+          <div style="margin: 10px 0;">OR</div>
+          <input type="text" id="input-host-id" placeholder="Enter Host ID">
+          <button id="btn-join">Join Game</button>
+        </div>
+        <div id="lobby-controls" style="margin-top: 20px; display: none;">
+          <div id="my-id-display"></div>
+          <div>Waiting for players...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud"
+      style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; pointer-events: none; text-align: center;">
+      <div id="health-bar-container"
+        style="width: 300px; height: 20px; background: #333; border: 2px solid #fff; margin-bottom: 10px; position: relative;">
+        <div id="health-bar" style="width: 100%; height: 100%; background: #00ff00; transition: width 0.2s;"></div>
+        <span
+          style="position: absolute; top: 0; left: 0; width: 100%; text-align: center; line-height: 20px; color: #fff; font-weight: bold; text-shadow: 1px 1px 1px #000;">Health</span>
+      </div>
+
+      <div id="skills" style="display: flex; gap: 10px;">
+        <div class="skill-slot"
+          style="position: relative; width: 60px; height: 60px; background: #444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold;">
+          Q
+          <div id="cd-missile"
+            style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.8); transition: height 0.1s;">
+          </div>
+        </div>
+        <div class="skill-slot"
+          style="position: relative; width: 60px; height: 60px; background: #444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold;">
+          W
+          <div id="cd-basic"
+            style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.8); transition: height 0.1s;">
+          </div>
+        </div>
+        <div class="skill-slot"
+          style="position: relative; width: 60px; height: 60px; background: #444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold;">
+          E
+          <div id="cd-slash"
+            style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.8); transition: height 0.1s;">
+          </div>
+        </div>
+        <div class="skill-slot"
+          style="position: relative; width: 60px; height: 60px; background: #444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold;">
+          R
+          <div id="cd-tank"
+            style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.8); transition: height 0.1s;">
+          </div>
+        </div>
+        <div class="skill-slot"
+          style="position: relative; width: 60px; height: 60px; background: #444; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold;">
+          SPC
+          <div id="cd-ult"
+            style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.8); transition: height 0.1s;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-container"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
