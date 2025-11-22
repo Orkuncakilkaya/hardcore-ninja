@@ -14,7 +14,7 @@ export type GameMode = typeof GameMode[keyof typeof GameMode];
 
 // Game Settings
 export const GAME_CONFIG = {
-    ROUNDS_TO_WIN: 3,
+    ROUNDS_TO_WIN: 15,
     FREEZE_TIME_DURATION: 5000, // 5 seconds
     ROUND_END_DURATION: 3000, // 3 seconds
     MIN_PLAYERS_TO_START: 2
@@ -40,7 +40,7 @@ export const SKILL_CONFIG = {
         range: 5,
         duration: 2000, // 3 seconds
         speed: 10,
-        damage: 20,
+        damage: 100,
         radius: 20, // Activation radius around player
         mouseRadius: 3 // Target selection radius around mouse
     },
@@ -48,7 +48,7 @@ export const SKILL_CONFIG = {
         cooldown: 8000, // 8 seconds
         range: 15, // Max beam length
         lifetime: 2000, // Beam stays active for 2 seconds
-        damage: 30,
+        damage: 100,
         thickness: 0.3 // Beam cylinder radius
     },
     [SkillType.INVINCIBILITY]: {
