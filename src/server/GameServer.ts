@@ -4,6 +4,7 @@ import { TICK_RATE, TICK_INTERVAL, GameMode, GAME_CONFIG } from '../common/const
 import type { MapConfig } from '../common/types';
 import type { NetworkMessage } from '../common/messages';
 import * as THREE from 'three';
+import type {ServerPlayer} from "./ServerPlayer.ts";
 
 export class GameServer {
     private entityManager: ServerEntityManager;

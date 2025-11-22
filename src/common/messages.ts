@@ -9,6 +9,8 @@ export type MessageType =
     | 'SKILL_REQUEST'
     | 'STATE_REQUEST'
     | 'PLAYER_DIED'
+    | 'START_GAME'
+    | 'RESTART_GAME'
     | 'SPAWN_POINTS_REQUEST' // Legacy, might remove
     | 'SPAWN_POINT_RESPONSE' // Legacy, might remove
     | 'MAP_CONFIG';
@@ -20,6 +22,8 @@ export interface BaseMessage {
 export interface JoinRequestMessage extends BaseMessage {
     type: 'JOIN_REQUEST';
     playerId: string;
+    username?: string;
+    avatar?: string;
 }
 
 export interface JoinResponseMessage extends BaseMessage {
@@ -59,6 +63,14 @@ export interface PlayerDiedMessage extends BaseMessage {
     id: string;
 }
 
+export interface StartGameMessage extends BaseMessage {
+    type: 'START_GAME';
+}
+
+export interface RestartGameMessage extends BaseMessage {
+    type: 'RESTART_GAME';
+}
+
 export type NetworkMessage =
     | JoinRequestMessage
     | JoinResponseMessage
@@ -66,4 +78,6 @@ export type NetworkMessage =
     | StateUpdateMessage
     | SkillRequestMessage
     | StateRequestMessage
-    | PlayerDiedMessage;
+    | PlayerDiedMessage
+    | StartGameMessage
+    | RestartGameMessage;

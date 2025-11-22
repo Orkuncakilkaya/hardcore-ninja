@@ -15,7 +15,7 @@ interface ClientPlayer {
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
     healthBar: THREE.Group | null; // Reference to the healthbar mesh
-    nameLabel: THREE.Mesh | null; // Reference to the player name label
+    nameLabel: THREE.Sprite | null; // Reference to the player name label
     health: number; // Current health value
     maxHealth: number; // Maximum health value
 }
@@ -228,7 +228,7 @@ export class ClientEntityManager {
             }
 
             // Update Teleport Radius Position if targeting
-            if (playerState.id === myPeerId) {
+            if (playerState.id === myPeerId && clientPlayer) {
                 if (this.teleportRadiusMesh && this.teleportRadiusMesh.visible) {
                     this.teleportRadiusMesh.position.x = clientPlayer.mesh.position.x;
                     this.teleportRadiusMesh.position.z = clientPlayer.mesh.position.z;

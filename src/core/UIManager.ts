@@ -315,7 +315,9 @@ export class UIManager {
         lastPlayerAliveHeader.textContent = 'Last Player Alive';
         header.appendChild(lastPlayerAliveHeader);
 
-        this.leaderboard.appendChild(header);
+        if (this.leaderboard) {
+            this.leaderboard.appendChild(header);
+        }
 
         // Sort players by kills (descending)
         const sortedPlayers = [...gameState.players].sort((a, b) => {
@@ -347,7 +349,9 @@ export class UIManager {
             lastPlayerAlive.textContent = (player.lastPlayerAlive || 0).toString();
             row.appendChild(lastPlayerAlive);
 
-            this.leaderboard.appendChild(row);
+            if (this.leaderboard) {
+                this.leaderboard.appendChild(row);
+            }
         });
 
         // Update host action buttons visibility

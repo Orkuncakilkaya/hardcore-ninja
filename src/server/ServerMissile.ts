@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 import type { MissileState } from '../common/types';
-import { ServerPlayer } from './ServerPlayer';
 import { ServerEntityManager } from './ServerEntityManager';
 
 export class ServerMissile {

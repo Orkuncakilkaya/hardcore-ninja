@@ -70,7 +70,7 @@ export class GameClient {
             }
         });
 
-        window.addEventListener('mousemove', (e) => {
+        window.addEventListener('mousemove', () => {
             if (this.isTargeting && this.currentSkill === SkillType.HOMING_MISSILE) {
                 const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                 if (target) {
