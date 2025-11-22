@@ -75,7 +75,7 @@ export class GameServer {
                 const sp = this.entityManager.getPlayer(playerId);
                 if (sp) {
                     if (message.skillType === 'TELEPORT' && message.target) {
-                        sp.attemptTeleport(new THREE.Vector3(message.target.x, message.target.y, message.target.z));
+                        sp.attemptTeleport(new THREE.Vector3(message.target.x, message.target.y, message.target.z), this.entityManager.getObstacles());
                     } else if (message.skillType === 'HOMING_MISSILE' && message.target) {
                         sp.attemptHomingMissile(new THREE.Vector3(message.target.x, message.target.y, message.target.z), this.entityManager);
                     } else if (message.skillType === 'LASER_BEAM' && message.direction) {

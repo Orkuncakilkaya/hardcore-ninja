@@ -67,6 +67,7 @@ export class ServerPlayer {
             }
         }
 
+        // Teleport movement (no collision during teleport)
         if (this.isTeleporting) {
             const distanceToDest = this.position.distanceTo(this.teleportDestination);
             const moveDist = this.teleportSpeed * delta;
@@ -78,7 +79,7 @@ export class ServerPlayer {
                 const direction = this.teleportDestination.clone().sub(this.position).normalize();
                 this.position.add(direction.multiplyScalar(moveDist));
             }
-            return;
+            return; // Skip collision checks during teleport
         }
 
         if (this.isMoving && this.destination) {
@@ -138,7 +139,7 @@ export class ServerPlayer {
         }
     }
 
-    public attemptTeleport(target: Vector3): boolean {
+    public attemptTeleport(target: Vector3, obstacles: THREE.Box3[]): boolean {
         const now = Date.now();
         if (now < this.teleportCooldown) {
             return false;
@@ -153,20 +154,30 @@ export class ServerPlayer {
             return false;
         }
 
-        // Validate bounds (simple map bounds check)
-        if (target.x < -50 || target.x > 50 || target.z < -50 || target.z > 50) {
+        // Validate bounds (map limits)
+        const MAP_LIMIT = 35;
+        if (target.x < -MAP_LIMIT || target.x > MAP_LIMIT || target.z < -MAP_LIMIT || target.z > MAP_LIMIT) {
+            console.log('Teleport rejected: out of bounds');
             return false;
         }
 
+        // Check if destination is inside an obstacle
+        const playerBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(target.x, target.y + 1, target.z),
+            new THREE.Vector3(1, 2, 1)
+        );
+
+        for (const obstacleBox of obstacles) {
+            if (playerBox.intersectsBox(obstacleBox)) {
+                console.log('Teleport rejected: destination inside obstacle');
+                return false;
+            }
+        }
+
         // Perform teleport
-        this.position.set(target.x, target.y, target.z);
+        this.teleportDestination.set(target.x, target.y, target.z);
         this.isTeleporting = true;
         this.teleportCooldown = now + SKILL_CONFIG.TELEPORT.cooldown;
-
-        // Reset teleporting flag after a short delay (e.g., 1 tick)
-        setTimeout(() => {
-            this.isTeleporting = false;
-        }, 50);
 
         return true;
     }
