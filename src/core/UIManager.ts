@@ -2,12 +2,12 @@ import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, GameMode } from '../common/constants';
 
 export class UIManager {
-    private healthBar: HTMLElement;
-    private hud: HTMLElement;
-    private teleportCdOverlay: HTMLElement;
-    private homingMissileCdOverlay: HTMLElement;
-    private laserBeamCdOverlay: HTMLElement;
-    private invincibilityCdOverlay: HTMLElement;
+    private healthBar: HTMLElement | null = null;
+    private hud: HTMLElement | null = null;
+    private teleportCdOverlay: HTMLElement | null = null;
+    private homingMissileCdOverlay: HTMLElement | null = null;
+    private laserBeamCdOverlay: HTMLElement | null = null;
+    private invincibilityCdOverlay: HTMLElement | null = null;
     private teleportSkillIcon: HTMLElement | null = null;
     private homingMissileSkillIcon: HTMLElement | null = null;
     private laserBeamSkillIcon: HTMLElement | null = null;
@@ -16,41 +16,62 @@ export class UIManager {
     private gameModeDisplay: HTMLElement | null = null;
     private tabMenu: HTMLElement | null = null;
     private leaderboard: HTMLElement | null = null;
+    private initialized: boolean = false;
 
     constructor() {
-        this.healthBar = document.getElementById('health-bar')!;
+        this.initializeElements();
+    }
+
+    private initializeElements() {
+        if (this.initialized) return;
+
+        this.healthBar = document.getElementById('health-bar');
         // Hide the health bar in the HUD since we're displaying health in 3D
         if (this.healthBar) {
             this.healthBar.style.display = 'none';
         }
-        this.hud = document.getElementById('hud')!;
+        this.hud = document.getElementById('hud');
         // Q skill = Teleport (cd-missile)
-        this.teleportCdOverlay = document.getElementById('cd-missile')!;
+        this.teleportCdOverlay = document.getElementById('cd-missile');
         // W skill = Homing Missile (cd-basic)
-        this.homingMissileCdOverlay = document.getElementById('cd-basic')!;
+        this.homingMissileCdOverlay = document.getElementById('cd-basic');
         // E skill = Laser Beam (cd-slash)
-        this.laserBeamCdOverlay = document.getElementById('cd-slash')!;
+        this.laserBeamCdOverlay = document.getElementById('cd-slash');
         // R skill = Invincibility (cd-tank)
-        this.invincibilityCdOverlay = document.getElementById('cd-tank')!;
+        this.invincibilityCdOverlay = document.getElementById('cd-tank');
 
         // Get skill icons (parent elements of the cooldown overlays)
-        this.teleportSkillIcon = this.teleportCdOverlay.parentElement;
-        this.homingMissileSkillIcon = this.homingMissileCdOverlay.parentElement;
-        this.laserBeamSkillIcon = this.laserBeamCdOverlay.parentElement;
+        // Check if elements exist before accessing parentElement
+        if (this.teleportCdOverlay && this.teleportCdOverlay.parentElement) {
+            this.teleportSkillIcon = this.teleportCdOverlay.parentElement;
+        }
+        if (this.homingMissileCdOverlay && this.homingMissileCdOverlay.parentElement) {
+            this.homingMissileSkillIcon = this.homingMissileCdOverlay.parentElement;
+        }
+        if (this.laserBeamCdOverlay && this.laserBeamCdOverlay.parentElement) {
+            this.laserBeamSkillIcon = this.laserBeamCdOverlay.parentElement;
+        }
 
         // Hide other unused slots
         const otherSlots = ['cd-ult'];
         otherSlots.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.parentElement!.style.display = 'none';
+            if (el && el.parentElement) {
+                el.parentElement.style.display = 'none';
+            }
         });
 
-        // Create game mode display
+        // Create game mode display and tab menu (these don't depend on React elements)
         this.createGameModeDisplay();
-
-        // Create tab menu
         this.createTabMenu();
+
+        // Only mark as initialized if critical elements are found
+        if (this.hud && this.teleportCdOverlay && this.homingMissileCdOverlay && 
+            this.laserBeamCdOverlay && this.invincibilityCdOverlay) {
+            this.initialized = true;
+        }
     }
+
 
     // Set glow effect for a skill when it's in pressed state
     public setSkillGlow(skillType: SkillType) {
@@ -149,6 +170,7 @@ export class UIManager {
         this.gameModeDisplay.style.fontSize = '24px';
         this.gameModeDisplay.style.fontWeight = 'bold';
         this.gameModeDisplay.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
+        this.gameModeDisplay.style.display = 'none'; // Hidden by default
         this.gameModeDisplay.textContent = 'Warmup';
         document.body.appendChild(this.gameModeDisplay);
     }
@@ -212,7 +234,13 @@ export class UIManager {
     }
 
     public showHUD() {
-        this.hud.style.display = 'block';
+        if (this.hud) {
+            this.hud.style.display = 'block';
+        }
+        // Show game mode display when HUD is shown
+        if (this.gameModeDisplay) {
+            this.gameModeDisplay.style.display = 'block';
+        }
     }
 
     public showTabMenu() {
@@ -365,6 +393,11 @@ export class UIManager {
     }
 
     public update(state: GameState, localPlayerId: string, isHost: boolean = false) {
+        // Try to initialize elements if not already done
+        if (!this.initialized) {
+            this.initializeElements();
+        }
+
         const player = state.players.find(p => p.id === localPlayerId);
         if (!player) return;
 
@@ -373,58 +406,66 @@ export class UIManager {
         const now = Date.now();
 
         // Update Teleport Cooldown (Q skill)
-        const teleportCooldownEnd = player.teleportCooldown;
-        const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
+        if (this.teleportCdOverlay) {
+            const teleportCooldownEnd = player.teleportCooldown;
+            const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
 
-        let teleportPercent = 0;
-        if (now < teleportCooldownEnd) {
-            const remaining = teleportCooldownEnd - now;
-            teleportPercent = (remaining / teleportTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
+            let teleportPercent = 0;
+            if (now < teleportCooldownEnd) {
+                const remaining = teleportCooldownEnd - now;
+                teleportPercent = (remaining / teleportTotalCooldown) * 100;
+                this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
+            } else {
+                this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
+            }
+            this.teleportCdOverlay.style.height = `${teleportPercent}%`;
         }
-        this.teleportCdOverlay.style.height = `${teleportPercent}%`;
 
         // Update Homing Missile Cooldown (W skill)
-        const homingMissileCooldownEnd = player.homingMissileCooldown;
-        const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
+        if (this.homingMissileCdOverlay) {
+            const homingMissileCooldownEnd = player.homingMissileCooldown;
+            const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
 
-        let homingMissilePercent = 0;
-        if (now < homingMissileCooldownEnd) {
-            const remaining = homingMissileCooldownEnd - now;
-            homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
+            let homingMissilePercent = 0;
+            if (now < homingMissileCooldownEnd) {
+                const remaining = homingMissileCooldownEnd - now;
+                homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
+                this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
+            } else {
+                this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
+            }
+            this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
         }
-        this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
 
         // Update Laser Beam Cooldown (E skill)
-        const laserBeamCooldownEnd = player.laserBeamCooldown;
-        const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
+        if (this.laserBeamCdOverlay) {
+            const laserBeamCooldownEnd = player.laserBeamCooldown;
+            const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
 
-        let laserBeamPercent = 0;
-        if (now < laserBeamCooldownEnd) {
-            const remaining = laserBeamCooldownEnd - now;
-            laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
+            let laserBeamPercent = 0;
+            if (now < laserBeamCooldownEnd) {
+                const remaining = laserBeamCooldownEnd - now;
+                laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
+                this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
+            } else {
+                this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
+            }
+            this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
         }
-        this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
 
         // Update Invincibility Cooldown (R skill)
-        const invincibilityCooldownEnd = player.invincibilityCooldown;
-        const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
+        if (this.invincibilityCdOverlay) {
+            const invincibilityCooldownEnd = player.invincibilityCooldown;
+            const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
 
-        let invincibilityPercent = 0;
-        if (now < invincibilityCooldownEnd) {
-            const remaining = invincibilityCooldownEnd - now;
-            invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
-            // No border for R skill as it gets cast immediately
+            let invincibilityPercent = 0;
+            if (now < invincibilityCooldownEnd) {
+                const remaining = invincibilityCooldownEnd - now;
+                invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
+                // No border for R skill as it gets cast immediately
+            }
+            this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
         }
-        this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
 
         // Update game mode display
         this.updateGameMode(state);

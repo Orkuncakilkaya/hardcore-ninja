@@ -1,0 +1,38 @@
+.hud {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  pointer-events: none;
+  text-align: center;
+}
+
+.healthBarContainer {
+  width: 300px;
+  height: 20px;
+  background: #333;
+  border: 2px solid #fff;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.healthBar {
+  width: 100%;
+  height: 100%;
+  background: #00ff00;
+  transition: width 0.2s;
+}
+
+.healthBarText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  line-height: 20px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px #000;
+}
+

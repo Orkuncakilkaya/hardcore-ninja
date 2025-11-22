@@ -335,7 +335,8 @@ export class GameClient {
     public start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        document.getElementById('menu')!.style.display = 'none';
+        // Dispatch event to hide menu (React will handle it)
+        window.dispatchEvent(new CustomEvent('game-started'));
         this.uiManager.showHUD();
         this.animate();
     }
