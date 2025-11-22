@@ -114,7 +114,7 @@ export class MissileEffect {
     /**
      * Updates the mouse radius position and color based on distance from player radius
      */
-    public updateMouseRadiusPosition(mousePosition: THREE.Vector3, playerPosition: THREE.Vector3): void {
+    public updateMouseRadiusPosition(mousePosition: THREE.Vector3, _playerPosition: THREE.Vector3): void {
         if (this.mouseRadiusMesh && this.mouseRadiusMesh.visible) {
             this.mouseRadiusMesh.position.set(mousePosition.x, 0.1, mousePosition.z);
             

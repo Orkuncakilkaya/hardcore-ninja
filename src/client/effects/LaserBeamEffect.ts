@@ -4,10 +4,8 @@ import * as THREE from 'three';
  * Manages laser beam visual effects
  */
 export class LaserBeamEffect {
-    private scene: THREE.Scene;
-    
-    constructor(scene: THREE.Scene) {
-        this.scene = scene;
+    constructor(_scene: THREE.Scene) {
+        // Scene parameter kept for consistency with other effect classes
     }
     
     /**

@@ -20,13 +20,13 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [inputHostId, setInputHostId] = useState('');
 
   useEffect(() => {
-    const handleNetworkReady = (e: CustomEvent) => {
+    const handleNetworkReady = (_e: CustomEvent) => {
       setConnectionStatus('Network Ready!');
       setIsNetworkReady(true);
       setHostId(networkManager.peerId);
     };
 
-    const handleConnected = (e: CustomEvent) => {
+    const handleConnected = (_e: CustomEvent) => {
       if (!networkManager.isHost) {
         setConnectionStatus('Connected! Joining game...');
         gameClient.joinGame(inputHostId);

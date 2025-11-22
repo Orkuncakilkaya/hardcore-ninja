@@ -7,7 +7,6 @@ import { MissileEffect } from './effects/MissileEffect';
 import { LaserBeamEffect } from './effects/LaserBeamEffect';
 import { InvincibilityEffect } from './effects/InvincibilityEffect';
 import { ClickIndicatorEffect } from './effects/ClickIndicatorEffect';
-import { ParticleUtils } from './effects/ParticleUtils';
 import { PlayerModel } from './models/PlayerModel';
 
 interface ClientPlayer {

@@ -4,10 +4,8 @@ import * as THREE from 'three';
  * Manages invincibility shield visual effects
  */
 export class InvincibilityEffect {
-    private scene: THREE.Scene;
-    
-    constructor(scene: THREE.Scene) {
-        this.scene = scene;
+    constructor(_scene: THREE.Scene) {
+        // Scene parameter kept for consistency with other effect classes
     }
     
     /**
@@ -85,7 +83,7 @@ export class InvincibilityEffect {
     /**
      * Updates shield pulse animation
      */
-    updateAnimation(shieldGroup: THREE.Group, delta: number): void {
+    updateAnimation(shieldGroup: THREE.Group, _delta: number): void {
         const time = (Date.now() - shieldGroup.userData.startTime) / 1000;
         
         const shield = shieldGroup.userData.shield;
