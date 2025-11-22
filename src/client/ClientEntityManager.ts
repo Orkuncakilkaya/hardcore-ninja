@@ -12,6 +12,8 @@ interface ClientPlayer {
     laserBeamCooldown: number;
     invincibilityCooldown: number;
     invincibilitySphere: THREE.Mesh | null;
+    isDead: boolean;
+    bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
 }
 
 export class ClientEntityManager {
@@ -111,18 +113,20 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const mesh = this.createPlayerMesh(playerState.id === myPeerId);
-                mesh.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
-                this.scene.add(mesh);
+                const { group, body } = this.createPlayerMesh(playerState.id === myPeerId);
+                group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
+                this.scene.add(group);
                 clientPlayer = {
-                    mesh: mesh,
+                    mesh: group,
+                    bodyMesh: body,
                     targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
                     targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
                     teleportCooldown: playerState.teleportCooldown,
                     homingMissileCooldown: playerState.homingMissileCooldown,
                     laserBeamCooldown: playerState.laserBeamCooldown,
                     invincibilityCooldown: playerState.invincibilityCooldown,
-                    invincibilitySphere: null
+                    invincibilitySphere: null,
+                    isDead: playerState.isDead
                 };
                 this.players.set(playerState.id, clientPlayer);
             } else {
@@ -144,6 +148,26 @@ export class ClientEntityManager {
                     if (clientPlayer.invincibilitySphere) {
                         clientPlayer.mesh.remove(clientPlayer.invincibilitySphere);
                         clientPlayer.invincibilitySphere = null;
+                    }
+                }
+
+                // Handle dead state changes
+                if (playerState.isDead !== clientPlayer.isDead) {
+                    clientPlayer.isDead = playerState.isDead;
+
+                    if (playerState.isDead) {
+                        // Player is dead - turn gray and rotate to lay down
+                        (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(0x808080); // Gray color
+
+                        // Rotate player to lay down (90 degrees around X axis)
+                        clientPlayer.mesh.rotation.x = Math.PI / 2;
+                    } else {
+                        // Player is alive again - restore original color based on whether it's local or not
+                        const isLocal = playerState.id === myPeerId;
+                        (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(isLocal ? 0x00ff00 : 0xff0000);
+
+                        // Reset rotation
+                        clientPlayer.mesh.rotation.x = 0;
                     }
                 }
             }
@@ -220,8 +244,11 @@ export class ClientEntityManager {
     public update(delta: number) {
         // Interpolate
         this.players.forEach(player => {
-            player.mesh.position.lerp(player.targetPosition, 10 * delta);
-            player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+            // Skip position interpolation for dead players (they should be frozen in place)
+            if (!player.isDead) {
+                player.mesh.position.lerp(player.targetPosition, 10 * delta);
+                player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+            }
         });
     }
 
@@ -229,7 +256,7 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): THREE.Group {
+    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh } {
         const group = new THREE.Group();
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
         const material = new THREE.MeshStandardMaterial({ color: isLocal ? 0x00ff00 : 0xff0000 });
@@ -238,7 +265,7 @@ export class ClientEntityManager {
         body.castShadow = true;
         body.receiveShadow = true;
         group.add(body);
-        return group;
+        return { group, body };
     }
 
     private createInvincibilitySphere(): THREE.Mesh {

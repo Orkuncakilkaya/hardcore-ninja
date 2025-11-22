@@ -8,6 +8,7 @@ export class UIManager {
     private homingMissileCdOverlay: HTMLElement;
     private laserBeamCdOverlay: HTMLElement;
     private invincibilityCdOverlay: HTMLElement;
+    private startButton: HTMLElement | null = null;
 
     constructor() {
         this.healthBar = document.getElementById('health-bar')!;
@@ -31,6 +32,37 @@ export class UIManager {
 
     public showHUD() {
         this.hud.style.display = 'block';
+    }
+
+    public showStartButton() {
+        // Create the start button if it doesn't exist
+        if (!this.startButton) {
+            this.startButton = document.createElement('button');
+            this.startButton.id = 'btn-start';
+            this.startButton.textContent = 'Start Game';
+            this.startButton.style.position = 'absolute';
+            this.startButton.style.top = '20px';
+            this.startButton.style.left = '50%';
+            this.startButton.style.transform = 'translateX(-50%)';
+            this.startButton.style.padding = '10px 20px';
+            this.startButton.style.fontSize = '16px';
+            this.startButton.style.backgroundColor = '#4CAF50';
+            this.startButton.style.color = 'white';
+            this.startButton.style.border = 'none';
+            this.startButton.style.borderRadius = '5px';
+            this.startButton.style.cursor = 'pointer';
+            this.startButton.style.display = 'none';
+            document.body.appendChild(this.startButton);
+        }
+
+        // Show the start button
+        this.startButton.style.display = 'block';
+    }
+
+    public hideStartButton() {
+        if (this.startButton) {
+            this.startButton.style.display = 'none';
+        }
     }
 
     public update(state: GameState, localPlayerId: string) {

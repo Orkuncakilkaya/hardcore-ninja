@@ -19,6 +19,7 @@ export class ServerPlayer {
     public health: number = 100;
     public isInvulnerable: boolean = false;
     private invulnerableTimer: number = 0;
+    public isDead: boolean = false;
 
     // Teleport State
     public isTeleporting: boolean = false;
@@ -143,6 +144,7 @@ export class ServerPlayer {
     }
 
     public attemptTeleport(target: Vector3, obstacles: THREE.Box3[]): boolean {
+        if (this.isDead) return false;
         const now = Date.now();
         if (now < this.teleportCooldown) {
             return false;
@@ -186,6 +188,7 @@ export class ServerPlayer {
     }
 
     public attemptHomingMissile(mousePos: Vector3, entityManager: ServerEntityManager): boolean {
+        if (this.isDead) return false;
         const now = Date.now();
         if (now < this.homingMissileCooldown) {
             return false;
@@ -229,6 +232,7 @@ export class ServerPlayer {
     }
 
     public attemptLaserBeam(direction: Vector3, entityManager: ServerEntityManager): boolean {
+        if (this.isDead) return false;
         const now = Date.now();
         if (now < this.laserBeamCooldown) {
             return false;
@@ -280,15 +284,18 @@ export class ServerPlayer {
     }
 
     public takeDamage(amount: number) {
+        if (this.isDead) return;
         if (this.isInvulnerable) return;
         this.health = Math.max(0, this.health - amount);
         if (this.health <= 0) {
             // Handle death (managed by GameServer/EntityManager usually, but we can flag it)
-            console.log(`Player ${this.id} took ${amount} damage. Health: ${this.health}`);
+            this.isDead = true;
+            console.log(`Player ${this.id} took ${amount} damage. Health: ${this.health}. Player is dead.`);
         }
     }
 
     public attemptInvincibility(): boolean {
+        if (this.isDead) return false;
         const now = Date.now();
         if (now < this.invincibilityCooldown) {
             return false;
@@ -304,6 +311,24 @@ export class ServerPlayer {
         return true;
     }
 
+    public reset() {
+        // Reset health and status
+        this.health = this.maxHealth;
+        this.isInvulnerable = false;
+        this.invulnerableTimer = 0;
+        this.isDead = false;
+
+        // Reset movement
+        this.stopMovement();
+
+        // Reset cooldowns
+        const now = Date.now();
+        this.teleportCooldown = now;
+        this.homingMissileCooldown = now;
+        this.laserBeamCooldown = now;
+        this.invincibilityCooldown = now;
+    }
+
     public getState(): PlayerState {
         return {
             id: this.id,
@@ -317,7 +342,8 @@ export class ServerPlayer {
             isTeleporting: this.isTeleporting,
             homingMissileCooldown: this.homingMissileCooldown,
             laserBeamCooldown: this.laserBeamCooldown,
-            invincibilityCooldown: this.invincibilityCooldown
+            invincibilityCooldown: this.invincibilityCooldown,
+            isDead: this.isDead
         };
     }
 }

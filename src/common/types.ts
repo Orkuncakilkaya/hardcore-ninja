@@ -31,6 +31,7 @@ export interface PlayerState {
     homingMissileCooldown: number;
     laserBeamCooldown: number;
     invincibilityCooldown: number;
+    isDead: boolean;
 }
 
 export interface MissileState {

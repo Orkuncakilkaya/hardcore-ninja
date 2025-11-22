@@ -9,6 +9,7 @@ const networkManager = new NetworkManager();
 const gameClient = new GameClient(networkManager);
 
 // UI Logic
+const hostIdLabel = document.getElementById('host-id') as HTMLInputElement;
 const btnHost = document.getElementById('btn-host')!;
 const btnJoin = document.getElementById('btn-join')!;
 const inputHostId = document.getElementById('input-host-id') as HTMLInputElement;
@@ -20,6 +21,14 @@ const statusEl = document.getElementById('connection-status')!;
 window.addEventListener('network-ready', (_e: any) => {
     statusEl.textContent = 'Network Ready!';
     hostControls.style.display = 'block';
+    if (hostIdLabel) {
+        hostIdLabel.value = networkManager.peerId;
+        hostIdLabel.addEventListener('click', () => {
+            hostIdLabel.select();
+            hostIdLabel.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(hostIdLabel.value);
+        })
+    }
 });
 
 window.addEventListener('connected', (_e: any) => {

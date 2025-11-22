@@ -108,6 +108,7 @@ export class GameClient {
 
         // Check Cooldowns (Client-side prediction/check)
         if (myPlayer) {
+            if (myPlayer.isDead) return;
             const now = Date.now();
             if (skillType === SkillType.TELEPORT && now < myPlayer.teleportCooldown) {
                 console.log('Teleport on cooldown');
@@ -202,6 +203,7 @@ export class GameClient {
 
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
         if (!myPlayer) return;
+        if (myPlayer.isDead) return;
 
         // Check cooldown
         const now = Date.now();
