@@ -53,6 +53,8 @@ export class GameClient {
                 this.toggleSkillTargeting(SkillType.TELEPORT);
             } else if (e.key.toLowerCase() === 'w') {
                 this.toggleSkillTargeting(SkillType.HOMING_MISSILE);
+            } else if (e.key.toLowerCase() === 'e') {
+                this.toggleSkillTargeting(SkillType.LASER_BEAM);
             }
         });
 
@@ -61,6 +63,17 @@ export class GameClient {
                 const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                 if (target) {
                     this.entityManager.updateMouseRadiusPosition(target);
+                }
+            } else if (this.isTargeting && this.currentSkill === SkillType.LASER_BEAM && this.localPlayerId) {
+                const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+                if (myPlayer) {
+                    const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+                    if (target) {
+                        const playerPos = myPlayer.mesh.position;
+                        const direction = target.clone().sub(playerPos);
+                        direction.y = 0; // Keep laser horizontal
+                        this.entityManager.updateLaserPreview(playerPos, direction);
+                    }
                 }
             }
         });
@@ -100,6 +113,10 @@ export class GameClient {
             }
             if (skillType === SkillType.HOMING_MISSILE && now < myPlayer.homingMissileCooldown) {
                 console.log('Homing Missile on cooldown');
+                return;
+            }
+            if (skillType === SkillType.LASER_BEAM && now < myPlayer.laserBeamCooldown) {
+                console.log('Laser Beam on cooldown');
                 return;
             }
         }
@@ -156,6 +173,24 @@ export class GameClient {
                 } else {
                     console.log('Click inside the green circle to activate!');
                 }
+            }
+        } else if (this.currentSkill === SkillType.LASER_BEAM) {
+            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+            if (myPlayer) {
+                const playerPos = myPlayer.mesh.position;
+                const direction = target.clone().sub(playerPos);
+                direction.y = 0; // Keep laser horizontal
+                direction.normalize();
+
+                this.networkManager.sendToHost({
+                    type: 'SKILL_REQUEST',
+                    skillType: SkillType.LASER_BEAM,
+                    direction: { x: direction.x, y: direction.y, z: direction.z },
+                    timestamp: Date.now()
+                });
+                this.isTargeting = false;
+                this.currentSkill = null;
+                this.entityManager.setSkillTargeting(null, false);
             }
         }
     }

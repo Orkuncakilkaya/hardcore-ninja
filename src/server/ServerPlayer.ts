@@ -3,6 +3,7 @@ import type { Vector3, PlayerState } from '../common/types';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 import { ServerEntityManager } from './ServerEntityManager';
 import { ServerMissile } from './ServerMissile';
+import { ServerLaserBeam } from './ServerLaserBeam';
 
 export class ServerPlayer {
     public id: string;
@@ -27,6 +28,9 @@ export class ServerPlayer {
 
     // Homing Missile State
     public homingMissileCooldown: number = 0;
+
+    // Laser Beam State
+    public laserBeamCooldown: number = 0;
 
     // Skill System (We might need a ServerSkillSystem)
     // For now, let's keep it simple or reuse SkillSystem if it doesn't depend on rendering
@@ -210,6 +214,57 @@ export class ServerPlayer {
         return true;
     }
 
+    public attemptLaserBeam(direction: Vector3, entityManager: ServerEntityManager): boolean {
+        const now = Date.now();
+        if (now < this.laserBeamCooldown) {
+            return false;
+        }
+
+        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+
+        // Normalize direction
+        const dir = new THREE.Vector3(direction.x, direction.y, direction.z).normalize();
+
+        // Start position at player chest height
+        const startPos = this.position.clone();
+        startPos.y = 1;
+
+        // Calculate end position at max range
+        const endPos = startPos.clone().add(dir.multiplyScalar(config.range));
+
+        // Perform raycast to check for walls/obstacles
+        const raycaster = new THREE.Raycaster(startPos, dir, 0, config.range);
+        const obstacles = entityManager.getObstacles();
+
+        let actualEndPos = endPos;
+        let minDistance = config.range;
+
+        // Check intersection with each obstacle
+        for (const obstacleBox of obstacles) {
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectBox(obstacleBox, intersection)) {
+                const dist = startPos.distanceTo(intersection);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    actualEndPos = intersection;
+                }
+            }
+        }
+
+        // Create laser beam
+        const beamId = `laser_${this.id}_${now}`;
+        const beam = new ServerLaserBeam(
+            beamId,
+            this.id,
+            { x: startPos.x, y: startPos.y, z: startPos.z },
+            { x: actualEndPos.x, y: actualEndPos.y, z: actualEndPos.z }
+        );
+
+        entityManager.addLaserBeam(beam);
+        this.laserBeamCooldown = now + config.cooldown;
+        return true;
+    }
+
     public takeDamage(amount: number) {
         if (this.isInvulnerable) return;
         this.health = Math.max(0, this.health - amount);
@@ -230,7 +285,8 @@ export class ServerPlayer {
             isMoving: this.isMoving,
             teleportCooldown: this.teleportCooldown,
             isTeleporting: this.isTeleporting,
-            homingMissileCooldown: this.homingMissileCooldown
+            homingMissileCooldown: this.homingMissileCooldown,
+            laserBeamCooldown: this.laserBeamCooldown
         };
     }
 }

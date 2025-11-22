@@ -78,6 +78,8 @@ export class GameServer {
                         sp.attemptTeleport(new THREE.Vector3(message.target.x, message.target.y, message.target.z));
                     } else if (message.skillType === 'HOMING_MISSILE' && message.target) {
                         sp.attemptHomingMissile(new THREE.Vector3(message.target.x, message.target.y, message.target.z), this.entityManager);
+                    } else if (message.skillType === 'LASER_BEAM' && message.direction) {
+                        sp.attemptLaserBeam(message.direction, this.entityManager);
                     }
                     // Handle other skills
                 }

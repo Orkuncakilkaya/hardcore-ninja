@@ -6,6 +6,7 @@ export class UIManager {
     private hud: HTMLElement;
     private teleportCdOverlay: HTMLElement;
     private homingMissileCdOverlay: HTMLElement;
+    private laserBeamCdOverlay: HTMLElement;
 
     constructor() {
         this.healthBar = document.getElementById('health-bar')!;
@@ -14,9 +15,11 @@ export class UIManager {
         this.teleportCdOverlay = document.getElementById('cd-missile')!;
         // W skill = Homing Missile (cd-basic)
         this.homingMissileCdOverlay = document.getElementById('cd-basic')!;
+        // E skill = Laser Beam (cd-slash)
+        this.laserBeamCdOverlay = document.getElementById('cd-slash')!;
 
         // Hide other unused slots
-        const otherSlots = ['cd-slash', 'cd-tank', 'cd-ult'];
+        const otherSlots = ['cd-tank', 'cd-ult'];
         otherSlots.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.parentElement!.style.display = 'none';
@@ -58,5 +61,16 @@ export class UIManager {
             homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
         }
         this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
+
+        // Update Laser Beam Cooldown (E skill)
+        const laserBeamCooldownEnd = player.laserBeamCooldown;
+        const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
+
+        let laserBeamPercent = 0;
+        if (now < laserBeamCooldownEnd) {
+            const remaining = laserBeamCooldownEnd - now;
+            laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
+        }
+        this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
     }
 }

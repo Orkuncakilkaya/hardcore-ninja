@@ -46,6 +46,7 @@ export interface SkillRequestMessage extends BaseMessage {
     type: 'SKILL_REQUEST';
     skillType: SkillType;
     target?: Vector3;
+    direction?: Vector3; // For directional skills like laser beam
     timestamp: number;
 }
 

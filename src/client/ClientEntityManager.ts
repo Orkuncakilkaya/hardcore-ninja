@@ -9,6 +9,7 @@ interface ClientPlayer {
     targetRotation: THREE.Quaternion;
     teleportCooldown: number;
     homingMissileCooldown: number;
+    laserBeamCooldown: number;
 }
 
 export class ClientEntityManager {
@@ -17,9 +18,11 @@ export class ClientEntityManager {
     public boxes: Box[] = [];
     public walls: Box[] = [];
     public missiles: Map<string, THREE.Mesh> = new Map();
+    public laserBeams: Map<string, THREE.Mesh> = new Map();
     private teleportRadiusMesh?: THREE.Mesh;
     private mouseRadiusMesh?: THREE.Mesh;
     private playerRadiusMesh?: THREE.Mesh; // For Homing Missile activation zone
+    private laserPreviewLine?: THREE.Line; // For Laser Beam preview
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -60,6 +63,7 @@ export class ClientEntityManager {
         if (this.teleportRadiusMesh) this.teleportRadiusMesh.visible = false;
         if (this.playerRadiusMesh) this.playerRadiusMesh.visible = false;
         if (this.mouseRadiusMesh) this.mouseRadiusMesh.visible = false;
+        if (this.laserPreviewLine) this.laserPreviewLine.visible = false;
 
         if (!isTargeting || !skillType) return;
 
@@ -68,6 +72,11 @@ export class ClientEntityManager {
         } else if (skillType === SkillType.HOMING_MISSILE) {
             if (this.playerRadiusMesh) this.playerRadiusMesh.visible = true;
             if (this.mouseRadiusMesh) this.mouseRadiusMesh.visible = true;
+        } else if (skillType === SkillType.LASER_BEAM) {
+            if (!this.laserPreviewLine) {
+                this.createLaserPreviewLine();
+            }
+            if (this.laserPreviewLine) this.laserPreviewLine.visible = true;
         }
     }
 
@@ -108,7 +117,8 @@ export class ClientEntityManager {
                     targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
                     targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
                     teleportCooldown: playerState.teleportCooldown,
-                    homingMissileCooldown: playerState.homingMissileCooldown
+                    homingMissileCooldown: playerState.homingMissileCooldown,
+                    laserBeamCooldown: playerState.laserBeamCooldown
                 };
                 this.players.set(playerState.id, clientPlayer);
             } else {
@@ -117,6 +127,7 @@ export class ClientEntityManager {
                 clientPlayer.targetRotation.set(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w);
                 clientPlayer.teleportCooldown = playerState.teleportCooldown;
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
+                clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
             }
 
             // Update Teleport Radius Position if targeting
@@ -153,6 +164,29 @@ export class ClientEntityManager {
             if (!activeMissileIds.has(id)) {
                 this.scene.remove(mesh);
                 this.missiles.delete(id);
+            }
+        }
+
+        // Update Laser Beams
+        const activeLaserIds = new Set<string>();
+        if (gameState.laserBeams) {
+            gameState.laserBeams.forEach(laserState => {
+                activeLaserIds.add(laserState.id);
+                let laserMesh = this.laserBeams.get(laserState.id);
+                if (!laserMesh) {
+                    laserMesh = this.createLaserBeamMesh(laserState.startPosition, laserState.endPosition);
+                    this.scene.add(laserMesh);
+                    this.laserBeams.set(laserState.id, laserMesh);
+                }
+                // Laser beams don't move, but we could update them if needed
+            });
+        }
+
+        // Remove expired laser beams
+        for (const [id, mesh] of this.laserBeams) {
+            if (!activeLaserIds.has(id)) {
+                this.scene.remove(mesh);
+                this.laserBeams.delete(id);
             }
         }
 
@@ -198,5 +232,62 @@ export class ClientEntityManager {
         // Rotate so cone points in forward direction (default is up)
         geometry.rotateX(Math.PI / 2);
         return mesh;
+    }
+
+    private createLaserBeamMesh(startPos: { x: number, y: number, z: number }, endPos: { x: number, y: number, z: number }): THREE.Mesh {
+        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+        const start = new THREE.Vector3(startPos.x, startPos.y, startPos.z);
+        const end = new THREE.Vector3(endPos.x, endPos.y, endPos.z);
+
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+
+        // Create cylinder geometry
+        const geometry = new THREE.CylinderGeometry(config.thickness, config.thickness, length, 8);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.5
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // Position at midpoint
+        const midpoint = start.clone().add(end).multiplyScalar(0.5);
+        mesh.position.copy(midpoint);
+
+        // Rotate to align with direction
+        mesh.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            direction.normalize()
+        );
+
+        return mesh;
+    }
+
+    private createLaserPreviewLine() {
+        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, config.range)
+        ]);
+        const material = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        this.laserPreviewLine = new THREE.Line(geometry, material);
+        this.laserPreviewLine.visible = false;
+        this.scene.add(this.laserPreviewLine);
+    }
+
+    public updateLaserPreview(playerPos: THREE.Vector3, direction: THREE.Vector3) {
+        if (!this.laserPreviewLine || !this.laserPreviewLine.visible) return;
+
+        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+        const endPos = playerPos.clone().add(direction.clone().normalize().multiplyScalar(config.range));
+
+        // Update line geometry
+        const positions = new Float32Array([
+            playerPos.x, playerPos.y + 1, playerPos.z,
+            endPos.x, endPos.y + 1, endPos.z
+        ]);
+        this.laserPreviewLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        this.laserPreviewLine.geometry.attributes.position.needsUpdate = true;
     }
 }

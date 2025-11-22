@@ -3,7 +3,8 @@ export const TICK_INTERVAL = 1 / TICK_RATE;
 
 export const SkillType = {
     TELEPORT: 'TELEPORT',
-    HOMING_MISSILE: 'HOMING_MISSILE'
+    HOMING_MISSILE: 'HOMING_MISSILE',
+    LASER_BEAM: 'LASER_BEAM'
 } as const;
 
 export type SkillType = typeof SkillType[keyof typeof SkillType];
@@ -22,5 +23,12 @@ export const SKILL_CONFIG = {
         damage: 20,
         radius: 20, // Activation radius around player
         mouseRadius: 3 // Target selection radius around mouse
+    },
+    [SkillType.LASER_BEAM]: {
+        cooldown: 8000, // 8 seconds
+        range: 15, // Max beam length
+        lifetime: 2000, // Beam stays active for 2 seconds
+        damage: 30,
+        thickness: 0.3 // Beam cylinder radius
     }
 };

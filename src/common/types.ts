@@ -29,6 +29,7 @@ export interface PlayerState {
     teleportCooldown: number;
     isTeleporting: boolean;
     homingMissileCooldown: number;
+    laserBeamCooldown: number;
 }
 
 export interface MissileState {
@@ -38,9 +39,18 @@ export interface MissileState {
     targetId: string | null; // ID of the player being targeted, or null if directional
 }
 
+export interface LaserBeamState {
+    id: string;
+    ownerId: string; // Shooter player ID (for preventing self-damage)
+    startPosition: Vector3;
+    endPosition: Vector3;
+    expiresAt: number; // Timestamp when beam disappears
+}
+
 export interface GameState {
     players: PlayerState[];
     missiles: MissileState[];
+    laserBeams: LaserBeamState[];
     timestamp: number;
 }
 

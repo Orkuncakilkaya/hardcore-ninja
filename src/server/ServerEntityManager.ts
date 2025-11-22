@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { ServerPlayer } from './ServerPlayer';
 import { ServerMissile } from './ServerMissile';
+import { ServerLaserBeam } from './ServerLaserBeam';
 import type { MapConfig } from '../common/types';
+import { SKILL_CONFIG, SkillType } from '../common/constants';
 
 export class ServerEntityManager {
     public players: Map<string, ServerPlayer> = new Map();
     public missiles: ServerMissile[] = [];
+    public laserBeams: ServerLaserBeam[] = [];
     public obstacles: THREE.Box3[] = [];
     public spawnPositions: THREE.Vector2[] = [];
     private claimedSpawnPoints: Map<string, number> = new Map();
@@ -91,10 +94,34 @@ export class ServerEntityManager {
                 this.missiles.splice(i, 1);
             }
         }
+
+        // Update Laser Beams
+        for (let i = this.laserBeams.length - 1; i >= 0; i--) {
+            const beam = this.laserBeams[i];
+
+            // Check if expired
+            if (beam.isExpired()) {
+                this.laserBeams.splice(i, 1);
+                continue;
+            }
+
+            // Check collisions with players
+            this.players.forEach(player => {
+                if (beam.checkCollision(player.position, player.id)) {
+                    const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+                    player.takeDamage(config.damage);
+                    console.log(`Player ${player.id} hit by laser beam for ${config.damage} damage`);
+                }
+            });
+        }
     }
 
     public addMissile(missile: ServerMissile) {
         this.missiles.push(missile);
+    }
+
+    public addLaserBeam(beam: ServerLaserBeam) {
+        this.laserBeams.push(beam);
     }
 
     public getObstacles(): THREE.Box3[] {
@@ -109,6 +136,7 @@ export class ServerEntityManager {
         return {
             players: Array.from(this.players.values()).map(p => p.getState()),
             missiles: this.missiles.map(m => m.getState()),
+            laserBeams: this.laserBeams.map(b => b.getState()),
             timestamp: Date.now()
         };
     }
