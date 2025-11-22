@@ -312,7 +312,24 @@ export class GameClient {
         // If we are client, we connect then join.
         // NetworkManager handles connection.
         // We send JOIN_REQUEST.
-        this.networkManager.sendToHost({ type: 'JOIN_REQUEST', playerId: this.networkManager.peerId });
+
+        // Create join request with player information
+        const joinRequest: any = { 
+            type: 'JOIN_REQUEST', 
+            playerId: this.networkManager.peerId 
+        };
+
+        // Add username if available
+        if (this.networkManager.playerName) {
+            joinRequest.username = this.networkManager.playerName;
+        }
+
+        // Add avatar if available (for future use)
+        if (this.networkManager.playerAvatar) {
+            joinRequest.avatar = this.networkManager.playerAvatar;
+        }
+
+        this.networkManager.sendToHost(joinRequest);
     }
 
     public start() {

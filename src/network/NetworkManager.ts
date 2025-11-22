@@ -5,6 +5,8 @@ export class NetworkManager {
     private peer: Peer;
     private connections: DataConnection[] = [];
     private _isHost: boolean = false;
+    private _playerName: string = '';
+    private _playerAvatar: string | null = null;
 
     public get isHost(): boolean {
         return this._isHost;
@@ -14,6 +16,31 @@ export class NetworkManager {
         return this.peer.id;
     }
 
+    public get playerName(): string {
+        return this._playerName;
+    }
+
+    public set playerName(name: string) {
+        this._playerName = name;
+        // Save to localStorage for persistence
+        localStorage.setItem('player_name', name);
+        // Dispatch event to notify UI of name change
+        window.dispatchEvent(new CustomEvent('player-name-changed', { detail: name }));
+    }
+
+    public get playerAvatar(): string | null {
+        return this._playerAvatar;
+    }
+
+    public set playerAvatar(avatar: string | null) {
+        this._playerAvatar = avatar;
+        if (avatar) {
+            localStorage.setItem('player_avatar', avatar);
+        } else {
+            localStorage.removeItem('player_avatar');
+        }
+    }
+
     constructor() {
         this.peer = new Peer();
 
@@ -21,6 +48,19 @@ export class NetworkManager {
             console.log('My peer ID is: ' + id);
             // Dispatch event or callback to update UI with ID
             window.dispatchEvent(new CustomEvent('network-ready', { detail: id }));
+
+            // Load saved player name if available
+            const savedName = localStorage.getItem('player_name');
+            if (savedName) {
+                this._playerName = savedName;
+                window.dispatchEvent(new CustomEvent('player-name-changed', { detail: savedName }));
+            }
+
+            // Load saved avatar if available
+            const savedAvatar = localStorage.getItem('player_avatar');
+            if (savedAvatar) {
+                this._playerAvatar = savedAvatar;
+            }
         });
 
         this.peer.on('connection', (conn) => {

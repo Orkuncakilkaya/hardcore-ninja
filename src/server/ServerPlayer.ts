@@ -7,6 +7,8 @@ import { ServerLaserBeam } from './ServerLaserBeam';
 
 export class ServerPlayer {
     public id: string;
+    public username?: string; // Player's display name
+    public avatar?: string; // Player's avatar (for future use)
     public position: THREE.Vector3;
     public rotation: THREE.Quaternion;
     public velocity: THREE.Vector3 = new THREE.Vector3();
@@ -352,6 +354,8 @@ export class ServerPlayer {
     public getState(): PlayerState {
         return {
             id: this.id,
+            username: this.username,
+            avatar: this.avatar,
             position: { x: this.position.x, y: this.position.y, z: this.position.z },
             rotation: { x: this.rotation.x, y: this.rotation.y, z: this.rotation.z, w: this.rotation.w },
             health: this.health,

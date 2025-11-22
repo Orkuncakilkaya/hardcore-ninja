@@ -20,6 +20,8 @@ export interface Quaternion {
 
 export interface PlayerState {
     id: string;
+    username?: string; // Player's display name
+    avatar?: string; // Player's avatar (for future use)
     position: Vector3;
     rotation: Quaternion;
     health: number;

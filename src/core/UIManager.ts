@@ -260,9 +260,9 @@ export class UIManager {
                             const now = Date.now();
                             const remainingMs = Math.max(0, gameState.freezeTimeEnd - now);
                             const remainingSeconds = Math.ceil(remainingMs / 1000);
-                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.id.substring(0, 4)} Wins! (${remainingSeconds}s)`;
+                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.username || winner.id.substring(0, 4)} Wins! (${remainingSeconds}s)`;
                         } else {
-                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.id.substring(0, 4)} Wins!`;
+                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.username || winner.id.substring(0, 4)} Wins!`;
                         }
                     } else {
                         modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Round End`;
@@ -274,7 +274,7 @@ export class UIManager {
             case GameMode.GAME_OVER:
                 if (gameState.winnerId) {
                     const winner = gameState.players.find(p => p.id === gameState.winnerId);
-                    modeText = winner ? `Game Over - Player ${winner.id.substring(0, 4)} Wins!` : 'Game Over';
+                    modeText = winner ? `Game Over - Player ${winner.username || winner.id.substring(0, 4)} Wins!` : 'Game Over';
                 } else {
                     modeText = 'Game Over';
                 }
@@ -332,7 +332,7 @@ export class UIManager {
             row.style.color = player.id === localPlayerId ? '#4CAF50' : 'white';
 
             const playerName = document.createElement('div');
-            playerName.textContent = player.id.substring(0, 4); // Show first 4 chars of ID
+            playerName.textContent = player.username || player.id.substring(0, 4); // Show username if available, otherwise first 4 chars of ID
             row.appendChild(playerName);
 
             const kills = document.createElement('div');

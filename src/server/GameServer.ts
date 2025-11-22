@@ -59,6 +59,20 @@ export class GameServer {
                 // For now, we assume connection = join.
                 // But if we have a specific JOIN_REQUEST message:
                 const player = this.entityManager.addPlayer(playerId);
+
+                // Set player username if available
+                if (message.username) {
+                    player.username = message.username;
+                } else if (playerId === this.networkManager.peerId && this.networkManager.playerName) {
+                    // If this is the host player, use their player name
+                    player.username = this.networkManager.playerName;
+                }
+
+                // Set player avatar if available (for future use)
+                if (message.avatar) {
+                    player.avatar = message.avatar;
+                }
+
                 this.networkManager.sendToClient(playerId, {
                     type: 'JOIN_RESPONSE',
                     success: true,

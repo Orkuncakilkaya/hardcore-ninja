@@ -15,6 +15,7 @@ interface ClientPlayer {
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
     healthBar: THREE.Group | null; // Reference to the healthbar mesh
+    nameLabel: THREE.Mesh | null; // Reference to the player name label
     health: number; // Current health value
     maxHealth: number; // Maximum health value
 }
@@ -117,13 +118,14 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body, healthBar } = this.createPlayerMesh(playerState.id === myPeerId);
+                const { group, body, healthBar, nameLabel } = this.createPlayerMesh(playerState.id === myPeerId);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 clientPlayer = {
                     mesh: group,
                     bodyMesh: body,
                     healthBar: healthBar,
+                    nameLabel: nameLabel,
                     health: playerState.health,
                     maxHealth: playerState.maxHealth,
                     targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
@@ -135,6 +137,16 @@ export class ClientEntityManager {
                     invincibilitySphere: null,
                     isDead: playerState.isDead
                 };
+
+                // Set player name if available
+                if (playerState.username) {
+                    this.updatePlayerNameLabel(nameLabel, playerState.username);
+                } else if (playerState.id === myPeerId) {
+                    this.updatePlayerNameLabel(nameLabel, "You");
+                } else {
+                    this.updatePlayerNameLabel(nameLabel, "Player " + playerState.id.substring(0, 4));
+                }
+
                 this.players.set(playerState.id, clientPlayer);
             } else {
                 // Update targets for interpolation
@@ -156,6 +168,16 @@ export class ClientEntityManager {
 
                         // Hide healthbar if player is dead
                         clientPlayer.healthBar.visible = !playerState.isDead;
+                    }
+                }
+
+                // Update player name if changed
+                if (playerState.username && clientPlayer.nameLabel) {
+                    // If player is local, always show "You"
+                    if (playerState.id === myPeerId) {
+                        this.updatePlayerNameLabel(clientPlayer.nameLabel, "You");
+                    } else {
+                        this.updatePlayerNameLabel(clientPlayer.nameLabel, playerState.username);
                     }
                 }
 
@@ -183,7 +205,7 @@ export class ClientEntityManager {
                         // Rotate player to lay down (90 degrees around X axis)
                         clientPlayer.mesh.rotation.x = Math.PI / 2;
 
-                        // Hide healthbar when player is dead
+                        // Hide healthbar and name label when player is dead
                         if (clientPlayer.healthBar) {
                             clientPlayer.healthBar.visible = false;
                         }
@@ -304,7 +326,7 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, healthBar: THREE.Group } {
+    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, healthBar: THREE.Group, nameLabel: THREE.Sprite } {
         const group = new THREE.Group();
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
         const material = new THREE.MeshStandardMaterial({ color: isLocal ? 0x00ff00 : 0xff0000 });
@@ -318,7 +340,13 @@ export class ClientEntityManager {
         const healthBar = this.createHealthBar(100, 100);
         group.add(healthBar);
 
-        return { group, body, healthBar };
+        // Create name label with default name
+        const nameLabel = this.createPlayerNameLabel(isLocal ? "You" : "Player");
+        // Position the name label above the healthbar
+        nameLabel.position.y = 1.5; // Above healthbar
+        healthBar.add(nameLabel); // Add to healthbar so it moves with it
+
+        return { group, body, healthBar, nameLabel };
     }
 
     private createInvincibilitySphere(): THREE.Mesh {
@@ -391,6 +419,76 @@ export class ClientEntityManager {
         return healthBarGroup;
     }
 
+    private createPlayerNameLabel(name: string): THREE.Sprite {
+        // Create a canvas to draw the text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        // Set canvas size
+        canvas.width = 256;
+        canvas.height = 64;
+
+        if (context) {
+            // Clear canvas
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Set text style
+            context.font = 'bold 32px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+
+            // Add background with rounded corners
+            context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
+
+            // Draw text
+            context.fillStyle = 'white';
+            context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
+        }
+
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        // Create sprite material
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true
+        });
+
+        // Create sprite
+        const sprite = new THREE.Sprite(material);
+
+        // Scale sprite
+        sprite.scale.set(3, 0.75, 1);
+
+        // Position sprite above healthbar
+        sprite.position.y = 0.8; // Position above healthbar
+
+        return sprite;
+    }
+
+    // Helper method to draw rounded rectangles on canvas
+    private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number, fill: boolean, stroke: boolean) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) {
+            ctx.fill();
+        }
+        if (stroke) {
+            ctx.stroke();
+        }
+    }
+
     private updateHealthBarSegments(healthBarGroup: THREE.Group, health: number, maxHealth: number) {
         if (!healthBarGroup) return;
 
@@ -420,6 +518,40 @@ export class ClientEntityManager {
                 // Inactive segment
                 segment.visible = false;
             }
+        }
+    }
+
+    private updatePlayerNameLabel(nameLabel: THREE.Sprite, name: string) {
+        if (!nameLabel) return;
+
+        // Get the sprite material
+        const material = nameLabel.material as THREE.SpriteMaterial;
+        if (!material || !material.map) return;
+
+        // Get the canvas from the texture
+        const texture = material.map;
+        const canvas = texture.image as HTMLCanvasElement;
+        const context = canvas.getContext('2d');
+
+        if (context) {
+            // Clear canvas
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Set text style
+            context.font = 'bold 32px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+
+            // Add background with rounded corners
+            context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
+
+            // Draw text
+            context.fillStyle = 'white';
+            context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
+
+            // Update texture
+            texture.needsUpdate = true;
         }
     }
 
