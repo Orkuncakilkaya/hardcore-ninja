@@ -7,6 +7,7 @@ export class UIManager {
     private teleportCdOverlay: HTMLElement;
     private homingMissileCdOverlay: HTMLElement;
     private laserBeamCdOverlay: HTMLElement;
+    private invincibilityCdOverlay: HTMLElement;
 
     constructor() {
         this.healthBar = document.getElementById('health-bar')!;
@@ -17,9 +18,11 @@ export class UIManager {
         this.homingMissileCdOverlay = document.getElementById('cd-basic')!;
         // E skill = Laser Beam (cd-slash)
         this.laserBeamCdOverlay = document.getElementById('cd-slash')!;
+        // R skill = Invincibility (cd-tank)
+        this.invincibilityCdOverlay = document.getElementById('cd-tank')!;
 
         // Hide other unused slots
-        const otherSlots = ['cd-tank', 'cd-ult'];
+        const otherSlots = ['cd-ult'];
         otherSlots.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.parentElement!.style.display = 'none';
@@ -72,5 +75,16 @@ export class UIManager {
             laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
         }
         this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
+
+        // Update Invincibility Cooldown (R skill)
+        const invincibilityCooldownEnd = player.invincibilityCooldown;
+        const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
+
+        let invincibilityPercent = 0;
+        if (now < invincibilityCooldownEnd) {
+            const remaining = invincibilityCooldownEnd - now;
+            invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
+        }
+        this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
     }
 }

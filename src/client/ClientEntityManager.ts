@@ -10,6 +10,8 @@ interface ClientPlayer {
     teleportCooldown: number;
     homingMissileCooldown: number;
     laserBeamCooldown: number;
+    invincibilityCooldown: number;
+    invincibilitySphere: THREE.Mesh | null;
 }
 
 export class ClientEntityManager {
@@ -118,7 +120,9 @@ export class ClientEntityManager {
                     targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
                     teleportCooldown: playerState.teleportCooldown,
                     homingMissileCooldown: playerState.homingMissileCooldown,
-                    laserBeamCooldown: playerState.laserBeamCooldown
+                    laserBeamCooldown: playerState.laserBeamCooldown,
+                    invincibilityCooldown: playerState.invincibilityCooldown,
+                    invincibilitySphere: null
                 };
                 this.players.set(playerState.id, clientPlayer);
             } else {
@@ -128,6 +132,20 @@ export class ClientEntityManager {
                 clientPlayer.teleportCooldown = playerState.teleportCooldown;
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
                 clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
+                clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
+
+                // Update invincibility sphere visibility
+                if (playerState.isInvulnerable) {
+                    if (!clientPlayer.invincibilitySphere) {
+                        clientPlayer.invincibilitySphere = this.createInvincibilitySphere();
+                        clientPlayer.mesh.add(clientPlayer.invincibilitySphere);
+                    }
+                } else {
+                    if (clientPlayer.invincibilitySphere) {
+                        clientPlayer.mesh.remove(clientPlayer.invincibilitySphere);
+                        clientPlayer.invincibilitySphere = null;
+                    }
+                }
             }
 
             // Update Teleport Radius Position if targeting
@@ -221,6 +239,20 @@ export class ClientEntityManager {
         body.receiveShadow = true;
         group.add(body);
         return group;
+    }
+
+    private createInvincibilitySphere(): THREE.Mesh {
+        const geometry = new THREE.SphereGeometry(2, 16, 16);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.3,
+            emissive: 0x00ffff,
+            emissiveIntensity: 0.2
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.y = 1; // Center at player's chest height
+        return sphere;
     }
 
     private createMissileMesh(): THREE.Mesh {

@@ -30,6 +30,7 @@ export interface PlayerState {
     isTeleporting: boolean;
     homingMissileCooldown: number;
     laserBeamCooldown: number;
+    invincibilityCooldown: number;
 }
 
 export interface MissileState {

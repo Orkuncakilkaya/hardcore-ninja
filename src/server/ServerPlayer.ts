@@ -32,6 +32,9 @@ export class ServerPlayer {
     // Laser Beam State
     public laserBeamCooldown: number = 0;
 
+    // Invincibility State
+    public invincibilityCooldown: number = 0;
+
     // Skill System (We might need a ServerSkillSystem)
     // For now, let's keep it simple or reuse SkillSystem if it doesn't depend on rendering
     // The current SkillSystem depends on Player (which has mesh) and EntityManager (which has scene).
@@ -285,6 +288,22 @@ export class ServerPlayer {
         }
     }
 
+    public attemptInvincibility(): boolean {
+        const now = Date.now();
+        if (now < this.invincibilityCooldown) {
+            return false;
+        }
+
+        const config = SKILL_CONFIG[SkillType.INVINCIBILITY];
+
+        // Activate invincibility
+        this.isInvulnerable = true;
+        this.invulnerableTimer = config.duration / 1000; // Convert to seconds
+        this.invincibilityCooldown = now + config.cooldown;
+
+        return true;
+    }
+
     public getState(): PlayerState {
         return {
             id: this.id,
@@ -297,7 +316,8 @@ export class ServerPlayer {
             teleportCooldown: this.teleportCooldown,
             isTeleporting: this.isTeleporting,
             homingMissileCooldown: this.homingMissileCooldown,
-            laserBeamCooldown: this.laserBeamCooldown
+            laserBeamCooldown: this.laserBeamCooldown,
+            invincibilityCooldown: this.invincibilityCooldown
         };
     }
 }

@@ -55,6 +55,8 @@ export class GameClient {
                 this.toggleSkillTargeting(SkillType.HOMING_MISSILE);
             } else if (e.key.toLowerCase() === 'e') {
                 this.toggleSkillTargeting(SkillType.LASER_BEAM);
+            } else if (e.key.toLowerCase() === 'r') {
+                this.activateInvincibility();
             }
         });
 
@@ -193,6 +195,27 @@ export class GameClient {
                 this.entityManager.setSkillTargeting(null, false);
             }
         }
+    }
+
+    private activateInvincibility() {
+        if (!this.localPlayerId) return;
+
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer) return;
+
+        // Check cooldown
+        const now = Date.now();
+        if (now < myPlayer.invincibilityCooldown) {
+            console.log('Invincibility on cooldown');
+            return;
+        }
+
+        // Send skill request immediately (no targeting required)
+        this.networkManager.sendToHost({
+            type: 'SKILL_REQUEST',
+            skillType: SkillType.INVINCIBILITY,
+            timestamp: Date.now()
+        });
     }
 
     private handleMessage(message: NetworkMessage) {

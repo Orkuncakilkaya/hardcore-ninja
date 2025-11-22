@@ -4,7 +4,8 @@ export const TICK_INTERVAL = 1 / TICK_RATE;
 export const SkillType = {
     TELEPORT: 'TELEPORT',
     HOMING_MISSILE: 'HOMING_MISSILE',
-    LASER_BEAM: 'LASER_BEAM'
+    LASER_BEAM: 'LASER_BEAM',
+    INVINCIBILITY: 'INVINCIBILITY'
 } as const;
 
 export type SkillType = typeof SkillType[keyof typeof SkillType];
@@ -30,5 +31,9 @@ export const SKILL_CONFIG = {
         lifetime: 2000, // Beam stays active for 2 seconds
         damage: 30,
         thickness: 0.3 // Beam cylinder radius
+    },
+    [SkillType.INVINCIBILITY]: {
+        cooldown: 10000, // 10 seconds
+        duration: 3000 // 3 seconds of invincibility
     }
 };
