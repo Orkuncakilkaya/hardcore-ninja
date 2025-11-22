@@ -149,6 +149,7 @@ export class Player {
                     this.stopMovement();
                 } else {
                     this.mesh.position.add(moveVector);
+                    this.serverPosition.copy(this.mesh.position); // Update server position to match new position
                 }
             }
 
