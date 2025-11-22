@@ -38,6 +38,8 @@ export interface InputMessage extends BaseMessage {
     type: 'PLAYER_INPUT';
     input: InputState;
     destination?: Vector3;
+    stopMovement?: boolean;
+    timestamp?: number;
 }
 
 export interface StateUpdateMessage extends BaseMessage {

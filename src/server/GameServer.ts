@@ -219,7 +219,10 @@ export class GameServer {
                         return;
                     }
 
-                    if (message.destination) {
+                    if (message.stopMovement) {
+                        console.log(`Stopping movement for ${playerId}`);
+                        p.stopMovement();
+                    } else if (message.destination) {
                         console.log(`Processing Move for ${playerId} to`, message.destination);
                         p.setDestination(new THREE.Vector3(message.destination.x, message.destination.y, message.destination.z));
                     }

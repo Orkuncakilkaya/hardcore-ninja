@@ -34,6 +34,10 @@ interface ClientPlayer {
     teleportEndEffect: THREE.Group | null; // End position effect
     teleportTrailParticles: THREE.Points | null; // Particle trail
     walkAnimationTime: number; // Time accumulator for walk animation
+    // Interpolation state
+    lastUpdateTime: number; // Timestamp of last state update
+    positionHistory: Array<{ position: THREE.Vector3; timestamp: number }>; // Position history for interpolation
+    velocity: THREE.Vector3; // Estimated velocity for prediction
 }
 
 export class ClientEntityManager {
@@ -121,6 +125,7 @@ export class ClientEntityManager {
                 const { group, body, bodyGroup, healthBar, nameLabel, leftShoe, rightShoe } = this.createPlayerMesh(playerState.id === myPeerId);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
+                const initialPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
                 clientPlayer = {
                     mesh: group,
                     bodyMesh: body,
@@ -131,7 +136,7 @@ export class ClientEntityManager {
                     rightShoe: rightShoe,
                     health: playerState.health,
                     maxHealth: playerState.maxHealth,
-                    targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
+                    targetPosition: initialPos.clone(),
                     targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
                     teleportCooldown: playerState.teleportCooldown,
                     homingMissileCooldown: playerState.homingMissileCooldown,
@@ -140,12 +145,15 @@ export class ClientEntityManager {
                     invincibilitySphere: null,
                     isDead: playerState.isDead,
                     isTeleporting: playerState.isTeleporting || false,
-                    previousPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
+                    previousPosition: initialPos.clone(),
                     teleportTrail: null,
                     teleportStartEffect: null,
                     teleportEndEffect: null,
                     teleportTrailParticles: null,
-                    walkAnimationTime: 0
+                    walkAnimationTime: 0,
+                    lastUpdateTime: gameState.timestamp || Date.now(),
+                    positionHistory: [{ position: initialPos.clone(), timestamp: gameState.timestamp || Date.now() }],
+                    velocity: new THREE.Vector3()
                 };
 
                 // Set player name if available
@@ -159,9 +167,31 @@ export class ClientEntityManager {
 
                 this.players.set(playerState.id, clientPlayer);
             } else {
+                // Calculate velocity for prediction
+                const newPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
+                const timeDelta = (gameState.timestamp || Date.now()) - clientPlayer.lastUpdateTime;
+                
+                if (timeDelta > 0 && !clientPlayer.isTeleporting) {
+                    const posDelta = new THREE.Vector3().subVectors(newPos, clientPlayer.targetPosition);
+                    clientPlayer.velocity.copy(posDelta).divideScalar(timeDelta / 1000); // Convert to units per second
+                }
+                
+                // Add to position history for interpolation (keep last 3 positions)
+                const timestamp = gameState.timestamp || Date.now();
+                clientPlayer.positionHistory.push({
+                    position: newPos.clone(),
+                    timestamp: timestamp
+                });
+                
+                // Keep only last 3 positions
+                if (clientPlayer.positionHistory.length > 3) {
+                    clientPlayer.positionHistory.shift();
+                }
+                
                 // Update targets for interpolation
-                clientPlayer.targetPosition.set(playerState.position.x, playerState.position.y, playerState.position.z);
+                clientPlayer.targetPosition.copy(newPos);
                 clientPlayer.targetRotation.set(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w);
+                clientPlayer.lastUpdateTime = timestamp;
                 clientPlayer.teleportCooldown = playerState.teleportCooldown;
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
                 clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
@@ -338,18 +368,49 @@ export class ClientEntityManager {
     public update(delta: number) {
         // Get camera for billboard effect
         const camera = this.scene.getObjectByProperty('type', 'PerspectiveCamera') as THREE.Camera;
+        const now = Date.now();
 
         // Interpolate
         this.players.forEach(player => {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
                 const previousPosition = player.mesh.position.clone();
-                const wasMoving = player.mesh.position.distanceTo(player.targetPosition) > 0.01;
-                player.mesh.position.lerp(player.targetPosition, 10 * delta);
+                
+                // Check if player should be moving (velocity or distance to target)
+                const distanceToTarget = player.mesh.position.distanceTo(player.targetPosition);
+                const hasVelocity = player.velocity.length() > 0.01;
+                const isMoving = distanceToTarget > 0.01 || hasVelocity;
+                
+                // If not moving and no velocity, snap to position immediately
+                if (!isMoving && !player.isTeleporting) {
+                    player.mesh.position.copy(player.targetPosition);
+                } else {
+                    // Improved interpolation with lag compensation
+                    const timeSinceUpdate = now - player.lastUpdateTime;
+                    const interpolationDelay = 100; // 100ms delay for smooth interpolation
+                    const interpolationTime = Math.max(0, timeSinceUpdate - interpolationDelay);
+                    
+                    // Use velocity-based prediction if we have velocity data
+                    let targetPos = player.targetPosition.clone();
+                    if (hasVelocity && !player.isTeleporting) {
+                        // Predict position based on velocity
+                        const prediction = player.velocity.clone().multiplyScalar(interpolationTime / 1000);
+                        targetPos.add(prediction);
+                    }
+                    
+                    // Smooth interpolation
+                    const distance = player.mesh.position.distanceTo(targetPos);
+                    
+                    // Adaptive interpolation speed based on distance
+                    const interpolationSpeed = Math.min(20, Math.max(5, distance * 5));
+                    player.mesh.position.lerp(targetPos, interpolationSpeed * delta);
+                }
+                
+                // Smooth rotation interpolation
                 player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
                 
                 // Rotate body group to face movement direction
-                if (player.bodyGroup && wasMoving) {
+                if (player.bodyGroup && isMoving) {
                     const direction = new THREE.Vector3()
                         .subVectors(player.targetPosition, previousPosition)
                         .normalize();
@@ -367,7 +428,7 @@ export class ClientEntityManager {
                 }
                 
                 // Animate shoes when walking
-                if (wasMoving && !player.isDead) {
+                if (isMoving && !player.isDead) {
                     player.walkAnimationTime += delta * 8; // Walking speed multiplier
                     
                     // Animate shoes up and down (alternating)

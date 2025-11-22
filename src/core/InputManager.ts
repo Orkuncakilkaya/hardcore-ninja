@@ -5,15 +5,16 @@ export class InputManager {
     public mouse: THREE.Vector2 = new THREE.Vector2();
     public mouseRaycaster: THREE.Raycaster = new THREE.Raycaster();
     private isLeftMouseButtonDown: boolean = false;
+    private mouseWorldPosition: THREE.Vector3 | null = null;
 
     constructor() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
-            this.emit('input', { keys: this.keys, mouse: this.mouse });
+            this.emit('input', { keys: this.keys, mouse: this.mouse, isLeftMouseDown: this.isLeftMouseButtonDown });
         });
         window.addEventListener('keyup', (e) => {
             this.keys[e.code] = false;
-            this.emit('input', { keys: this.keys, mouse: this.mouse });
+            this.emit('input', { keys: this.keys, mouse: this.mouse, isLeftMouseDown: this.isLeftMouseButtonDown });
         });
         window.addEventListener('mousemove', this.onMouseMove.bind(this));
         window.addEventListener('mousedown', this.onMouseDown.bind(this));
@@ -23,18 +24,20 @@ export class InputManager {
     private onMouseMove(event: MouseEvent) {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        this.emit('input', { keys: this.keys, mouse: this.mouse });
+        this.emit('input', { keys: this.keys, mouse: this.mouse, isLeftMouseDown: this.isLeftMouseButtonDown });
     }
 
     private onMouseDown(event: MouseEvent) {
         if (event.button === 0) { // Left mouse button
             this.isLeftMouseButtonDown = true;
+            this.emit('mouseDown', { keys: this.keys, mouse: this.mouse });
         }
     }
 
     private onMouseUp(event: MouseEvent) {
         if (event.button === 0) { // Left mouse button
             this.isLeftMouseButtonDown = false;
+            this.emit('mouseUp', { keys: this.keys, mouse: this.mouse });
         }
     }
 
@@ -60,6 +63,14 @@ export class InputManager {
     public getMouseGroundIntersection(camera: THREE.Camera, groundPlane: THREE.Plane): THREE.Vector3 | null {
         this.mouseRaycaster.setFromCamera(this.mouse, camera);
         const target = new THREE.Vector3();
-        return this.mouseRaycaster.ray.intersectPlane(groundPlane, target);
+        const intersection = this.mouseRaycaster.ray.intersectPlane(groundPlane, target);
+        if (intersection) {
+            this.mouseWorldPosition = intersection.clone();
+        }
+        return intersection;
+    }
+
+    public getMouseWorldPosition(): THREE.Vector3 | null {
+        return this.mouseWorldPosition;
     }
 }

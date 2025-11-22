@@ -5,7 +5,7 @@ import { NetworkManager } from '../network/NetworkManager';
 import { ClientEntityManager } from './ClientEntityManager';
 import { UIManager } from '../core/UIManager';
 import type { NetworkMessage } from '../common/messages';
-import { SKILL_CONFIG, SkillType } from '../common/constants';
+import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
 
 export class GameClient {
     private renderer: Renderer;
@@ -19,6 +19,15 @@ export class GameClient {
     private isRunning: boolean = false;
     private clock: THREE.Clock;
     private localPlayerId: string | null = null;
+    private isLeftMouseDown: boolean = false;
+    private isTeleportHeld: boolean = false;
+    private teleportStartTime: number = 0;
+    private lastMovementTarget: THREE.Vector3 | null = null;
+    
+    // Network throttling
+    private lastMovementSendTime: number = 0;
+    private movementSendInterval: number = TICK_INTERVAL * 1000; // Send at tick rate
+    private pendingMovementTarget: THREE.Vector3 | null = null;
 
     constructor(networkManager: NetworkManager) {
         this.renderer = new Renderer();
@@ -40,93 +49,295 @@ export class GameClient {
     }
 
     private setupInputHandlers() {
-        this.inputManager.on('input', (input: any) => {
-            // Send input to server
-            this.networkManager.sendToHost({
-                type: 'PLAYER_INPUT',
-                input: input
-            });
-        });
+        // Handle mouse down
+        this.inputManager.on('mouseDown', () => {
+            this.isLeftMouseDown = true;
+            
+            // If targeting a skill (except teleport), don't move
+            if (this.isTargeting && this.currentSkill !== SkillType.TELEPORT) {
+                return;
+            }
 
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'q') {
-                this.toggleSkillTargeting(SkillType.TELEPORT);
-            } else if (e.key.toLowerCase() === 'w') {
-                this.toggleSkillTargeting(SkillType.HOMING_MISSILE);
-            } else if (e.key.toLowerCase() === 'e') {
-                this.toggleSkillTargeting(SkillType.LASER_BEAM);
-            } else if (e.key.toLowerCase() === 'r') {
-                this.activateInvincibility();
-            } else if (e.key === 'Tab') {
-                e.preventDefault(); // Prevent default tab behavior
-                this.toggleTabMenu();
+            // If teleport is held, continue movement
+            if (this.isTeleportHeld) {
+                return;
+            }
+
+            // Normal movement
+            const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+            if (target) {
+                this.lastMovementTarget = target.clone();
+                this.pendingMovementTarget = target.clone();
+                this.sendMovementRequest(target, true); // Immediate on mouse down
             }
         });
 
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                this.hideTabMenu();
+        // Handle mouse up
+        this.inputManager.on('mouseUp', () => {
+            const wasMoving = this.isLeftMouseDown;
+            this.isLeftMouseDown = false;
+            this.pendingMovementTarget = null;
+            
+            // Stop movement immediately when mouse is released
+            if (wasMoving && !this.isTargeting) {
+                this.stopMovement();
+            }
+            
+            // If targeting a skill, fire it
+            if (this.isTargeting && this.currentSkill) {
+                if (this.currentSkill === SkillType.TELEPORT) {
+                    // Teleport is handled by keyup
+                    return;
+                }
+                this.requestSkillUsage();
             }
         });
 
-        window.addEventListener('mousemove', () => {
+        // Handle continuous mouse movement for movement and skill targeting
+        this.inputManager.on('input', () => {
+            if (!this.localPlayerId) return;
+            
+            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+            if (!myPlayer) return;
+
+            // Store pending target for movement
+            if (this.isLeftMouseDown && !this.isTargeting && !this.isTeleportHeld) {
+                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+                if (target) {
+                    this.lastMovementTarget = target.clone();
+                    this.pendingMovementTarget = target.clone();
+                    // Movement request will be sent in update loop with throttling
+                }
+            } else if (this.isLeftMouseDown && this.isTeleportHeld) {
+                // Continue movement while teleport is held
+                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+                if (target) {
+                    this.lastMovementTarget = target.clone();
+                    this.pendingMovementTarget = target.clone();
+                    // Movement request will be sent in update loop with throttling
+                }
+            } else {
+                this.pendingMovementTarget = null;
+            }
+
+            // Update skill targeting visuals
             if (this.isTargeting && this.currentSkill === SkillType.HOMING_MISSILE) {
                 const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                 if (target) {
                     this.entityManager.updateMouseRadiusPosition(target);
                 }
-            } else if (this.isTargeting && this.currentSkill === SkillType.LASER_BEAM && this.localPlayerId) {
-                const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-                if (myPlayer) {
-                    const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                    if (target) {
-                        const playerPos = myPlayer.mesh.position;
-                        const direction = target.clone().sub(playerPos);
-                        direction.y = 0; // Keep laser horizontal
-                        this.entityManager.updateLaserPreview(playerPos, direction);
-                    }
+            } else if (this.isTargeting && this.currentSkill === SkillType.LASER_BEAM) {
+                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+                if (target) {
+                    const playerPos = myPlayer.mesh.position;
+                    const direction = target.clone().sub(playerPos);
+                    direction.y = 0;
+                    this.entityManager.updateLaserPreview(playerPos, direction);
                 }
             }
         });
 
-        window.addEventListener('mousedown', (e) => {
-            if (e.button === 0) { // Left click
-                if (this.isTargeting) {
-                    this.requestSkillUsage();
-                } else {
-                    // Movement
-                    const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                    if (target) {
-                        // Create click indicator effect
-                        this.entityManager.createClickIndicator(target);
-                        
-                        console.log('Sending Move Request:', target);
-                        this.networkManager.sendToHost({
-                            type: 'PLAYER_INPUT',
-                            input: { keys: this.inputManager.keys, mouse: null },
-                            destination: { x: target.x, y: target.y, z: target.z }
-                        });
-                    } else {
-                        console.log('No ground intersection found');
-                    }
-                }
+        // Handle skill key presses
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'q') {
+                this.startTeleport();
+            } else if (e.key.toLowerCase() === 'w') {
+                this.startSkillTargeting(SkillType.HOMING_MISSILE);
+            } else if (e.key.toLowerCase() === 'e') {
+                this.startSkillTargeting(SkillType.LASER_BEAM);
+            } else if (e.key.toLowerCase() === 'r') {
+                this.activateInvincibility();
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                this.toggleTabMenu();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() === 'q') {
+                this.endTeleport();
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                this.hideTabMenu();
             }
         });
     }
 
-    private toggleSkillTargeting(skillType: SkillType) {
+    private sendMovementRequest(target: THREE.Vector3, immediate: boolean = false) {
+        if (!this.localPlayerId) return;
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer || myPlayer.isDead) return;
+
+        // Stop movement if targeting a skill (except teleport)
+        if (this.isTargeting && this.currentSkill !== SkillType.TELEPORT) {
+            return;
+        }
+
+        const now = Date.now();
+        
+        // Throttle movement requests unless immediate
+        if (!immediate && (now - this.lastMovementSendTime) < this.movementSendInterval) {
+            return;
+        }
+
+        this.lastMovementSendTime = now;
+
+        // Create click indicator effect (only on first send or immediate)
+        if (immediate) {
+            this.entityManager.createClickIndicator(target);
+        }
+
+        // Client-side prediction: server updates will handle position correction
+
+        this.networkManager.sendToHost({
+            type: 'PLAYER_INPUT',
+            input: { keys: this.inputManager.keys, mouse: null },
+            destination: { x: target.x, y: target.y, z: target.z },
+            timestamp: now
+        });
+    }
+
+    private stopMovement() {
+        if (!this.localPlayerId) return;
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer || myPlayer.isDead) return;
+
+        // Immediately stop local player movement (client-side prediction)
+        if (myPlayer) {
+            // Set target position to current position to stop interpolation
+            myPlayer.targetPosition.copy(myPlayer.mesh.position);
+            // Clear velocity
+            myPlayer.velocity.set(0, 0, 0);
+            // Clear position history to prevent interpolation
+            myPlayer.positionHistory = [{
+                position: myPlayer.mesh.position.clone(),
+                timestamp: Date.now()
+            }];
+        }
+
+        // Send stop command to server
+        this.networkManager.sendToHost({
+            type: 'PLAYER_INPUT',
+            input: { keys: this.inputManager.keys, mouse: null },
+            stopMovement: true,
+            timestamp: Date.now()
+        });
+    }
+
+    private startTeleport() {
         if (!this.localPlayerId) return;
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
 
-        // Check Cooldowns (Client-side prediction/check)
         if (myPlayer) {
             if (myPlayer.isDead) return;
             const now = Date.now();
-            if (skillType === SkillType.TELEPORT && now < myPlayer.teleportCooldown) {
+            if (now < myPlayer.teleportCooldown) {
                 console.log('Teleport on cooldown');
                 return;
             }
+        }
+
+        this.isTeleportHeld = true;
+        this.teleportStartTime = Date.now();
+        this.isTargeting = true;
+        this.currentSkill = SkillType.TELEPORT;
+        this.uiManager.setSkillGlow(SkillType.TELEPORT);
+        this.entityManager.setSkillTargeting(SkillType.TELEPORT, true);
+    }
+
+    private endTeleport() {
+        if (!this.isTeleportHeld || !this.currentSkill || this.currentSkill !== SkillType.TELEPORT) return;
+        if (!this.localPlayerId) return;
+
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer) return;
+
+        // Calculate teleport distance based on how long Q was held
+        const holdDuration = Date.now() - this.teleportStartTime;
+        const maxDuration = 2000; // 2 seconds max
+        const progress = Math.min(holdDuration / maxDuration, 1);
+        const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
+        const teleportDistance = maxRange * progress;
+
+        // Get current mouse position for direction
+        const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+        if (!target) {
+            // Use last movement target if available
+            if (this.lastMovementTarget) {
+                this.executeTeleport(this.lastMovementTarget, teleportDistance);
+            } else {
+                // No target, teleport forward
+                const playerPos = myPlayer.mesh.position;
+                const forward = new THREE.Vector3(0, 0, 1); // Default forward
+                const finalPos = playerPos.clone().add(forward.multiplyScalar(teleportDistance));
+                this.executeTeleport(finalPos, teleportDistance);
+            }
+            this.cleanupTeleport();
+            return;
+        }
+
+        // Calculate direction from player to mouse
+        const playerPos = myPlayer.mesh.position;
+        const direction = new THREE.Vector3().subVectors(target, playerPos);
+        direction.y = 0;
+        
+        if (direction.length() < 0.01) {
+            // Mouse is too close, teleport forward
+            const forward = new THREE.Vector3(0, 0, 1);
+            const finalPos = playerPos.clone().add(forward.multiplyScalar(teleportDistance));
+            this.executeTeleport(finalPos, teleportDistance);
+        } else {
+            direction.normalize();
+            // Calculate final teleport position using the calculated distance
+            const finalPos = playerPos.clone().add(direction.multiplyScalar(teleportDistance));
+            this.executeTeleport(finalPos, teleportDistance);
+        }
+
+        this.cleanupTeleport();
+    }
+
+    private executeTeleport(target: THREE.Vector3, maxDistance: number) {
+        if (!this.localPlayerId) return;
+
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer) return;
+
+        const playerPos = myPlayer.mesh.position;
+        const direction = new THREE.Vector3().subVectors(target, playerPos);
+        direction.y = 0;
+        const distance = direction.length();
+        
+        // Clamp to max distance (already calculated in endTeleport, but double-check)
+        const clampedDistance = Math.min(distance, maxDistance);
+        direction.normalize();
+        const finalPos = playerPos.clone().add(direction.multiplyScalar(clampedDistance));
+
+        // Send teleport request
+        this.networkManager.sendToHost({
+            type: 'SKILL_REQUEST',
+            skillType: SkillType.TELEPORT,
+            target: { x: finalPos.x, y: finalPos.y, z: finalPos.z },
+            timestamp: Date.now()
+        });
+    }
+
+    private cleanupTeleport() {
+        this.isTeleportHeld = false;
+        this.isTargeting = false;
+        this.currentSkill = null;
+        this.entityManager.setSkillTargeting(null, false);
+        this.uiManager.clearSkillGlow(SkillType.TELEPORT);
+        this.uiManager.clearSkillBorder(SkillType.TELEPORT);
+    }
+
+    private startSkillTargeting(skillType: SkillType) {
+        if (!this.localPlayerId) return;
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+
+        // Check Cooldowns
+        if (myPlayer) {
+            if (myPlayer.isDead) return;
+            const now = Date.now();
             if (skillType === SkillType.HOMING_MISSILE && now < myPlayer.homingMissileCooldown) {
                 console.log('Homing Missile on cooldown');
                 return;
@@ -142,20 +353,21 @@ export class GameClient {
             this.uiManager.clearSkillGlow(this.currentSkill);
         }
 
-        if (this.currentSkill === skillType && this.isTargeting) {
-            // Toggle off
-            this.isTargeting = false;
-            this.currentSkill = null;
-        } else {
-            // Toggle on
-            this.isTargeting = true;
-            this.currentSkill = skillType;
+        // Start targeting
+        this.isTargeting = true;
+        this.currentSkill = skillType;
+        this.uiManager.setSkillGlow(skillType);
+        this.entityManager.setSkillTargeting(skillType, true);
 
-            // Set glow for the active skill
-            this.uiManager.setSkillGlow(skillType);
+        // Stop player movement when targeting
+        if (this.lastMovementTarget) {
+            // Send stop command
+            this.networkManager.sendToHost({
+                type: 'PLAYER_INPUT',
+                input: { keys: this.inputManager.keys, mouse: null },
+                stopMovement: true
+            });
         }
-
-        this.entityManager.setSkillTargeting(this.currentSkill, this.isTargeting);
     }
 
     private requestSkillUsage() {
@@ -164,65 +376,49 @@ export class GameClient {
         const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
         if (!target) return;
 
-        if (this.currentSkill === SkillType.TELEPORT) {
-            this.networkManager.sendToHost({
-                type: 'SKILL_REQUEST',
-                skillType: SkillType.TELEPORT,
-                target: { x: target.x, y: target.y, z: target.z },
-                timestamp: Date.now()
-            });
-            this.isTargeting = false;
-            this.currentSkill = null;
-            this.entityManager.setSkillTargeting(null, false);
-            this.uiManager.clearSkillGlow(SkillType.TELEPORT);
-            this.uiManager.clearSkillBorder(SkillType.TELEPORT);
+        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer) return;
 
-        } else if (this.currentSkill === SkillType.HOMING_MISSILE) {
-            // Check if click is within Player Radius
-            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-            if (myPlayer) {
-                const playerPos = myPlayer.mesh.position;
-                const dist = new THREE.Vector3(target.x, 0, target.z).distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
-                const config = SKILL_CONFIG[SkillType.HOMING_MISSILE];
+        if (this.currentSkill === SkillType.HOMING_MISSILE) {
+            const playerPos = myPlayer.mesh.position;
+            const dist = new THREE.Vector3(target.x, 0, target.z).distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
+            const config = SKILL_CONFIG[SkillType.HOMING_MISSILE];
 
-                if (dist <= config.radius) {
-                    // Valid click inside activation zone
-                    this.networkManager.sendToHost({
-                        type: 'SKILL_REQUEST',
-                        skillType: SkillType.HOMING_MISSILE,
-                        target: { x: target.x, y: target.y, z: target.z }, // Target is mouse position for selection
-                        timestamp: Date.now()
-                    });
-                    this.isTargeting = false;
-                    this.currentSkill = null;
-                    this.entityManager.setSkillTargeting(null, false);
-                    this.uiManager.clearSkillGlow(SkillType.HOMING_MISSILE);
-                    this.uiManager.clearSkillBorder(SkillType.HOMING_MISSILE);
-                } else {
-                    console.log('Click inside the green circle to activate!');
-                }
-            }
-        } else if (this.currentSkill === SkillType.LASER_BEAM) {
-            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-            if (myPlayer) {
-                const playerPos = myPlayer.mesh.position;
-                const direction = target.clone().sub(playerPos);
-                direction.y = 0; // Keep laser horizontal
-                direction.normalize();
-
+            if (dist <= config.radius) {
                 this.networkManager.sendToHost({
                     type: 'SKILL_REQUEST',
-                    skillType: SkillType.LASER_BEAM,
-                    direction: { x: direction.x, y: direction.y, z: direction.z },
+                    skillType: SkillType.HOMING_MISSILE,
+                    target: { x: target.x, y: target.y, z: target.z },
                     timestamp: Date.now()
                 });
-                this.isTargeting = false;
-                this.currentSkill = null;
-                this.entityManager.setSkillTargeting(null, false);
-                this.uiManager.clearSkillGlow(SkillType.LASER_BEAM);
-                this.uiManager.clearSkillBorder(SkillType.LASER_BEAM);
+                this.cleanupSkillTargeting();
+            } else {
+                console.log('Click inside the green circle to activate!');
             }
+        } else if (this.currentSkill === SkillType.LASER_BEAM) {
+            const playerPos = myPlayer.mesh.position;
+            const direction = target.clone().sub(playerPos);
+            direction.y = 0;
+            direction.normalize();
+
+            this.networkManager.sendToHost({
+                type: 'SKILL_REQUEST',
+                skillType: SkillType.LASER_BEAM,
+                direction: { x: direction.x, y: direction.y, z: direction.z },
+                timestamp: Date.now()
+            });
+            this.cleanupSkillTargeting();
         }
+    }
+
+    private cleanupSkillTargeting() {
+        if (this.currentSkill) {
+            this.uiManager.clearSkillGlow(this.currentSkill);
+            this.uiManager.clearSkillBorder(this.currentSkill);
+        }
+        this.isTargeting = false;
+        this.currentSkill = null;
+        this.entityManager.setSkillTargeting(null, false);
     }
 
     private activateInvincibility() {
@@ -232,21 +428,18 @@ export class GameClient {
         if (!myPlayer) return;
         if (myPlayer.isDead) return;
 
-        // Check cooldown
         const now = Date.now();
         if (now < myPlayer.invincibilityCooldown) {
             console.log('Invincibility on cooldown');
             return;
         }
 
-        // Send skill request immediately (no targeting required)
         this.networkManager.sendToHost({
             type: 'SKILL_REQUEST',
             skillType: SkillType.INVINCIBILITY,
             timestamp: Date.now()
         });
 
-        // No border for R skill, but clear it anyway for consistency
         this.uiManager.clearSkillBorder(SkillType.INVINCIBILITY);
     }
 
@@ -257,14 +450,11 @@ export class GameClient {
                     this.localPlayerId = message.playerId;
                     this.entityManager.loadMap(message.mapConfig);
 
-                    // Request initial state
                     this.networkManager.sendToHost({
                         type: 'STATE_REQUEST'
                     });
 
                     this.start();
-
-                    // Setup host action buttons
                     this.setupHostActionButtons();
                 }
                 break;
@@ -311,23 +501,15 @@ export class GameClient {
     }
 
     public joinGame(_hostId: string) {
-        // If we are host, we are already connected effectively, but we need to trigger the join flow
-        // If we are client, we connect then join.
-        // NetworkManager handles connection.
-        // We send JOIN_REQUEST.
-
-        // Create join request with player information
         const joinRequest: any = { 
             type: 'JOIN_REQUEST', 
             playerId: this.networkManager.peerId 
         };
 
-        // Add username if available
         if (this.networkManager.playerName) {
             joinRequest.username = this.networkManager.playerName;
         }
 
-        // Add avatar if available (for future use)
         if (this.networkManager.playerAvatar) {
             joinRequest.avatar = this.networkManager.playerAvatar;
         }
@@ -338,7 +520,6 @@ export class GameClient {
     public start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        // Dispatch event to hide menu (React will handle it)
         window.dispatchEvent(new CustomEvent('game-started'));
         this.uiManager.showHUD();
         this.animate();
@@ -353,8 +534,31 @@ export class GameClient {
     }
 
     private update(delta: number) {
+        // Send pending movement requests with throttling
+        if (this.pendingMovementTarget && this.isLeftMouseDown) {
+            this.sendMovementRequest(this.pendingMovementTarget, false);
+        }
+
         // Update Entities (Interpolation)
         this.entityManager.update(delta);
+
+        // Update character rotation to face mouse direction when targeting
+        if (this.localPlayerId && this.isTargeting && this.currentSkill) {
+            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+            if (myPlayer) {
+                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+                if (target) {
+                    const playerPos = myPlayer.mesh.position;
+                    const direction = new THREE.Vector3().subVectors(target, playerPos);
+                    direction.y = 0;
+                    direction.normalize();
+                    
+                    // Rotate character to face mouse direction
+                    const angle = Math.atan2(direction.x, direction.z);
+                    myPlayer.bodyGroup.rotation.y = angle;
+                }
+            }
+        }
 
         // Camera Follow
         if (this.localPlayerId) {
