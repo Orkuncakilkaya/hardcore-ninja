@@ -124,7 +124,7 @@ export class DamageAreaEffect {
      * Removes all damage area indicators
      */
     public removeAllDamageAreas(): void {
-        for (const [playerId, damageArea] of this.damageAreas) {
+        for (const [_playerId, damageArea] of this.damageAreas) {
             this.scene.remove(damageArea);
         }
         this.damageAreas.clear();

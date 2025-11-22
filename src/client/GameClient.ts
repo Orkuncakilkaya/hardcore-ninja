@@ -18,7 +18,6 @@ export class GameClient {
     private clock: THREE.Clock;
     private localPlayerId: string | null = null;
     private isLeftMouseDown: boolean = false;
-    private lastMovementTarget: THREE.Vector3 | null = null;
     
     // Network throttling
     private lastMovementSendTime: number = 0;
@@ -53,7 +52,6 @@ export class GameClient {
             // Normal movement
             const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
             if (target) {
-                this.lastMovementTarget = target.clone();
                 this.pendingMovementTarget = target.clone();
                 this.sendMovementRequest(target, true); // Immediate on mouse down
             }
@@ -82,7 +80,6 @@ export class GameClient {
             if (this.isLeftMouseDown) {
                 const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                 if (target) {
-                    this.lastMovementTarget = target.clone();
                     this.pendingMovementTarget = target.clone();
                     // Movement request will be sent in update loop with throttling
                 }
