@@ -24,10 +24,126 @@ export class GameServer {
     constructor(networkManager: NetworkManager, mapConfig: MapConfig) {
         this.networkManager = networkManager;
         this.mapConfig = mapConfig;
+        
+        // Generate random boxes for this session
+        this.generateRandomBoxes();
+        
         this.entityManager = new ServerEntityManager();
-        this.entityManager.loadMap(mapConfig);
+        this.entityManager.loadMap(this.mapConfig);
 
         this.setupNetworkHandlers();
+    }
+    
+    private generateRandomBoxes() {
+        // Use session seed for consistent randomness across network
+        const sessionSeed = Date.now();
+        const random = this.seededRandom(sessionSeed);
+        
+        const playableSize = this.mapConfig.playableArea.size;
+        const halfSize = playableSize / 2;
+        const margin = 5; // Margin from walls
+        
+        // Clear existing boxes (keep only walls)
+        this.mapConfig.boxes = [];
+        
+        // Generate random boxes (max 20)
+        const numBoxes = Math.floor(random() * 20) + 1; // 1-20 boxes
+        const colors = [
+            0x8B4513, // Brown
+            0x654321, // Dark brown
+            0xA0522D, // Sienna
+            0x8B7355, // Tan
+            0x6B4423, // Dark tan
+            0xCD853F, // Peru
+            0xD2691E, // Chocolate
+            0x8B6914, // Dark goldenrod
+            0x9C661F, // Darker tan
+            0x7B3F00, // Dark brown
+            0x5C4033, // Very dark brown
+            0x4A3728, // Almost black brown
+            0x6F4E37, // Coffee
+            0x8B6F47, // Dark khaki
+            0x7D5A50, // Dark taupe
+        ];
+        
+        const existingPositions: Array<{ x: number, z: number }> = [];
+        
+        for (let i = 0; i < numBoxes; i++) {
+            let attempts = 0;
+            let position: { x: number, z: number } | null = null;
+            
+            // Try to find a valid position (not overlapping with existing boxes or spawn points)
+            while (attempts < 50 && !position) {
+                const x = (random() * (playableSize - margin * 2)) - (halfSize - margin);
+                const z = (random() * (playableSize - margin * 2)) - (halfSize - margin);
+                
+                // Check distance from spawn points
+                // Note: spawnPoints in JSON use (x, y) where y is actually z in 3D space
+                let tooCloseToSpawn = false;
+                for (const spawn of this.mapConfig.spawnPoints) {
+                    // spawn.y in JSON is actually z coordinate in 3D
+                    const spawnZ = spawn.z !== undefined ? spawn.z : (spawn as any).y;
+                    const dist = Math.sqrt((x - spawn.x) ** 2 + (z - spawnZ) ** 2);
+                    if (dist < 8) { // Minimum distance from spawn
+                        tooCloseToSpawn = true;
+                        break;
+                    }
+                }
+                
+                // Check distance from existing boxes
+                let tooCloseToBox = false;
+                for (const existing of existingPositions) {
+                    const dist = Math.sqrt((x - existing.x) ** 2 + (z - existing.z) ** 2);
+                    if (dist < 4) { // Minimum distance between boxes
+                        tooCloseToBox = true;
+                        break;
+                    }
+                }
+                
+                if (!tooCloseToSpawn && !tooCloseToBox) {
+                    position = { x, z };
+                    existingPositions.push(position);
+                }
+                
+                attempts++;
+            }
+            
+            if (position) {
+                // Random dimensions (different sizes)
+                const width = 1.5 + random() * 3; // 1.5 to 4.5
+                const height = 1.5 + random() * 3; // 1.5 to 4.5
+                const depth = 1.5 + random() * 3; // 1.5 to 4.5
+                
+                // Random color from palette
+                const color = colors[Math.floor(random() * colors.length)];
+                
+                this.mapConfig.boxes.push({
+                    id: `box_random_${i}`,
+                    position: {
+                        x: position.x,
+                        y: height / 2,
+                        z: position.z
+                    },
+                    dimensions: {
+                        width: width,
+                        height: height,
+                        depth: depth
+                    },
+                    color: color
+                });
+            }
+        }
+        
+        console.log(`Generated ${this.mapConfig.boxes.length} random boxes for this session`);
+    }
+    
+    // Seeded random number generator for consistent randomness
+    private seededRandom(seed: number): () => number {
+        let value = seed;
+        return function() {
+            value = (value * 9301 + 49297) % 233280;
+            return value / 233280;
+        };
     }
 
     private setupNetworkHandlers() {
