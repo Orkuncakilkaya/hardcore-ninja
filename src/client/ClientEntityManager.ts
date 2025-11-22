@@ -7,6 +7,7 @@ import { MissileEffect } from './effects/MissileEffect';
 import { LaserBeamEffect } from './effects/LaserBeamEffect';
 import { InvincibilityEffect } from './effects/InvincibilityEffect';
 import { ClickIndicatorEffect } from './effects/ClickIndicatorEffect';
+import { DamageAreaEffect } from './effects/DamageAreaEffect';
 import { PlayerModel } from './models/PlayerModel';
 
 interface ClientPlayer {
@@ -55,6 +56,7 @@ export class ClientEntityManager {
     private laserBeamEffect: LaserBeamEffect;
     private invincibilityEffect: InvincibilityEffect;
     private clickIndicatorEffect: ClickIndicatorEffect;
+    private damageAreaEffect: DamageAreaEffect;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -63,6 +65,7 @@ export class ClientEntityManager {
         this.laserBeamEffect = new LaserBeamEffect(scene);
         this.invincibilityEffect = new InvincibilityEffect(scene);
         this.clickIndicatorEffect = new ClickIndicatorEffect(scene);
+        this.damageAreaEffect = new DamageAreaEffect(scene);
         this.createSkillRadii();
     }
 
@@ -338,6 +341,7 @@ export class ClientEntityManager {
         for (const [id, player] of this.players) {
             if (!activeIds.has(id)) {
                 this.scene.remove(player.mesh);
+                this.damageAreaEffect.removeDamageArea(id);
                 this.players.delete(id);
             }
         }
@@ -349,7 +353,7 @@ export class ClientEntityManager {
         const now = Date.now();
 
         // Interpolate
-        this.players.forEach(player => {
+        this.players.forEach((player, playerId) => {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
                 const previousPosition = player.mesh.position.clone();
@@ -460,6 +464,19 @@ export class ClientEntityManager {
             // Make name label face the camera (billboard effect)
             if (player.nameLabel && camera) {
                 player.nameLabel.lookAt(camera.position);
+            }
+            
+            // Update damage area indicator - use bodyGroup rotation to match player facing direction
+            // Only show damage area for alive players
+            if (player.bodyGroup && !player.isDead) {
+                this.damageAreaEffect.updateDamageArea(
+                    playerId,
+                    player.mesh.position,
+                    player.bodyGroup.rotation.y
+                );
+            } else {
+                // Remove damage area for dead players
+                this.damageAreaEffect.removeDamageArea(playerId);
             }
         });
         

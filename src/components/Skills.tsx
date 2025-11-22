@@ -4,7 +4,7 @@ export default function Skills() {
   return (
     <div id="skills" className={styles.skills}>
       <div className={styles.skillSlot} data-skill="teleport">
-        <div className={styles.skillIcon}>⚡</div>
+        <div className={styles.skillIcon}>🌀</div>
         <div className={styles.skillKey}>Q</div>
         <div id="cd-missile" className={styles.cooldownOverlay}></div>
         <div className={styles.cooldownText}></div>
@@ -25,12 +25,6 @@ export default function Skills() {
         <div className={styles.skillIcon}>🛡️</div>
         <div className={styles.skillKey}>R</div>
         <div id="cd-tank" className={styles.cooldownOverlay}></div>
-        <div className={styles.cooldownText}></div>
-      </div>
-      <div className={styles.skillSlot} data-skill="ult">
-        <div className={styles.skillIcon}>💥</div>
-        <div className={styles.skillKey}>SPC</div>
-        <div id="cd-ult" className={styles.cooldownOverlay}></div>
         <div className={styles.cooldownText}></div>
       </div>
     </div>
