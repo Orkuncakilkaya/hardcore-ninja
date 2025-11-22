@@ -8,6 +8,9 @@ export class UIManager {
     private homingMissileCdOverlay: HTMLElement;
     private laserBeamCdOverlay: HTMLElement;
     private invincibilityCdOverlay: HTMLElement;
+    private teleportSkillIcon: HTMLElement | null = null;
+    private homingMissileSkillIcon: HTMLElement | null = null;
+    private laserBeamSkillIcon: HTMLElement | null = null;
     private startButton: HTMLElement | null = null;
     private restartButton: HTMLElement | null = null;
     private gameModeDisplay: HTMLElement | null = null;
@@ -26,6 +29,11 @@ export class UIManager {
         // R skill = Invincibility (cd-tank)
         this.invincibilityCdOverlay = document.getElementById('cd-tank')!;
 
+        // Get skill icons (parent elements of the cooldown overlays)
+        this.teleportSkillIcon = this.teleportCdOverlay.parentElement;
+        this.homingMissileSkillIcon = this.homingMissileCdOverlay.parentElement;
+        this.laserBeamSkillIcon = this.laserBeamCdOverlay.parentElement;
+
         // Hide other unused slots
         const otherSlots = ['cd-ult'];
         otherSlots.forEach(id => {
@@ -38,6 +46,92 @@ export class UIManager {
 
         // Create tab menu
         this.createTabMenu();
+    }
+
+    // Set glow effect for a skill when it's in pressed state
+    public setSkillGlow(skillType: SkillType) {
+        let skillIcon = null;
+
+        switch (skillType) {
+            case SkillType.TELEPORT:
+                skillIcon = this.teleportSkillIcon;
+                break;
+            case SkillType.HOMING_MISSILE:
+                skillIcon = this.homingMissileSkillIcon;
+                break;
+            case SkillType.LASER_BEAM:
+                skillIcon = this.laserBeamSkillIcon;
+                break;
+        }
+
+        if (skillIcon) {
+            skillIcon.style.boxShadow = '0 0 10px 5px rgba(0, 255, 0, 0.7)';
+            skillIcon.style.border = '2px solid #fff';
+        }
+    }
+
+    // Clear glow effect for a skill
+    public clearSkillGlow(skillType: SkillType) {
+        let skillIcon = null;
+
+        switch (skillType) {
+            case SkillType.TELEPORT:
+                skillIcon = this.teleportSkillIcon;
+                break;
+            case SkillType.HOMING_MISSILE:
+                skillIcon = this.homingMissileSkillIcon;
+                break;
+            case SkillType.LASER_BEAM:
+                skillIcon = this.laserBeamSkillIcon;
+                break;
+        }
+
+        if (skillIcon) {
+            skillIcon.style.boxShadow = '';
+            // Don't clear border here as it might be set by setSkillBorder
+        }
+    }
+
+    // Set border for a skill when it's ready to be cast
+    public setSkillBorder(skillType: SkillType) {
+        let skillIcon = null;
+
+        switch (skillType) {
+            case SkillType.TELEPORT:
+                skillIcon = this.teleportSkillIcon;
+                break;
+            case SkillType.HOMING_MISSILE:
+                skillIcon = this.homingMissileSkillIcon;
+                break;
+            case SkillType.LASER_BEAM:
+                skillIcon = this.laserBeamSkillIcon;
+                break;
+        }
+
+        if (skillIcon) {
+            skillIcon.style.border = '2px solid #fff';
+        }
+    }
+
+    // Clear border for a skill
+    public clearSkillBorder(skillType: SkillType) {
+        let skillIcon = null;
+
+        switch (skillType) {
+            case SkillType.TELEPORT:
+                skillIcon = this.teleportSkillIcon;
+                break;
+            case SkillType.HOMING_MISSILE:
+                skillIcon = this.homingMissileSkillIcon;
+                break;
+            case SkillType.LASER_BEAM:
+                skillIcon = this.laserBeamSkillIcon;
+                break;
+        }
+
+        if (skillIcon) {
+            skillIcon.style.border = '';
+        }
     }
 
     private createGameModeDisplay() {
@@ -280,6 +374,9 @@ export class UIManager {
         if (now < teleportCooldownEnd) {
             const remaining = teleportCooldownEnd - now;
             teleportPercent = (remaining / teleportTotalCooldown) * 100;
+            this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
+        } else {
+            this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
         }
         this.teleportCdOverlay.style.height = `${teleportPercent}%`;
 
@@ -291,6 +388,9 @@ export class UIManager {
         if (now < homingMissileCooldownEnd) {
             const remaining = homingMissileCooldownEnd - now;
             homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
+            this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
+        } else {
+            this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
         }
         this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
 
@@ -302,6 +402,9 @@ export class UIManager {
         if (now < laserBeamCooldownEnd) {
             const remaining = laserBeamCooldownEnd - now;
             laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
+            this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
+        } else {
+            this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
         }
         this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
 
@@ -313,6 +416,7 @@ export class UIManager {
         if (now < invincibilityCooldownEnd) {
             const remaining = invincibilityCooldownEnd - now;
             invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
+            // No border for R skill as it gets cast immediately
         }
         this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
 

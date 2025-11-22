@@ -336,7 +336,17 @@ export class ClientEntityManager {
     }
 
     public updateLaserPreview(playerPos: THREE.Vector3, direction: THREE.Vector3) {
-        if (!this.laserPreviewLine || !this.laserPreviewLine.visible) return;
+        // Create the laser preview line if it doesn't exist
+        if (!this.laserPreviewLine) {
+            this.createLaserPreviewLine();
+        }
+
+        // If the laser preview line is not visible, make it visible
+        if (this.laserPreviewLine && !this.laserPreviewLine.visible) {
+            this.laserPreviewLine.visible = true;
+        }
+
+        if (!this.laserPreviewLine) return;
 
         const config = SKILL_CONFIG[SkillType.LASER_BEAM];
         const endPos = playerPos.clone().add(direction.clone().normalize().multiplyScalar(config.range));

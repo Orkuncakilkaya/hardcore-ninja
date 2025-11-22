@@ -134,6 +134,11 @@ export class GameClient {
             }
         }
 
+        // Clear any existing skill glow
+        if (this.currentSkill) {
+            this.uiManager.clearSkillGlow(this.currentSkill);
+        }
+
         if (this.currentSkill === skillType && this.isTargeting) {
             // Toggle off
             this.isTargeting = false;
@@ -142,6 +147,9 @@ export class GameClient {
             // Toggle on
             this.isTargeting = true;
             this.currentSkill = skillType;
+
+            // Set glow for the active skill
+            this.uiManager.setSkillGlow(skillType);
         }
 
         this.entityManager.setSkillTargeting(this.currentSkill, this.isTargeting);
@@ -163,6 +171,8 @@ export class GameClient {
             this.isTargeting = false;
             this.currentSkill = null;
             this.entityManager.setSkillTargeting(null, false);
+            this.uiManager.clearSkillGlow(SkillType.TELEPORT);
+            this.uiManager.clearSkillBorder(SkillType.TELEPORT);
 
         } else if (this.currentSkill === SkillType.HOMING_MISSILE) {
             // Check if click is within Player Radius
@@ -183,6 +193,8 @@ export class GameClient {
                     this.isTargeting = false;
                     this.currentSkill = null;
                     this.entityManager.setSkillTargeting(null, false);
+                    this.uiManager.clearSkillGlow(SkillType.HOMING_MISSILE);
+                    this.uiManager.clearSkillBorder(SkillType.HOMING_MISSILE);
                 } else {
                     console.log('Click inside the green circle to activate!');
                 }
@@ -204,6 +216,8 @@ export class GameClient {
                 this.isTargeting = false;
                 this.currentSkill = null;
                 this.entityManager.setSkillTargeting(null, false);
+                this.uiManager.clearSkillGlow(SkillType.LASER_BEAM);
+                this.uiManager.clearSkillBorder(SkillType.LASER_BEAM);
             }
         }
     }
@@ -228,6 +242,9 @@ export class GameClient {
             skillType: SkillType.INVINCIBILITY,
             timestamp: Date.now()
         });
+
+        // No border for R skill, but clear it anyway for consistency
+        this.uiManager.clearSkillBorder(SkillType.INVINCIBILITY);
     }
 
     private handleMessage(message: NetworkMessage) {
