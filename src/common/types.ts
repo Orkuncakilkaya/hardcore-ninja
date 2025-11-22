@@ -32,6 +32,10 @@ export interface PlayerState {
     laserBeamCooldown: number;
     invincibilityCooldown: number;
     isDead: boolean;
+    isFrozen?: boolean;
+    kills?: number;
+    deaths?: number;
+    lastPlayerAlive?: number;
 }
 
 export interface MissileState {
@@ -54,6 +58,12 @@ export interface GameState {
     missiles: MissileState[];
     laserBeams: LaserBeamState[];
     timestamp: number;
+    gameMode: string;
+    currentRound: number;
+    totalRounds: number;
+    freezeTimeEnd?: number;
+    winnerId?: string;
+    roundWinnerId?: string;
 }
 
 export interface MapConfig {

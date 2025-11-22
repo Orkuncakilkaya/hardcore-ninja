@@ -20,6 +20,14 @@ export class ServerPlayer {
     public isInvulnerable: boolean = false;
     private invulnerableTimer: number = 0;
     public isDead: boolean = false;
+    public isFrozen: boolean = false;
+
+    // Stats
+    public kills: number = 0;
+    public deaths: number = 0;
+    public lastPlayerAlive: number = 0;
+    public aliveStartTime: number = 0;
+    public respawnTime: number = 0;
 
     // Teleport State
     public isTeleporting: boolean = false;
@@ -69,6 +77,11 @@ export class ServerPlayer {
             if (this.invulnerableTimer <= 0) {
                 this.isInvulnerable = false;
             }
+        }
+
+        // Don't update movement if player is frozen or dead
+        if (this.isFrozen || this.isDead) {
+            return;
         }
 
         // Teleport movement (no collision during teleport)
@@ -288,8 +301,10 @@ export class ServerPlayer {
         if (this.isInvulnerable) return;
         this.health = Math.max(0, this.health - amount);
         if (this.health <= 0) {
-            // Handle death (managed by GameServer/EntityManager usually, but we can flag it)
+            // Handle death
             this.isDead = true;
+            this.deaths++;
+            this.aliveStartTime = 0; // Stop tracking alive time
             console.log(`Player ${this.id} took ${amount} damage. Health: ${this.health}. Player is dead.`);
         }
     }
@@ -317,6 +332,8 @@ export class ServerPlayer {
         this.isInvulnerable = false;
         this.invulnerableTimer = 0;
         this.isDead = false;
+        this.isFrozen = false;
+        this.respawnTime = 0;
 
         // Reset movement
         this.stopMovement();
@@ -327,6 +344,9 @@ export class ServerPlayer {
         this.homingMissileCooldown = now;
         this.laserBeamCooldown = now;
         this.invincibilityCooldown = now;
+
+        // Start tracking alive time
+        this.aliveStartTime = now;
     }
 
     public getState(): PlayerState {
@@ -343,7 +363,11 @@ export class ServerPlayer {
             homingMissileCooldown: this.homingMissileCooldown,
             laserBeamCooldown: this.laserBeamCooldown,
             invincibilityCooldown: this.invincibilityCooldown,
-            isDead: this.isDead
+            isDead: this.isDead,
+            isFrozen: this.isFrozen,
+            kills: this.kills,
+            deaths: this.deaths,
+            lastPlayerAlive: this.lastPlayerAlive
         };
     }
 }

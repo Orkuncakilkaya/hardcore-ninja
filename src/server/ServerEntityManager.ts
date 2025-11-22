@@ -132,6 +132,16 @@ export class ServerEntityManager {
         return Array.from(this.players.values());
     }
 
+    public getSpawnPointForPlayer(playerId: string): number {
+        // Return the claimed spawn point for this player, or -1 if none
+        return this.claimedSpawnPoints.get(playerId) ?? -1;
+    }
+
+    public getSpawnPosition(index: number): THREE.Vector2 | undefined {
+        // Return the spawn position at the given index, or undefined if out of bounds
+        return this.spawnPositions[index];
+    }
+
     public getState() {
         return {
             players: Array.from(this.players.values()).map(p => p.getState()),

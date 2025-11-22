@@ -1,5 +1,4 @@
 import './style.css'
-import './style.css'
 import { NetworkManager } from './network/NetworkManager';
 import { GameClient } from './client/GameClient';
 import { GameServer } from './server/GameServer';

@@ -1,6 +1,25 @@
 export const TICK_RATE = 32;
 export const TICK_INTERVAL = 1 / TICK_RATE;
 
+// Game Modes
+export const GameMode = {
+    WARMUP: 'WARMUP',
+    ROUND: 'ROUND',
+    FREEZE_TIME: 'FREEZE_TIME',
+    ROUND_END: 'ROUND_END',
+    GAME_OVER: 'GAME_OVER'
+} as const;
+
+export type GameMode = typeof GameMode[keyof typeof GameMode];
+
+// Game Settings
+export const GAME_CONFIG = {
+    ROUNDS_TO_WIN: 3,
+    FREEZE_TIME_DURATION: 5000, // 5 seconds
+    ROUND_END_DURATION: 3000, // 3 seconds
+    MIN_PLAYERS_TO_START: 2
+};
+
 export const SkillType = {
     TELEPORT: 'TELEPORT',
     HOMING_MISSILE: 'HOMING_MISSILE',

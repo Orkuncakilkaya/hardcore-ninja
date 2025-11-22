@@ -57,6 +57,16 @@ export class GameClient {
                 this.toggleSkillTargeting(SkillType.LASER_BEAM);
             } else if (e.key.toLowerCase() === 'r') {
                 this.activateInvincibility();
+            } else if (e.key === 'Tab') {
+                e.preventDefault(); // Prevent default tab behavior
+                this.toggleTabMenu();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                this.hideTabMenu();
             }
         });
 
@@ -233,14 +243,50 @@ export class GameClient {
                     });
 
                     this.start();
+
+                    // Setup host action buttons
+                    this.setupHostActionButtons();
                 }
                 break;
             case 'GAME_STATE_UPDATE':
                 if (this.localPlayerId) {
                     this.entityManager.updateState(message.state, this.localPlayerId);
-                    this.uiManager.update(message.state, this.localPlayerId);
+                    this.uiManager.update(message.state, this.localPlayerId, this.networkManager.isHost);
                 }
                 break;
+        }
+    }
+
+    private toggleTabMenu() {
+        this.uiManager.showTabMenu();
+    }
+
+    private hideTabMenu() {
+        this.uiManager.hideTabMenu();
+    }
+
+    private setupHostActionButtons() {
+        const startButton = document.getElementById('btn-start-game');
+        const restartButton = document.getElementById('btn-restart-game');
+
+        if (startButton) {
+            startButton.addEventListener('click', () => {
+                if (this.networkManager.isHost) {
+                    this.networkManager.sendToHost({
+                        type: 'START_GAME'
+                    });
+                }
+            });
+        }
+
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                if (this.networkManager.isHost) {
+                    this.networkManager.sendToHost({
+                        type: 'RESTART_GAME'
+                    });
+                }
+            });
         }
     }
 
