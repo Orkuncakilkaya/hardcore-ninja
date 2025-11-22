@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { Box } from '../entities/Box';
 import type { GameState, MapConfig } from '../common/types';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
+import { TeleportEffect } from './effects/TeleportEffect';
+import { MissileEffect } from './effects/MissileEffect';
+import { LaserBeamEffect } from './effects/LaserBeamEffect';
+import { InvincibilityEffect } from './effects/InvincibilityEffect';
+import { ClickIndicatorEffect } from './effects/ClickIndicatorEffect';
+import { ParticleUtils } from './effects/ParticleUtils';
 
 interface ClientPlayer {
     mesh: THREE.Group;
@@ -11,13 +17,19 @@ interface ClientPlayer {
     homingMissileCooldown: number;
     laserBeamCooldown: number;
     invincibilityCooldown: number;
-    invincibilitySphere: THREE.Mesh | null;
+    invincibilitySphere: THREE.Group | null;
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
     healthBar: THREE.Group | null; // Reference to the healthbar mesh
     nameLabel: THREE.Sprite | null; // Reference to the player name label
     health: number; // Current health value
     maxHealth: number; // Maximum health value
+    isTeleporting: boolean; // Whether player is currently teleporting
+    previousPosition: THREE.Vector3; // Previous position for trail
+    teleportTrail: THREE.Line | null; // Trail effect during teleport
+    teleportStartEffect: THREE.Group | null; // Start position effect
+    teleportEndEffect: THREE.Group | null; // End position effect
+    teleportTrailParticles: THREE.Points | null; // Particle trail
 }
 
 export class ClientEntityManager {
@@ -25,62 +37,43 @@ export class ClientEntityManager {
     public players: Map<string, ClientPlayer> = new Map();
     public boxes: Box[] = [];
     public walls: Box[] = [];
-    public missiles: Map<string, THREE.Mesh> = new Map();
-    public laserBeams: Map<string, THREE.Mesh> = new Map();
-    private teleportRadiusMesh?: THREE.Mesh;
-    private mouseRadiusMesh?: THREE.Mesh;
-    private playerRadiusMesh?: THREE.Mesh; // For Homing Missile activation zone
+    public missiles: Map<string, THREE.Group> = new Map();
+    public laserBeams: Map<string, THREE.Group> = new Map();
     private laserPreviewLine?: THREE.Line; // For Laser Beam preview
+    private localPlayerId: string | null = null;
+    
+    // Skill effect managers
+    private teleportEffect: TeleportEffect;
+    private missileEffect: MissileEffect;
+    private laserBeamEffect: LaserBeamEffect;
+    private invincibilityEffect: InvincibilityEffect;
+    private clickIndicatorEffect: ClickIndicatorEffect;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
+        this.teleportEffect = new TeleportEffect(scene);
+        this.missileEffect = new MissileEffect(scene);
+        this.laserBeamEffect = new LaserBeamEffect(scene);
+        this.invincibilityEffect = new InvincibilityEffect(scene);
+        this.clickIndicatorEffect = new ClickIndicatorEffect(scene);
         this.createSkillRadii();
     }
 
     private createSkillRadii() {
-        // Teleport Radius
-        const tpConfig = SKILL_CONFIG[SkillType.TELEPORT];
-        const tpGeo = new THREE.RingGeometry(tpConfig.range - 0.5, tpConfig.range, 32);
-        const tpMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        this.teleportRadiusMesh = new THREE.Mesh(tpGeo, tpMat);
-        this.teleportRadiusMesh.rotation.x = -Math.PI / 2;
-        this.teleportRadiusMesh.position.y = 0.1;
-        this.teleportRadiusMesh.visible = false;
-        this.scene.add(this.teleportRadiusMesh);
-
-        // Homing Missile Player Radius (Activation Zone)
-        const hmConfig = SKILL_CONFIG[SkillType.HOMING_MISSILE];
-        const prGeo = new THREE.RingGeometry(hmConfig.radius - 0.1, hmConfig.radius, 32);
-        const prMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        this.playerRadiusMesh = new THREE.Mesh(prGeo, prMat);
-        this.playerRadiusMesh.rotation.x = -Math.PI / 2;
-        this.playerRadiusMesh.position.y = 0.1;
-        this.playerRadiusMesh.visible = false;
-        this.scene.add(this.playerRadiusMesh);
-
-        // Homing Missile Mouse Radius (Target Zone)
-        const mrGeo = new THREE.RingGeometry(hmConfig.mouseRadius - 0.1, hmConfig.mouseRadius, 32);
-        const mrMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        this.mouseRadiusMesh = new THREE.Mesh(mrGeo, mrMat);
-        this.mouseRadiusMesh.rotation.x = -Math.PI / 2;
-        this.mouseRadiusMesh.position.y = 0.1;
-        this.mouseRadiusMesh.visible = false;
-        this.scene.add(this.mouseRadiusMesh);
+        // Skill radii are now managed by their respective effect classes
     }
 
     public setSkillTargeting(skillType: SkillType | null, isTargeting: boolean) {
-        if (this.teleportRadiusMesh) this.teleportRadiusMesh.visible = false;
-        if (this.playerRadiusMesh) this.playerRadiusMesh.visible = false;
-        if (this.mouseRadiusMesh) this.mouseRadiusMesh.visible = false;
+        this.teleportEffect.setRadiusVisible(false);
+        this.missileEffect.setTargetingVisible(false);
         if (this.laserPreviewLine) this.laserPreviewLine.visible = false;
 
         if (!isTargeting || !skillType) return;
 
-        if (skillType === SkillType.TELEPORT && this.teleportRadiusMesh) {
-            this.teleportRadiusMesh.visible = true;
+        if (skillType === SkillType.TELEPORT) {
+            this.teleportEffect.setRadiusVisible(true);
         } else if (skillType === SkillType.HOMING_MISSILE) {
-            if (this.playerRadiusMesh) this.playerRadiusMesh.visible = true;
-            if (this.mouseRadiusMesh) this.mouseRadiusMesh.visible = true;
+            this.missileEffect.setTargetingVisible(true);
         } else if (skillType === SkillType.LASER_BEAM) {
             if (!this.laserPreviewLine) {
                 this.createLaserPreviewLine();
@@ -90,8 +83,10 @@ export class ClientEntityManager {
     }
 
     public updateMouseRadiusPosition(position: THREE.Vector3) {
-        if (this.mouseRadiusMesh && this.mouseRadiusMesh.visible) {
-            this.mouseRadiusMesh.position.set(position.x, 0.1, position.z);
+        // Get player position for distance check
+        const myPlayer = this.players.get(this.localPlayerId || '');
+        if (myPlayer) {
+            this.missileEffect.updateMouseRadiusPosition(position, myPlayer.mesh.position);
         }
     }
 
@@ -111,6 +106,7 @@ export class ClientEntityManager {
     }
 
     public updateState(gameState: GameState, myPeerId: string) {
+        this.localPlayerId = myPeerId;
         const activeIds = new Set<string>();
 
         gameState.players.forEach(playerState => {
@@ -135,7 +131,13 @@ export class ClientEntityManager {
                     laserBeamCooldown: playerState.laserBeamCooldown,
                     invincibilityCooldown: playerState.invincibilityCooldown,
                     invincibilitySphere: null,
-                    isDead: playerState.isDead
+                    isDead: playerState.isDead,
+                    isTeleporting: playerState.isTeleporting || false,
+                    previousPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
+                    teleportTrail: null,
+                    teleportStartEffect: null,
+                    teleportEndEffect: null,
+                    teleportTrailParticles: null
                 };
 
                 // Set player name if available
@@ -156,6 +158,38 @@ export class ClientEntityManager {
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
                 clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
                 clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
+                
+                // Handle teleport effects
+                const wasTeleporting = clientPlayer.isTeleporting;
+                clientPlayer.isTeleporting = playerState.isTeleporting || false;
+                
+                if (!wasTeleporting && clientPlayer.isTeleporting) {
+                    // Teleport just started - save start position and create effects
+                    clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
+                    clientPlayer.teleportStartEffect = this.teleportEffect.createStartEffect(clientPlayer.mesh.position);
+                    const trailData = this.teleportEffect.createTrail(clientPlayer.previousPosition, clientPlayer.targetPosition);
+                    clientPlayer.teleportTrail = trailData.trail;
+                    clientPlayer.teleportTrailParticles = trailData.trailParticles;
+                } else if (wasTeleporting && !clientPlayer.isTeleporting) {
+                    // Teleport just ended - create end effect and clean up trail
+                    clientPlayer.teleportEndEffect = this.teleportEffect.createEndEffect(clientPlayer.targetPosition);
+                    this.teleportEffect.cleanupTrail(clientPlayer.teleportTrail, clientPlayer.teleportTrailParticles);
+                    clientPlayer.teleportTrail = null;
+                    clientPlayer.teleportTrailParticles = null;
+                } else if (clientPlayer.isTeleporting && clientPlayer.teleportTrail && clientPlayer.teleportTrailParticles) {
+                    // Still teleporting - update trail
+                    this.teleportEffect.updateTrail(
+                        clientPlayer.teleportTrail,
+                        clientPlayer.teleportTrailParticles,
+                        clientPlayer.previousPosition,
+                        clientPlayer.mesh.position
+                    );
+                }
+                
+                // Update previous position for next frame
+                if (!clientPlayer.isTeleporting) {
+                    clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
+                }
 
                 // Update health and healthbar
                 if (clientPlayer.health !== playerState.health || clientPlayer.maxHealth !== playerState.maxHealth) {
@@ -184,7 +218,7 @@ export class ClientEntityManager {
                 // Update invincibility sphere visibility
                 if (playerState.isInvulnerable) {
                     if (!clientPlayer.invincibilitySphere) {
-                        clientPlayer.invincibilitySphere = this.createInvincibilitySphere();
+                        clientPlayer.invincibilitySphere = this.invincibilityEffect.createShield();
                         clientPlayer.mesh.add(clientPlayer.invincibilitySphere);
                     }
                 } else {
@@ -227,16 +261,10 @@ export class ClientEntityManager {
                 }
             }
 
-            // Update Teleport Radius Position if targeting
+            // Update skill radius positions if targeting
             if (playerState.id === myPeerId && clientPlayer) {
-                if (this.teleportRadiusMesh && this.teleportRadiusMesh.visible) {
-                    this.teleportRadiusMesh.position.x = clientPlayer.mesh.position.x;
-                    this.teleportRadiusMesh.position.z = clientPlayer.mesh.position.z;
-                }
-                if (this.playerRadiusMesh && this.playerRadiusMesh.visible) {
-                    this.playerRadiusMesh.position.x = clientPlayer.mesh.position.x;
-                    this.playerRadiusMesh.position.z = clientPlayer.mesh.position.z;
-                }
+                this.teleportEffect.updateRadiusPosition(clientPlayer.mesh.position);
+                this.missileEffect.updatePlayerRadiusPosition(clientPlayer.mesh.position);
             }
         });
 
@@ -247,10 +275,11 @@ export class ClientEntityManager {
                 activeMissileIds.add(missileState.id);
                 let missileMesh = this.missiles.get(missileState.id);
                 if (!missileMesh) {
-                    missileMesh = this.createMissileMesh();
+                    missileMesh = this.missileEffect.createMissile();
                     this.scene.add(missileMesh);
                     this.missiles.set(missileState.id, missileMesh);
                 }
+                
                 missileMesh.position.set(missileState.position.x, missileState.position.y, missileState.position.z);
                 missileMesh.quaternion.set(missileState.rotation.x, missileState.rotation.y, missileState.rotation.z, missileState.rotation.w);
             });
@@ -269,13 +298,15 @@ export class ClientEntityManager {
         if (gameState.laserBeams) {
             gameState.laserBeams.forEach(laserState => {
                 activeLaserIds.add(laserState.id);
-                let laserMesh = this.laserBeams.get(laserState.id);
-                if (!laserMesh) {
-                    laserMesh = this.createLaserBeamMesh(laserState.startPosition, laserState.endPosition);
-                    this.scene.add(laserMesh);
-                    this.laserBeams.set(laserState.id, laserMesh);
+                let laserGroup = this.laserBeams.get(laserState.id);
+                if (!laserGroup) {
+                    const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+                    const startPos = new THREE.Vector3(laserState.startPosition.x, laserState.startPosition.y, laserState.startPosition.z);
+                    const endPos = new THREE.Vector3(laserState.endPosition.x, laserState.endPosition.y, laserState.endPosition.z);
+                    laserGroup = this.laserBeamEffect.createLaserBeam(startPos, endPos, config.thickness);
+                    this.scene.add(laserGroup);
+                    this.laserBeams.set(laserState.id, laserGroup);
                 }
-                // Laser beams don't move, but we could update them if needed
             });
         }
 
@@ -304,8 +335,27 @@ export class ClientEntityManager {
         this.players.forEach(player => {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
+                const wasMoving = player.mesh.position.distanceTo(player.targetPosition) > 0.01;
                 player.mesh.position.lerp(player.targetPosition, 10 * delta);
                 player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+                
+                // Update teleport trail if teleporting
+                if (player.isTeleporting && player.teleportTrail && player.teleportTrailParticles) {
+                    this.teleportEffect.updateTrail(
+                        player.teleportTrail,
+                        player.teleportTrailParticles,
+                        player.previousPosition,
+                        player.mesh.position
+                    );
+                }
+                
+                // Update teleport particle effects
+                this.teleportEffect.updateEffectParticles(player.teleportStartEffect, delta);
+                this.teleportEffect.updateEffectParticles(player.teleportEndEffect, delta);
+                this.teleportEffect.updateTrailParticles(player.teleportTrailParticles, delta);
+                
+                // Update player transparency during teleport
+                this.teleportEffect.updatePlayerTransparency(player.bodyMesh, player.isTeleporting);
             }
 
             // Make healthbar face the camera (billboard effect)
@@ -320,8 +370,25 @@ export class ClientEntityManager {
                 player.healthBar.rotation.x = originalRotationX;
             }
         });
+        
+        // Update laser beam animations
+        this.laserBeams.forEach((laserGroup) => {
+            this.laserBeamEffect.updateAnimation(laserGroup, delta);
+        });
+        
+        // Update missile animations
+        this.missiles.forEach((missileGroup) => {
+            this.missileEffect.updateAnimation(missileGroup, delta);
+        });
+        
+        // Update invincibility shield animations
+        this.players.forEach((player) => {
+            if (player.invincibilitySphere) {
+                this.invincibilityEffect.updateAnimation(player.invincibilitySphere, delta);
+            }
+        });
     }
-
+    
     public getPlayer(id: string): ClientPlayer | undefined {
         return this.players.get(id);
     }
@@ -349,19 +416,6 @@ export class ClientEntityManager {
         return { group, body, healthBar, nameLabel };
     }
 
-    private createInvincibilitySphere(): THREE.Mesh {
-        const geometry = new THREE.SphereGeometry(2, 16, 16);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0.3,
-            emissive: 0x00ffff,
-            emissiveIntensity: 0.2
-        });
-        const sphere = new THREE.Mesh(geometry, material);
-        sphere.position.y = 1; // Center at player's chest height
-        return sphere;
-    }
 
     private createHealthBar(health: number, maxHealth: number): THREE.Group {
         const healthBarGroup = new THREE.Group();
@@ -555,46 +609,7 @@ export class ClientEntityManager {
         }
     }
 
-    private createMissileMesh(): THREE.Mesh {
-        const geometry = new THREE.ConeGeometry(0.2, 0.8, 8);
-        const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        // Rotate so cone points in forward direction (default is up)
-        geometry.rotateX(Math.PI / 2);
-        return mesh;
-    }
 
-    private createLaserBeamMesh(startPos: { x: number, y: number, z: number }, endPos: { x: number, y: number, z: number }): THREE.Mesh {
-        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-        const start = new THREE.Vector3(startPos.x, startPos.y, startPos.z);
-        const end = new THREE.Vector3(endPos.x, endPos.y, endPos.z);
-
-        const direction = end.clone().sub(start);
-        const length = direction.length();
-
-        // Create cylinder geometry
-        const geometry = new THREE.CylinderGeometry(config.thickness, config.thickness, length, 8);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
-            emissiveIntensity: 0.5
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-
-        // Position at midpoint
-        const midpoint = start.clone().add(end).multiplyScalar(0.5);
-        mesh.position.copy(midpoint);
-
-        // Rotate to align with direction
-        mesh.quaternion.setFromUnitVectors(
-            new THREE.Vector3(0, 1, 0),
-            direction.normalize()
-        );
-
-        return mesh;
-    }
 
     private createLaserPreviewLine() {
         const config = SKILL_CONFIG[SkillType.LASER_BEAM];
@@ -602,7 +617,12 @@ export class ClientEntityManager {
             new THREE.Vector3(0, 0, 0),
             new THREE.Vector3(0, 0, config.range)
         ]);
-        const material = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        const material = new THREE.LineBasicMaterial({ 
+            color: 0xff0000, 
+            linewidth: 3,
+            transparent: true,
+            opacity: 0.8
+        });
         this.laserPreviewLine = new THREE.Line(geometry, material);
         this.laserPreviewLine.visible = false;
         this.scene.add(this.laserPreviewLine);
@@ -631,5 +651,12 @@ export class ClientEntityManager {
         ]);
         this.laserPreviewLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         this.laserPreviewLine.geometry.attributes.position.needsUpdate = true;
+    }
+
+    /**
+     * Creates a click indicator effect on the ground at the specified position
+     */
+    public createClickIndicator(position: THREE.Vector3): void {
+        this.clickIndicatorEffect.createClickIndicator(position);
     }
 }

@@ -98,6 +98,9 @@ export class GameClient {
                     // Movement
                     const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                     if (target) {
+                        // Create click indicator effect
+                        this.entityManager.createClickIndicator(target);
+                        
                         console.log('Sending Move Request:', target);
                         this.networkManager.sendToHost({
                             type: 'PLAYER_INPUT',
