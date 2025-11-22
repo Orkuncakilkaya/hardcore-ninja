@@ -1,19 +1,22 @@
 import type { GameState } from '../common/types';
-import { SKILL_CONFIG } from '../common/constants';
+import { SKILL_CONFIG, SkillType } from '../common/constants';
 
 export class UIManager {
     private healthBar: HTMLElement;
     private hud: HTMLElement;
     private teleportCdOverlay: HTMLElement;
+    private homingMissileCdOverlay: HTMLElement;
 
     constructor() {
         this.healthBar = document.getElementById('health-bar')!;
         this.hud = document.getElementById('hud')!;
-        // Assuming 'cd-missile' was the Q skill slot, we'll use it for Teleport
+        // Q skill = Teleport (cd-missile)
         this.teleportCdOverlay = document.getElementById('cd-missile')!;
+        // W skill = Homing Missile (cd-basic)
+        this.homingMissileCdOverlay = document.getElementById('cd-basic')!;
 
-        // Hide other slots if possible, or just ignore them
-        const otherSlots = ['cd-basic', 'cd-slash', 'cd-tank', 'cd-ult'];
+        // Hide other unused slots
+        const otherSlots = ['cd-slash', 'cd-tank', 'cd-ult'];
         otherSlots.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.parentElement!.style.display = 'none';
@@ -32,17 +35,28 @@ export class UIManager {
         const healthPercent = Math.max(0, (player.health / player.maxHealth) * 100);
         this.healthBar.style.width = `${healthPercent}%`;
 
-        // Update Teleport Cooldown
         const now = Date.now();
-        const cooldownEnd = player.teleportCooldown;
-        const totalCooldown = SKILL_CONFIG.TELEPORT.cooldown;
 
-        let percent = 0;
-        if (now < cooldownEnd) {
-            const remaining = cooldownEnd - now;
-            percent = (remaining / totalCooldown) * 100;
+        // Update Teleport Cooldown (Q skill)
+        const teleportCooldownEnd = player.teleportCooldown;
+        const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
+
+        let teleportPercent = 0;
+        if (now < teleportCooldownEnd) {
+            const remaining = teleportCooldownEnd - now;
+            teleportPercent = (remaining / teleportTotalCooldown) * 100;
         }
+        this.teleportCdOverlay.style.height = `${teleportPercent}%`;
 
-        this.teleportCdOverlay.style.height = `${percent}%`;
+        // Update Homing Missile Cooldown (W skill)
+        const homingMissileCooldownEnd = player.homingMissileCooldown;
+        const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
+
+        let homingMissilePercent = 0;
+        if (now < homingMissileCooldownEnd) {
+            const remaining = homingMissileCooldownEnd - now;
+            homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
+        }
+        this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
     }
 }

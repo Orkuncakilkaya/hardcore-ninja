@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { Vector3, PlayerState } from '../common/types';
-import { SKILL_CONFIG } from '../common/constants';
+import { SKILL_CONFIG, SkillType } from '../common/constants';
+import { ServerEntityManager } from './ServerEntityManager';
+import { ServerMissile } from './ServerMissile';
 
 export class ServerPlayer {
     public id: string;
@@ -22,6 +24,9 @@ export class ServerPlayer {
     public teleportCooldown: number = 0;
     private teleportDestination: THREE.Vector3 = new THREE.Vector3();
     private teleportSpeed: number = 50;
+
+    // Homing Missile State
+    public homingMissileCooldown: number = 0;
 
     // Skill System (We might need a ServerSkillSystem)
     // For now, let's keep it simple or reuse SkillSystem if it doesn't depend on rendering
@@ -162,6 +167,58 @@ export class ServerPlayer {
         return true;
     }
 
+    public attemptHomingMissile(mousePos: Vector3, entityManager: ServerEntityManager): boolean {
+        const now = Date.now();
+        if (now < this.homingMissileCooldown) {
+            return false;
+        }
+
+        const config = SKILL_CONFIG[SkillType.HOMING_MISSILE];
+
+        // Find target
+        // Check if any enemy is within mouseRadius of mousePos
+        const mouseV = new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z);
+        let targetId: string | null = null;
+        let minDistance = config.mouseRadius;
+
+        const players = entityManager.getPlayers();
+        for (const player of players) {
+            if (player.id === this.id) continue; // Skip self
+            if (player.health <= 0) continue;
+
+            const dist = player.position.distanceTo(mouseV);
+            if (dist <= config.mouseRadius && dist < minDistance) {
+                minDistance = dist;
+                targetId = player.id;
+            }
+        }
+
+        // Create Missile
+        // Spawn at player position
+        const spawnPos = this.position.clone();
+        spawnPos.y = 1; // Spawn at chest height
+
+        // Initial direction: Towards mouse cursor
+        const direction = mouseV.clone().sub(spawnPos).normalize();
+
+        const missileId = `missile_${this.id}_${now}`;
+        const missile = new ServerMissile(missileId, this.id, spawnPos, targetId, direction);
+
+        entityManager.addMissile(missile);
+
+        this.homingMissileCooldown = now + config.cooldown;
+        return true;
+    }
+
+    public takeDamage(amount: number) {
+        if (this.isInvulnerable) return;
+        this.health = Math.max(0, this.health - amount);
+        if (this.health <= 0) {
+            // Handle death (managed by GameServer/EntityManager usually, but we can flag it)
+            console.log(`Player ${this.id} took ${amount} damage. Health: ${this.health}`);
+        }
+    }
+
     public getState(): PlayerState {
         return {
             id: this.id,
@@ -172,7 +229,8 @@ export class ServerPlayer {
             isInvulnerable: this.isInvulnerable,
             isMoving: this.isMoving,
             teleportCooldown: this.teleportCooldown,
-            isTeleporting: this.isTeleporting
+            isTeleporting: this.isTeleporting,
+            homingMissileCooldown: this.homingMissileCooldown
         };
     }
 }

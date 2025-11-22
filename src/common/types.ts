@@ -28,11 +28,19 @@ export interface PlayerState {
     isMoving: boolean;
     teleportCooldown: number;
     isTeleporting: boolean;
+    homingMissileCooldown: number;
+}
+
+export interface MissileState {
+    id: string;
+    position: Vector3;
+    rotation: Quaternion;
+    targetId: string | null; // ID of the player being targeted, or null if directional
 }
 
 export interface GameState {
     players: PlayerState[];
-    // Add other entities here (missiles, etc.)
+    missiles: MissileState[];
     timestamp: number;
 }
 

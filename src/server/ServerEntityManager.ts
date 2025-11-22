@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { ServerPlayer } from './ServerPlayer';
+import { ServerMissile } from './ServerMissile';
 import type { MapConfig } from '../common/types';
 
 export class ServerEntityManager {
     public players: Map<string, ServerPlayer> = new Map();
+    public missiles: ServerMissile[] = [];
     public obstacles: THREE.Box3[] = [];
     public spawnPositions: THREE.Vector2[] = [];
     private claimedSpawnPoints: Map<string, number> = new Map();
@@ -80,11 +82,33 @@ export class ServerEntityManager {
         this.players.forEach(player => {
             player.update(delta, this.obstacles, allPlayers);
         });
+
+        // Update Missiles
+        for (let i = this.missiles.length - 1; i >= 0; i--) {
+            const missile = this.missiles[i];
+            missile.update(delta, this);
+            if (missile.shouldRemove()) {
+                this.missiles.splice(i, 1);
+            }
+        }
+    }
+
+    public addMissile(missile: ServerMissile) {
+        this.missiles.push(missile);
+    }
+
+    public getObstacles(): THREE.Box3[] {
+        return this.obstacles;
+    }
+
+    public getPlayers(): ServerPlayer[] {
+        return Array.from(this.players.values());
     }
 
     public getState() {
         return {
             players: Array.from(this.players.values()).map(p => p.getState()),
+            missiles: this.missiles.map(m => m.getState()),
             timestamp: Date.now()
         };
     }
