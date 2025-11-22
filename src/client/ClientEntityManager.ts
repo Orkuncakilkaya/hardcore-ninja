@@ -21,7 +21,6 @@ interface ClientPlayer {
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
     bodyGroup: THREE.Group; // Group containing body and eyes (for rotation)
-    healthBar: THREE.Group | null; // Reference to the healthbar mesh
     nameLabel: THREE.Sprite | null; // Reference to the player name label
     leftShoe: THREE.Group; // Reference to left shoe for animation
     rightShoe: THREE.Group; // Reference to right shoe for animation
@@ -122,7 +121,7 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body, bodyGroup, healthBar, nameLabel, leftShoe, rightShoe } = this.createPlayerMesh(playerState.id === myPeerId);
+                const { group, body, bodyGroup, nameLabel, leftShoe, rightShoe } = this.createPlayerMesh(playerState.id === myPeerId);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 const initialPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
@@ -130,7 +129,6 @@ export class ClientEntityManager {
                     mesh: group,
                     bodyMesh: body,
                     bodyGroup: bodyGroup,
-                    healthBar: healthBar,
                     nameLabel: nameLabel,
                     leftShoe: leftShoe,
                     rightShoe: rightShoe,
@@ -229,18 +227,10 @@ export class ClientEntityManager {
                     clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
                 }
 
-                // Update health and healthbar
+                // Update health
                 if (clientPlayer.health !== playerState.health || clientPlayer.maxHealth !== playerState.maxHealth) {
                     clientPlayer.health = playerState.health;
                     clientPlayer.maxHealth = playerState.maxHealth;
-
-                    // Update healthbar if it exists
-                    if (clientPlayer.healthBar) {
-                        this.updateHealthBarSegments(clientPlayer.healthBar, clientPlayer.health, clientPlayer.maxHealth);
-
-                        // Hide healthbar if player is dead
-                        clientPlayer.healthBar.visible = !playerState.isDead;
-                    }
                 }
 
                 // Update player name if changed
@@ -276,11 +266,6 @@ export class ClientEntityManager {
 
                         // Rotate player to lay down (90 degrees around X axis)
                         clientPlayer.mesh.rotation.x = Math.PI / 2;
-
-                        // Hide healthbar and name label when player is dead
-                        if (clientPlayer.healthBar) {
-                            clientPlayer.healthBar.visible = false;
-                        }
                     } else {
                         // Player is alive again - restore original color based on whether it's local or not
                         const isLocal = playerState.id === myPeerId;
@@ -288,13 +273,6 @@ export class ClientEntityManager {
 
                         // Reset rotation
                         clientPlayer.mesh.rotation.x = 0;
-
-                        // Show healthbar when player is alive
-                        if (clientPlayer.healthBar) {
-                            clientPlayer.healthBar.visible = true;
-                            // Update healthbar to current health
-                            this.updateHealthBarSegments(clientPlayer.healthBar, clientPlayer.health, clientPlayer.maxHealth);
-                        }
                     }
                 }
             }
@@ -479,16 +457,9 @@ export class ClientEntityManager {
                 this.teleportEffect.updatePlayerTransparency(player.bodyMesh, player.isTeleporting);
             }
 
-            // Make healthbar face the camera (billboard effect)
-            if (player.healthBar && camera) {
-                // Save the original y rotation
-                const originalRotationX = player.healthBar.rotation.x;
-
-                // Make the healthbar face the camera
-                player.healthBar.lookAt(camera.position);
-
-                // Restore the original y rotation (we only want to rotate around y axis)
-                player.healthBar.rotation.x = originalRotationX;
+            // Make name label face the camera (billboard effect)
+            if (player.nameLabel && camera) {
+                player.nameLabel.lookAt(camera.position);
             }
         });
         
@@ -514,69 +485,11 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, healthBar: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group } {
+    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group } {
         return PlayerModel.createPlayerMesh(
             isLocal,
-            (health, maxHealth) => this.createHealthBar(health, maxHealth),
             (name) => this.createPlayerNameLabel(name)
         );
-    }
-
-
-    private createHealthBar(health: number, maxHealth: number): THREE.Group {
-        const healthBarGroup = new THREE.Group();
-
-        // Constants for healthbar appearance
-        const barWidth = 3.0;
-        const barHeight = 0.4;
-        const barDepth = 0.05;
-        const borderThickness = 0.02;
-        const numSegments = 5; // Number of segments/slices in the healthbar
-        const segmentSpacing = 0.02; // Space between segments
-        const segmentWidth = (barWidth - (numSegments - 1) * segmentSpacing) / numSegments;
-
-        // Create border (slightly larger than the healthbar)
-        const borderGeometry = new THREE.BoxGeometry(
-            barWidth + borderThickness * 2, 
-            barHeight + borderThickness * 2, 
-            barDepth
-        );
-        const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black border
-        const border = new THREE.Mesh(borderGeometry, borderMaterial);
-        healthBarGroup.add(border);
-
-        // Create background (empty health area)
-        const bgGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth + 0.01); // Slightly in front
-        const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 }); // Dark gray background
-        const background = new THREE.Mesh(bgGeometry, bgMaterial);
-        healthBarGroup.add(background);
-
-        // Create segments container
-        const segmentsGroup = new THREE.Group();
-        healthBarGroup.add(segmentsGroup);
-
-        // Create individual segments
-        for (let i = 0; i < numSegments; i++) {
-            const segmentGeometry = new THREE.BoxGeometry(segmentWidth, barHeight, barDepth + 0.02); // Slightly in front of background
-            const segmentMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green for health
-            const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
-
-            // Position segment (left-aligned with spacing)
-            segment.position.x = -barWidth/2 + segmentWidth/2 + i * (segmentWidth + segmentSpacing);
-
-            segmentsGroup.add(segment);
-        }
-
-        // Position the healthbar above the player
-        healthBarGroup.position.y = 3.5; // Above player's head
-
-        // Make the healthbar always face the camera
-        healthBarGroup.rotation.x = -Math.PI / 6; // Slight tilt for better visibility
-
-        // Update the healthbar to show the current health
-        this.updateHealthBarSegments(healthBarGroup, health, maxHealth);
-
-        return healthBarGroup;
     }
 
     private createPlayerNameLabel(name: string): THREE.Sprite {
@@ -622,8 +535,8 @@ export class ClientEntityManager {
         // Scale sprite
         sprite.scale.set(3, 0.75, 1);
 
-        // Position sprite above healthbar
-        sprite.position.y = 0.8; // Position above healthbar
+        // Position sprite above player
+        sprite.position.y = 3.5; // Position above player's head
 
         return sprite;
     }
@@ -649,37 +562,6 @@ export class ClientEntityManager {
         }
     }
 
-    private updateHealthBarSegments(healthBarGroup: THREE.Group, health: number, maxHealth: number) {
-        if (!healthBarGroup) return;
-
-        const segmentsGroup = healthBarGroup.children[2] as THREE.Group;
-        if (!segmentsGroup) return;
-
-        const numSegments = segmentsGroup.children.length;
-        const healthPercentage = health / maxHealth;
-        const activeSegments = Math.ceil(healthPercentage * numSegments);
-
-        // Update segment colors based on health percentage
-        for (let i = 0; i < numSegments; i++) {
-            const segment = segmentsGroup.children[i] as THREE.Mesh;
-            const material = segment.material as THREE.MeshBasicMaterial;
-
-            if (i < activeSegments) {
-                // Active segment - color based on health percentage
-                if (healthPercentage > 0.6) {
-                    material.color.set(0x00ff00); // Green for high health
-                } else if (healthPercentage > 0.3) {
-                    material.color.set(0xffff00); // Yellow for medium health
-                } else {
-                    material.color.set(0xff0000); // Red for low health
-                }
-                segment.visible = true;
-            } else {
-                // Inactive segment
-                segment.visible = false;
-            }
-        }
-    }
 
     private updatePlayerNameLabel(nameLabel: THREE.Sprite, name: string) {
         if (!nameLabel) return;

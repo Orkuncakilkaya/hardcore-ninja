@@ -2,7 +2,6 @@ import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, GameMode } from '../common/constants';
 
 export class UIManager {
-    private healthBar: HTMLElement | null = null;
     private hud: HTMLElement | null = null;
     private teleportCdOverlay: HTMLElement | null = null;
     private homingMissileCdOverlay: HTMLElement | null = null;
@@ -25,11 +24,6 @@ export class UIManager {
     private initializeElements() {
         if (this.initialized) return;
 
-        this.healthBar = document.getElementById('health-bar');
-        // Hide the health bar in the HUD since we're displaying health in 3D
-        if (this.healthBar) {
-            this.healthBar.style.display = 'none';
-        }
         this.hud = document.getElementById('hud');
         // Q skill = Teleport (cd-missile)
         this.teleportCdOverlay = document.getElementById('cd-missile');

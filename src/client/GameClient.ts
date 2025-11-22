@@ -14,14 +14,10 @@ export class GameClient {
     private entityManager: ClientEntityManager;
     private uiManager: UIManager;
     private groundPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    private currentSkill: SkillType | null = null;
-    private isTargeting: boolean = false;
     private isRunning: boolean = false;
     private clock: THREE.Clock;
     private localPlayerId: string | null = null;
     private isLeftMouseDown: boolean = false;
-    private isTeleportHeld: boolean = false;
-    private teleportStartTime: number = 0;
     private lastMovementTarget: THREE.Vector3 | null = null;
     
     // Network throttling
@@ -53,15 +49,6 @@ export class GameClient {
         this.inputManager.on('mouseDown', () => {
             this.isLeftMouseDown = true;
             
-            // If targeting a skill (except teleport), don't move
-            if (this.isTargeting && this.currentSkill !== SkillType.TELEPORT) {
-                return;
-            }
-
-            // If teleport is held, continue movement
-            if (this.isTeleportHeld) {
-                return;
-            }
 
             // Normal movement
             const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
@@ -79,17 +66,8 @@ export class GameClient {
             this.pendingMovementTarget = null;
             
             // Stop movement immediately when mouse is released
-            if (wasMoving && !this.isTargeting) {
+            if (wasMoving) {
                 this.stopMovement();
-            }
-            
-            // If targeting a skill, fire it
-            if (this.isTargeting && this.currentSkill) {
-                if (this.currentSkill === SkillType.TELEPORT) {
-                    // Teleport is handled by keyup
-                    return;
-                }
-                this.requestSkillUsage();
             }
         });
 
@@ -101,15 +79,7 @@ export class GameClient {
             if (!myPlayer) return;
 
             // Store pending target for movement
-            if (this.isLeftMouseDown && !this.isTargeting && !this.isTeleportHeld) {
-                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                if (target) {
-                    this.lastMovementTarget = target.clone();
-                    this.pendingMovementTarget = target.clone();
-                    // Movement request will be sent in update loop with throttling
-                }
-            } else if (this.isLeftMouseDown && this.isTeleportHeld) {
-                // Continue movement while teleport is held
+            if (this.isLeftMouseDown) {
                 const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
                 if (target) {
                     this.lastMovementTarget = target.clone();
@@ -119,32 +89,16 @@ export class GameClient {
             } else {
                 this.pendingMovementTarget = null;
             }
-
-            // Update skill targeting visuals
-            if (this.isTargeting && this.currentSkill === SkillType.HOMING_MISSILE) {
-                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                if (target) {
-                    this.entityManager.updateMouseRadiusPosition(target);
-                }
-            } else if (this.isTargeting && this.currentSkill === SkillType.LASER_BEAM) {
-                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                if (target) {
-                    const playerPos = myPlayer.mesh.position;
-                    const direction = target.clone().sub(playerPos);
-                    direction.y = 0;
-                    this.entityManager.updateLaserPreview(playerPos, direction);
-                }
-            }
         });
 
         // Handle skill key presses
         window.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'q') {
-                this.startTeleport();
+                this.fireTeleport();
             } else if (e.key.toLowerCase() === 'w') {
-                this.startSkillTargeting(SkillType.HOMING_MISSILE);
+                this.fireHomingMissile();
             } else if (e.key.toLowerCase() === 'e') {
-                this.startSkillTargeting(SkillType.LASER_BEAM);
+                this.fireLaserBeam();
             } else if (e.key.toLowerCase() === 'r') {
                 this.activateInvincibility();
             } else if (e.key === 'Tab') {
@@ -154,9 +108,7 @@ export class GameClient {
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.key.toLowerCase() === 'q') {
-                this.endTeleport();
-            } else if (e.key === 'Tab') {
+            if (e.key === 'Tab') {
                 e.preventDefault();
                 this.hideTabMenu();
             }
@@ -168,10 +120,6 @@ export class GameClient {
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
         if (!myPlayer || myPlayer.isDead) return;
 
-        // Stop movement if targeting a skill (except teleport)
-        if (this.isTargeting && this.currentSkill !== SkillType.TELEPORT) {
-            return;
-        }
 
         const now = Date.now();
         
@@ -224,202 +172,116 @@ export class GameClient {
         });
     }
 
-    private startTeleport() {
+    private fireTeleport() {
         if (!this.localPlayerId) return;
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer || myPlayer.isDead) return;
 
-        if (myPlayer) {
-            if (myPlayer.isDead) return;
-            const now = Date.now();
-            if (now < myPlayer.teleportCooldown) {
-                console.log('Teleport on cooldown');
-                return;
-            }
-        }
-
-        this.isTeleportHeld = true;
-        this.teleportStartTime = Date.now();
-        this.isTargeting = true;
-        this.currentSkill = SkillType.TELEPORT;
-        this.uiManager.setSkillGlow(SkillType.TELEPORT);
-        this.entityManager.setSkillTargeting(SkillType.TELEPORT, true);
-    }
-
-    private endTeleport() {
-        if (!this.isTeleportHeld || !this.currentSkill || this.currentSkill !== SkillType.TELEPORT) return;
-        if (!this.localPlayerId) return;
-
-        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-        if (!myPlayer) return;
-
-        // Calculate teleport distance based on how long Q was held
-        const holdDuration = Date.now() - this.teleportStartTime;
-        const maxDuration = 2000; // 2 seconds max
-        const progress = Math.min(holdDuration / maxDuration, 1);
-        const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
-        const teleportDistance = maxRange * progress;
-
-        // Get current mouse position for direction
-        const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-        if (!target) {
-            // Use last movement target if available
-            if (this.lastMovementTarget) {
-                this.executeTeleport(this.lastMovementTarget, teleportDistance);
-            } else {
-                // No target, teleport forward
-                const playerPos = myPlayer.mesh.position;
-                const forward = new THREE.Vector3(0, 0, 1); // Default forward
-                const finalPos = playerPos.clone().add(forward.multiplyScalar(teleportDistance));
-                this.executeTeleport(finalPos, teleportDistance);
-            }
-            this.cleanupTeleport();
+        // Check cooldown
+        const now = Date.now();
+        if (now < myPlayer.teleportCooldown) {
+            console.log('Teleport on cooldown');
             return;
         }
+
+        // Get current mouse position
+        const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+        if (!target) return;
 
         // Calculate direction from player to mouse
         const playerPos = myPlayer.mesh.position;
         const direction = new THREE.Vector3().subVectors(target, playerPos);
         direction.y = 0;
-        
-        if (direction.length() < 0.01) {
+        const distance = direction.length();
+
+        if (distance < 0.01) {
             // Mouse is too close, teleport forward
             const forward = new THREE.Vector3(0, 0, 1);
-            const finalPos = playerPos.clone().add(forward.multiplyScalar(teleportDistance));
-            this.executeTeleport(finalPos, teleportDistance);
-        } else {
-            direction.normalize();
-            // Calculate final teleport position using the calculated distance
-            const finalPos = playerPos.clone().add(direction.multiplyScalar(teleportDistance));
-            this.executeTeleport(finalPos, teleportDistance);
+            const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
+            const finalPos = playerPos.clone().add(forward.multiplyScalar(maxRange));
+            
+            this.networkManager.sendToHost({
+                type: 'SKILL_REQUEST',
+                skillType: SkillType.TELEPORT,
+                target: { x: finalPos.x, y: finalPos.y, z: finalPos.z },
+                timestamp: now
+            });
+            return;
         }
 
-        this.cleanupTeleport();
-    }
-
-    private executeTeleport(target: THREE.Vector3, maxDistance: number) {
-        if (!this.localPlayerId) return;
-
-        const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-        if (!myPlayer) return;
-
-        const playerPos = myPlayer.mesh.position;
-        const direction = new THREE.Vector3().subVectors(target, playerPos);
-        direction.y = 0;
-        const distance = direction.length();
-        
-        // Clamp to max distance (already calculated in endTeleport, but double-check)
-        const clampedDistance = Math.min(distance, maxDistance);
+        // Normalize direction
         direction.normalize();
+        
+        // Clamp to max range
+        const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
+        const clampedDistance = Math.min(distance, maxRange);
         const finalPos = playerPos.clone().add(direction.multiplyScalar(clampedDistance));
 
-        // Send teleport request
+        // Send teleport request immediately to mouse position (within range)
         this.networkManager.sendToHost({
             type: 'SKILL_REQUEST',
             skillType: SkillType.TELEPORT,
             target: { x: finalPos.x, y: finalPos.y, z: finalPos.z },
-            timestamp: Date.now()
+            timestamp: now
         });
     }
 
-    private cleanupTeleport() {
-        this.isTeleportHeld = false;
-        this.isTargeting = false;
-        this.currentSkill = null;
-        this.entityManager.setSkillTargeting(null, false);
-        this.uiManager.clearSkillGlow(SkillType.TELEPORT);
-        this.uiManager.clearSkillBorder(SkillType.TELEPORT);
-    }
-
-    private startSkillTargeting(skillType: SkillType) {
+    private fireHomingMissile() {
         if (!this.localPlayerId) return;
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
+        if (!myPlayer || myPlayer.isDead) return;
 
-        // Check Cooldowns
-        if (myPlayer) {
-            if (myPlayer.isDead) return;
-            const now = Date.now();
-            if (skillType === SkillType.HOMING_MISSILE && now < myPlayer.homingMissileCooldown) {
-                console.log('Homing Missile on cooldown');
-                return;
-            }
-            if (skillType === SkillType.LASER_BEAM && now < myPlayer.laserBeamCooldown) {
-                console.log('Laser Beam on cooldown');
-                return;
-            }
+        // Check cooldown
+        const now = Date.now();
+        if (now < myPlayer.homingMissileCooldown) {
+            console.log('Homing Missile on cooldown');
+            return;
         }
 
-        // Clear any existing skill glow
-        if (this.currentSkill) {
-            this.uiManager.clearSkillGlow(this.currentSkill);
-        }
-
-        // Start targeting
-        this.isTargeting = true;
-        this.currentSkill = skillType;
-        this.uiManager.setSkillGlow(skillType);
-        this.entityManager.setSkillTargeting(skillType, true);
-
-        // Stop player movement when targeting
-        if (this.lastMovementTarget) {
-            // Send stop command
-            this.networkManager.sendToHost({
-                type: 'PLAYER_INPUT',
-                input: { keys: this.inputManager.keys, mouse: null },
-                stopMovement: true
-            });
-        }
-    }
-
-    private requestSkillUsage() {
-        if (!this.currentSkill || !this.localPlayerId) return;
-
+        // Get current mouse position
         const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
         if (!target) return;
 
+        // Fire skill immediately at mouse position
+        this.networkManager.sendToHost({
+            type: 'SKILL_REQUEST',
+            skillType: SkillType.HOMING_MISSILE,
+            target: { x: target.x, y: target.y, z: target.z },
+            timestamp: now
+        });
+    }
+
+    private fireLaserBeam() {
+        if (!this.localPlayerId) return;
         const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-        if (!myPlayer) return;
+        if (!myPlayer || myPlayer.isDead) return;
 
-        if (this.currentSkill === SkillType.HOMING_MISSILE) {
-            const playerPos = myPlayer.mesh.position;
-            const dist = new THREE.Vector3(target.x, 0, target.z).distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
-            const config = SKILL_CONFIG[SkillType.HOMING_MISSILE];
-
-            if (dist <= config.radius) {
-                this.networkManager.sendToHost({
-                    type: 'SKILL_REQUEST',
-                    skillType: SkillType.HOMING_MISSILE,
-                    target: { x: target.x, y: target.y, z: target.z },
-                    timestamp: Date.now()
-                });
-                this.cleanupSkillTargeting();
-            } else {
-                console.log('Click inside the green circle to activate!');
-            }
-        } else if (this.currentSkill === SkillType.LASER_BEAM) {
-            const playerPos = myPlayer.mesh.position;
-            const direction = target.clone().sub(playerPos);
-            direction.y = 0;
-            direction.normalize();
-
-            this.networkManager.sendToHost({
-                type: 'SKILL_REQUEST',
-                skillType: SkillType.LASER_BEAM,
-                direction: { x: direction.x, y: direction.y, z: direction.z },
-                timestamp: Date.now()
-            });
-            this.cleanupSkillTargeting();
+        // Check cooldown
+        const now = Date.now();
+        if (now < myPlayer.laserBeamCooldown) {
+            console.log('Laser Beam on cooldown');
+            return;
         }
+
+        // Get current mouse position
+        const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
+        if (!target) return;
+
+        // Calculate direction from player to mouse
+        const playerPos = myPlayer.mesh.position;
+        const direction = target.clone().sub(playerPos);
+        direction.y = 0;
+        direction.normalize();
+
+        // Fire skill immediately in mouse direction
+        this.networkManager.sendToHost({
+            type: 'SKILL_REQUEST',
+            skillType: SkillType.LASER_BEAM,
+            direction: { x: direction.x, y: direction.y, z: direction.z },
+            timestamp: now
+        });
     }
 
-    private cleanupSkillTargeting() {
-        if (this.currentSkill) {
-            this.uiManager.clearSkillGlow(this.currentSkill);
-            this.uiManager.clearSkillBorder(this.currentSkill);
-        }
-        this.isTargeting = false;
-        this.currentSkill = null;
-        this.entityManager.setSkillTargeting(null, false);
-    }
 
     private activateInvincibility() {
         if (!this.localPlayerId) return;
@@ -542,23 +404,6 @@ export class GameClient {
         // Update Entities (Interpolation)
         this.entityManager.update(delta);
 
-        // Update character rotation to face mouse direction when targeting
-        if (this.localPlayerId && this.isTargeting && this.currentSkill) {
-            const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
-            if (myPlayer) {
-                const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
-                if (target) {
-                    const playerPos = myPlayer.mesh.position;
-                    const direction = new THREE.Vector3().subVectors(target, playerPos);
-                    direction.y = 0;
-                    direction.normalize();
-                    
-                    // Rotate character to face mouse direction
-                    const angle = Math.atan2(direction.x, direction.z);
-                    myPlayer.bodyGroup.rotation.y = angle;
-                }
-            }
-        }
 
         // Camera Follow
         if (this.localPlayerId) {

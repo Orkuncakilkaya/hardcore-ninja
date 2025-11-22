@@ -4,7 +4,6 @@ export interface PlayerMeshResult {
     group: THREE.Group;
     body: THREE.Mesh;
     bodyGroup: THREE.Group;
-    healthBar: THREE.Group;
     nameLabel: THREE.Sprite;
     leftShoe: THREE.Group;
     rightShoe: THREE.Group;
@@ -12,11 +11,10 @@ export interface PlayerMeshResult {
 
 export class PlayerModel {
     /**
-     * Creates a player mesh with body, eyes, shoes, healthbar and name label
+     * Creates a player mesh with body, eyes, shoes and name label
      */
     public static createPlayerMesh(
         isLocal: boolean,
-        createHealthBar: (health: number, maxHealth: number) => THREE.Group,
         createPlayerNameLabel: (name: string) => THREE.Sprite
     ): PlayerMeshResult {
         const group = new THREE.Group();
@@ -136,17 +134,13 @@ export class PlayerModel {
         // Add bodyGroup to main group after adding shoes
         group.add(bodyGroup);
 
-        // Create healthbar with default full health
-        const healthBar = createHealthBar(100, 100);
-        group.add(healthBar);
-
         // Create name label with default name
         const nameLabel = createPlayerNameLabel(isLocal ? "You" : "Player");
-        // Position the name label above the healthbar
-        nameLabel.position.y = 1.5; // Above healthbar
-        healthBar.add(nameLabel); // Add to healthbar so it moves with it
+        // Position the name label above the player
+        nameLabel.position.y = 3.5; // Above player's head
+        group.add(nameLabel); // Add to group so it moves with player
 
-        return { group, body, bodyGroup, healthBar, nameLabel, leftShoe, rightShoe };
+        return { group, body, bodyGroup, nameLabel, leftShoe, rightShoe };
     }
 }
 
