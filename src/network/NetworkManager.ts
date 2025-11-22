@@ -44,11 +44,7 @@ export class NetworkManager {
         conn.on('open', () => {
             console.log('Connected to:', conn.peer);
             this.connections.push(conn);
-
-            // On connection, client requests spawn points from host
-            if (!this.isHost) {
-                conn.send({ type: 'SPAWN_POINTS_REQUEST' });
-            }
+            window.dispatchEvent(new CustomEvent('connected', { detail: conn.peer }));
         });
 
         conn.on('data', (data: any) => {
@@ -65,15 +61,30 @@ export class NetworkManager {
 
     public broadcast(data: any) {
         this.connections.forEach(conn => conn.send(data));
+        // If we are host, we also need to receive the broadcast locally (as a client)
+        if (this.isHost) {
+            window.dispatchEvent(new CustomEvent('network-data', { detail: { from: this.peerId, data: data } }));
+        }
     }
 
     public sendToHost(data: any) {
-        if (!this.isHost && this.connections.length > 0) {
+        if (this.isHost) {
+            // Loopback: We are the host, so we receive our own message
+            // We need to simulate receiving data from "ourselves" (client to server)
+            // The GameServer listens to 'network-data'
+            window.dispatchEvent(new CustomEvent('network-data', { detail: { from: this.peerId, data: data } }));
+        } else if (this.connections.length > 0) {
             this.connections[0].send(data);
         }
     }
 
     public sendToClient(peerId: string, data: any) {
+        if (peerId === this.peerId) {
+            // Loopback: Server sending to Host Client
+            window.dispatchEvent(new CustomEvent('network-data', { detail: { from: this.peerId, data: data } }));
+            return;
+        }
+
         const conn = this.connections.find(c => c.peer === peerId);
         if (conn) {
             conn.send(data);

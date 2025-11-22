@@ -1,50 +1,7 @@
 import * as THREE from 'three';
+import type { MapConfig, Vector3, Vector2 } from '../common/types';
 
-export interface Vector3Config {
-    x: number;
-    y: number;
-    z: number;
-}
-
-export interface Vector2Config {
-    x: number;
-    y: number;
-}
-
-export interface DimensionsConfig {
-    width: number;
-    height: number;
-    depth: number;
-}
-
-export interface PlayableAreaConfig {
-    size: number;
-    wallThickness: number;
-    wallHeight: number;
-}
-
-export interface WallConfig {
-    id: string;
-    position: Vector3Config;
-    dimensions: DimensionsConfig;
-    color: number;
-}
-
-export interface BoxConfig {
-    id: string;
-    position: Vector3Config;
-    dimensions: DimensionsConfig;
-    color: number;
-}
-
-export interface MapConfig {
-    name: string;
-    version: string;
-    playableArea: PlayableAreaConfig;
-    spawnPoints: Vector2Config[];
-    walls: WallConfig[];
-    boxes: BoxConfig[];
-}
+export type { MapConfig };
 
 export class MapLoader {
     /**
@@ -118,16 +75,16 @@ export class MapLoader {
     }
 
     /**
-     * Convert Vector3Config to THREE.Vector3
+     * Convert Vector3 to THREE.Vector3
      */
-    public static toVector3(config: Vector3Config): THREE.Vector3 {
+    public static toVector3(config: Vector3): THREE.Vector3 {
         return new THREE.Vector3(config.x, config.y, config.z);
     }
 
     /**
-     * Convert Vector2Config to THREE.Vector2
+     * Convert Vector2 to THREE.Vector2
      */
-    public static toVector2(config: Vector2Config): THREE.Vector2 {
+    public static toVector2(config: Vector2): THREE.Vector2 {
         return new THREE.Vector2(config.x, config.y);
     }
 }

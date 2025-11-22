@@ -7,8 +7,14 @@ export class InputManager {
     private isLeftMouseButtonDown: boolean = false;
 
     constructor() {
-        window.addEventListener('keydown', (e) => this.keys[e.code] = true);
-        window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+            this.emit('input', { keys: this.keys, mouse: this.mouse });
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+            this.emit('input', { keys: this.keys, mouse: this.mouse });
+        });
         window.addEventListener('mousemove', this.onMouseMove.bind(this));
         window.addEventListener('mousedown', this.onMouseDown.bind(this));
         window.addEventListener('mouseup', this.onMouseUp.bind(this));
@@ -17,6 +23,7 @@ export class InputManager {
     private onMouseMove(event: MouseEvent) {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        this.emit('input', { keys: this.keys, mouse: this.mouse });
     }
 
     private onMouseDown(event: MouseEvent) {
@@ -28,6 +35,21 @@ export class InputManager {
     private onMouseUp(event: MouseEvent) {
         if (event.button === 0) { // Left mouse button
             this.isLeftMouseButtonDown = false;
+        }
+    }
+
+    private listeners: { [key: string]: Function[] } = {};
+
+    public on(event: string, callback: Function) {
+        if (!this.listeners[event]) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    }
+
+    public emit(event: string, data?: any) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(callback => callback(data));
         }
     }
 
