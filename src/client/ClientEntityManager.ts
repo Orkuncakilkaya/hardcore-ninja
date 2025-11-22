@@ -8,6 +8,7 @@ import { LaserBeamEffect } from './effects/LaserBeamEffect';
 import { InvincibilityEffect } from './effects/InvincibilityEffect';
 import { ClickIndicatorEffect } from './effects/ClickIndicatorEffect';
 import { ParticleUtils } from './effects/ParticleUtils';
+import { PlayerModel } from './models/PlayerModel';
 
 interface ClientPlayer {
     mesh: THREE.Group;
@@ -20,8 +21,11 @@ interface ClientPlayer {
     invincibilitySphere: THREE.Group | null;
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
+    bodyGroup: THREE.Group; // Group containing body and eyes (for rotation)
     healthBar: THREE.Group | null; // Reference to the healthbar mesh
     nameLabel: THREE.Sprite | null; // Reference to the player name label
+    leftShoe: THREE.Group; // Reference to left shoe for animation
+    rightShoe: THREE.Group; // Reference to right shoe for animation
     health: number; // Current health value
     maxHealth: number; // Maximum health value
     isTeleporting: boolean; // Whether player is currently teleporting
@@ -30,6 +34,7 @@ interface ClientPlayer {
     teleportStartEffect: THREE.Group | null; // Start position effect
     teleportEndEffect: THREE.Group | null; // End position effect
     teleportTrailParticles: THREE.Points | null; // Particle trail
+    walkAnimationTime: number; // Time accumulator for walk animation
 }
 
 export class ClientEntityManager {
@@ -114,14 +119,17 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body, healthBar, nameLabel } = this.createPlayerMesh(playerState.id === myPeerId);
+                const { group, body, bodyGroup, healthBar, nameLabel, leftShoe, rightShoe } = this.createPlayerMesh(playerState.id === myPeerId);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 clientPlayer = {
                     mesh: group,
                     bodyMesh: body,
+                    bodyGroup: bodyGroup,
                     healthBar: healthBar,
                     nameLabel: nameLabel,
+                    leftShoe: leftShoe,
+                    rightShoe: rightShoe,
                     health: playerState.health,
                     maxHealth: playerState.maxHealth,
                     targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
@@ -137,7 +145,8 @@ export class ClientEntityManager {
                     teleportTrail: null,
                     teleportStartEffect: null,
                     teleportEndEffect: null,
-                    teleportTrailParticles: null
+                    teleportTrailParticles: null,
+                    walkAnimationTime: 0
                 };
 
                 // Set player name if available
@@ -335,9 +344,61 @@ export class ClientEntityManager {
         this.players.forEach(player => {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
+                const previousPosition = player.mesh.position.clone();
                 const wasMoving = player.mesh.position.distanceTo(player.targetPosition) > 0.01;
                 player.mesh.position.lerp(player.targetPosition, 10 * delta);
                 player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+                
+                // Rotate body group to face movement direction
+                if (player.bodyGroup && wasMoving) {
+                    const direction = new THREE.Vector3()
+                        .subVectors(player.targetPosition, previousPosition)
+                        .normalize();
+                    
+                    if (direction.length() > 0.01) {
+                        // Calculate rotation angle around Y axis
+                        const angle = Math.atan2(direction.x, direction.z);
+                        // Smoothly rotate body group to face movement direction
+                        player.bodyGroup.rotation.y = THREE.MathUtils.lerp(
+                            player.bodyGroup.rotation.y,
+                            angle,
+                            15 * delta
+                        );
+                    }
+                }
+                
+                // Animate shoes when walking
+                if (wasMoving && !player.isDead) {
+                    player.walkAnimationTime += delta * 8; // Walking speed multiplier
+                    
+                    // Animate shoes up and down (alternating)
+                    const leftShoeLift = Math.abs(Math.sin(player.walkAnimationTime)) * 0.15;
+                    const rightShoeLift = Math.abs(Math.sin(player.walkAnimationTime + Math.PI)) * 0.15;
+                    
+                    // Rotate shoes slightly for walking effect
+                    const leftShoeRotation = Math.sin(player.walkAnimationTime) * 0.3;
+                    const rightShoeRotation = Math.sin(player.walkAnimationTime + Math.PI) * 0.3;
+                    
+                    if (player.leftShoe) {
+                        player.leftShoe.position.y = leftShoeLift;
+                        player.leftShoe.rotation.x = leftShoeRotation;
+                    }
+                    
+                    if (player.rightShoe) {
+                        player.rightShoe.position.y = rightShoeLift;
+                        player.rightShoe.rotation.x = rightShoeRotation;
+                    }
+                } else {
+                    // Reset shoes to ground when not moving
+                    if (player.leftShoe) {
+                        player.leftShoe.position.y = 0;
+                        player.leftShoe.rotation.x = 0;
+                    }
+                    if (player.rightShoe) {
+                        player.rightShoe.position.y = 0;
+                        player.rightShoe.rotation.x = 0;
+                    }
+                }
                 
                 // Update teleport trail if teleporting
                 if (player.isTeleporting && player.teleportTrail && player.teleportTrailParticles) {
@@ -393,27 +454,12 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, healthBar: THREE.Group, nameLabel: THREE.Sprite } {
-        const group = new THREE.Group();
-        const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
-        const material = new THREE.MeshStandardMaterial({ color: isLocal ? 0x00ff00 : 0xff0000 });
-        const body = new THREE.Mesh(geometry, material);
-        body.position.y = 1;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        group.add(body);
-
-        // Create healthbar with default full health
-        const healthBar = this.createHealthBar(100, 100);
-        group.add(healthBar);
-
-        // Create name label with default name
-        const nameLabel = this.createPlayerNameLabel(isLocal ? "You" : "Player");
-        // Position the name label above the healthbar
-        nameLabel.position.y = 1.5; // Above healthbar
-        healthBar.add(nameLabel); // Add to healthbar so it moves with it
-
-        return { group, body, healthBar, nameLabel };
+    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, healthBar: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group } {
+        return PlayerModel.createPlayerMesh(
+            isLocal,
+            (health, maxHealth) => this.createHealthBar(health, maxHealth),
+            (name) => this.createPlayerNameLabel(name)
+        );
     }
 
 

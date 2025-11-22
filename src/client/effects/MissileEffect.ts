@@ -40,21 +40,25 @@ export class MissileEffect {
         
         // Lock emoji sprite for mouse radius
         const lockCanvas = document.createElement('canvas');
-        lockCanvas.width = 128;
-        lockCanvas.height = 128;
+        lockCanvas.width = 256;
+        lockCanvas.height = 192;
         const lockContext = lockCanvas.getContext('2d');
         if (lockContext) {
+            // Background with rounded corners effect
+            lockContext.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            lockContext.fillRect(10, 10, lockCanvas.width - 20, lockCanvas.height - 20);
+            
+            // Lock emoji
             lockContext.font = 'bold 80px Arial';
             lockContext.textAlign = 'center';
             lockContext.textBaseline = 'middle';
-            lockContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            lockContext.fillRect(10, 10, lockCanvas.width - 20, lockCanvas.height - 20);
             lockContext.fillStyle = 'white';
-            lockContext.fillText('🔒', lockCanvas.width / 2, lockCanvas.height / 2 - 10);
+            lockContext.fillText('🔒', lockCanvas.width / 2, lockCanvas.height / 2 - 20);
             
-            // Add "Lock to target" text below emoji
-            lockContext.font = 'bold 14px Arial';
-            lockContext.fillText('Lock to target', lockCanvas.width / 2, lockCanvas.height / 2 + 35);
+            // Add "Target Lock" text below emoji
+            lockContext.font = 'bold 18px Arial';
+            lockContext.fillStyle = '#00ff00'; // Green color for visibility
+            lockContext.fillText('Target Lock', lockCanvas.width / 2, lockCanvas.height / 2 + 50);
         }
         
         const lockTexture = new THREE.CanvasTexture(lockCanvas);
@@ -65,7 +69,8 @@ export class MissileEffect {
             alphaTest: 0.1
         });
         const lockSprite = new THREE.Sprite(lockMaterial);
-        lockSprite.scale.set(2, 2, 1);
+        // Scale adjusted for new canvas size (256x192)
+        lockSprite.scale.set(2.5, 1.875, 1);
         lockSprite.position.y = 0.15;
         lockSprite.visible = false;
         this.mouseRadiusMesh.add(lockSprite);
