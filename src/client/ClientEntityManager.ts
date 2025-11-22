@@ -14,6 +14,9 @@ interface ClientPlayer {
     invincibilitySphere: THREE.Mesh | null;
     isDead: boolean;
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
+    healthBar: THREE.Group | null; // Reference to the healthbar mesh
+    health: number; // Current health value
+    maxHealth: number; // Maximum health value
 }
 
 export class ClientEntityManager {
@@ -35,7 +38,8 @@ export class ClientEntityManager {
 
     private createSkillRadii() {
         // Teleport Radius
-        const tpGeo = new THREE.RingGeometry(9.5, 10, 32);
+        const tpConfig = SKILL_CONFIG[SkillType.TELEPORT];
+        const tpGeo = new THREE.RingGeometry(tpConfig.range - 0.5, tpConfig.range, 32);
         const tpMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
         this.teleportRadiusMesh = new THREE.Mesh(tpGeo, tpMat);
         this.teleportRadiusMesh.rotation.x = -Math.PI / 2;
@@ -113,12 +117,15 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body } = this.createPlayerMesh(playerState.id === myPeerId);
+                const { group, body, healthBar } = this.createPlayerMesh(playerState.id === myPeerId);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 clientPlayer = {
                     mesh: group,
                     bodyMesh: body,
+                    healthBar: healthBar,
+                    health: playerState.health,
+                    maxHealth: playerState.maxHealth,
                     targetPosition: new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z),
                     targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
                     teleportCooldown: playerState.teleportCooldown,
@@ -137,6 +144,20 @@ export class ClientEntityManager {
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
                 clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
                 clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
+
+                // Update health and healthbar
+                if (clientPlayer.health !== playerState.health || clientPlayer.maxHealth !== playerState.maxHealth) {
+                    clientPlayer.health = playerState.health;
+                    clientPlayer.maxHealth = playerState.maxHealth;
+
+                    // Update healthbar if it exists
+                    if (clientPlayer.healthBar) {
+                        this.updateHealthBarSegments(clientPlayer.healthBar, clientPlayer.health, clientPlayer.maxHealth);
+
+                        // Hide healthbar if player is dead
+                        clientPlayer.healthBar.visible = !playerState.isDead;
+                    }
+                }
 
                 // Update invincibility sphere visibility
                 if (playerState.isInvulnerable) {
@@ -161,6 +182,11 @@ export class ClientEntityManager {
 
                         // Rotate player to lay down (90 degrees around X axis)
                         clientPlayer.mesh.rotation.x = Math.PI / 2;
+
+                        // Hide healthbar when player is dead
+                        if (clientPlayer.healthBar) {
+                            clientPlayer.healthBar.visible = false;
+                        }
                     } else {
                         // Player is alive again - restore original color based on whether it's local or not
                         const isLocal = playerState.id === myPeerId;
@@ -168,6 +194,13 @@ export class ClientEntityManager {
 
                         // Reset rotation
                         clientPlayer.mesh.rotation.x = 0;
+
+                        // Show healthbar when player is alive
+                        if (clientPlayer.healthBar) {
+                            clientPlayer.healthBar.visible = true;
+                            // Update healthbar to current health
+                            this.updateHealthBarSegments(clientPlayer.healthBar, clientPlayer.health, clientPlayer.maxHealth);
+                        }
                     }
                 }
             }
@@ -242,12 +275,27 @@ export class ClientEntityManager {
     }
 
     public update(delta: number) {
+        // Get camera for billboard effect
+        const camera = this.scene.getObjectByProperty('type', 'PerspectiveCamera') as THREE.Camera;
+
         // Interpolate
         this.players.forEach(player => {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
                 player.mesh.position.lerp(player.targetPosition, 10 * delta);
                 player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+            }
+
+            // Make healthbar face the camera (billboard effect)
+            if (player.healthBar && camera) {
+                // Save the original y rotation
+                const originalRotationX = player.healthBar.rotation.x;
+
+                // Make the healthbar face the camera
+                player.healthBar.lookAt(camera.position);
+
+                // Restore the original y rotation (we only want to rotate around y axis)
+                player.healthBar.rotation.x = originalRotationX;
             }
         });
     }
@@ -256,7 +304,7 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh } {
+    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, healthBar: THREE.Group } {
         const group = new THREE.Group();
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
         const material = new THREE.MeshStandardMaterial({ color: isLocal ? 0x00ff00 : 0xff0000 });
@@ -265,7 +313,12 @@ export class ClientEntityManager {
         body.castShadow = true;
         body.receiveShadow = true;
         group.add(body);
-        return { group, body };
+
+        // Create healthbar with default full health
+        const healthBar = this.createHealthBar(100, 100);
+        group.add(healthBar);
+
+        return { group, body, healthBar };
     }
 
     private createInvincibilitySphere(): THREE.Mesh {
@@ -280,6 +333,94 @@ export class ClientEntityManager {
         const sphere = new THREE.Mesh(geometry, material);
         sphere.position.y = 1; // Center at player's chest height
         return sphere;
+    }
+
+    private createHealthBar(health: number, maxHealth: number): THREE.Group {
+        const healthBarGroup = new THREE.Group();
+
+        // Constants for healthbar appearance
+        const barWidth = 3.0;
+        const barHeight = 0.4;
+        const barDepth = 0.05;
+        const borderThickness = 0.02;
+        const numSegments = 5; // Number of segments/slices in the healthbar
+        const segmentSpacing = 0.02; // Space between segments
+        const segmentWidth = (barWidth - (numSegments - 1) * segmentSpacing) / numSegments;
+
+        // Create border (slightly larger than the healthbar)
+        const borderGeometry = new THREE.BoxGeometry(
+            barWidth + borderThickness * 2, 
+            barHeight + borderThickness * 2, 
+            barDepth
+        );
+        const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black border
+        const border = new THREE.Mesh(borderGeometry, borderMaterial);
+        healthBarGroup.add(border);
+
+        // Create background (empty health area)
+        const bgGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth + 0.01); // Slightly in front
+        const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 }); // Dark gray background
+        const background = new THREE.Mesh(bgGeometry, bgMaterial);
+        healthBarGroup.add(background);
+
+        // Create segments container
+        const segmentsGroup = new THREE.Group();
+        healthBarGroup.add(segmentsGroup);
+
+        // Create individual segments
+        for (let i = 0; i < numSegments; i++) {
+            const segmentGeometry = new THREE.BoxGeometry(segmentWidth, barHeight, barDepth + 0.02); // Slightly in front of background
+            const segmentMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green for health
+            const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+
+            // Position segment (left-aligned with spacing)
+            segment.position.x = -barWidth/2 + segmentWidth/2 + i * (segmentWidth + segmentSpacing);
+
+            segmentsGroup.add(segment);
+        }
+
+        // Position the healthbar above the player
+        healthBarGroup.position.y = 3.5; // Above player's head
+
+        // Make the healthbar always face the camera
+        healthBarGroup.rotation.x = -Math.PI / 6; // Slight tilt for better visibility
+
+        // Update the healthbar to show the current health
+        this.updateHealthBarSegments(healthBarGroup, health, maxHealth);
+
+        return healthBarGroup;
+    }
+
+    private updateHealthBarSegments(healthBarGroup: THREE.Group, health: number, maxHealth: number) {
+        if (!healthBarGroup) return;
+
+        const segmentsGroup = healthBarGroup.children[2] as THREE.Group;
+        if (!segmentsGroup) return;
+
+        const numSegments = segmentsGroup.children.length;
+        const healthPercentage = health / maxHealth;
+        const activeSegments = Math.ceil(healthPercentage * numSegments);
+
+        // Update segment colors based on health percentage
+        for (let i = 0; i < numSegments; i++) {
+            const segment = segmentsGroup.children[i] as THREE.Mesh;
+            const material = segment.material as THREE.MeshBasicMaterial;
+
+            if (i < activeSegments) {
+                // Active segment - color based on health percentage
+                if (healthPercentage > 0.6) {
+                    material.color.set(0x00ff00); // Green for high health
+                } else if (healthPercentage > 0.3) {
+                    material.color.set(0xffff00); // Yellow for medium health
+                } else {
+                    material.color.set(0xff0000); // Red for low health
+                }
+                segment.visible = true;
+            } else {
+                // Inactive segment
+                segment.visible = false;
+            }
+        }
     }
 
     private createMissileMesh(): THREE.Mesh {

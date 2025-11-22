@@ -32,7 +32,7 @@ export type SkillType = typeof SkillType[keyof typeof SkillType];
 export const SKILL_CONFIG = {
     [SkillType.TELEPORT]: {
         cooldown: 5000, // 5 seconds
-        range: 10,
+        range: 22,
         castTime: 0
     },
     [SkillType.HOMING_MISSILE]: {
@@ -47,7 +47,7 @@ export const SKILL_CONFIG = {
     [SkillType.LASER_BEAM]: {
         cooldown: 8000, // 8 seconds
         range: 15, // Max beam length
-        lifetime: 2000, // Beam stays active for 2 seconds
+        lifetime: 800, // Beam stays active for 2 seconds
         damage: 100,
         thickness: 0.3 // Beam cylinder radius
     },

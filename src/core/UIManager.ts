@@ -19,6 +19,10 @@ export class UIManager {
 
     constructor() {
         this.healthBar = document.getElementById('health-bar')!;
+        // Hide the health bar in the HUD since we're displaying health in 3D
+        if (this.healthBar) {
+            this.healthBar.style.display = 'none';
+        }
         this.hud = document.getElementById('hud')!;
         // Q skill = Teleport (cd-missile)
         this.teleportCdOverlay = document.getElementById('cd-missile')!;
@@ -360,9 +364,7 @@ export class UIManager {
         const player = state.players.find(p => p.id === localPlayerId);
         if (!player) return;
 
-        // Update Health
-        const healthPercent = Math.max(0, (player.health / player.maxHealth) * 100);
-        this.healthBar.style.width = `${healthPercent}%`;
+        // Health is now displayed in 3D above player meshes
 
         const now = Date.now();
 
