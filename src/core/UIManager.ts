@@ -90,8 +90,10 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.boxShadow = '0 0 10px 5px rgba(0, 255, 0, 0.7)';
-            skillIcon.style.border = '2px solid #fff';
+            skillIcon.setAttribute('data-active', 'true');
+            skillIcon.style.boxShadow = '0 0 20px 8px rgba(0, 255, 0, 0.8), 0 0 40px rgba(0, 255, 0, 0.4)';
+            skillIcon.style.borderColor = '#0f0';
+            skillIcon.style.transform = 'scale(1.05)';
         }
     }
 
@@ -112,8 +114,10 @@ export class UIManager {
         }
 
         if (skillIcon) {
+            skillIcon.removeAttribute('data-active');
             skillIcon.style.boxShadow = '';
-            // Don't clear border here as it might be set by setSkillBorder
+            skillIcon.style.borderColor = '';
+            skillIcon.style.transform = '';
         }
     }
 
@@ -134,7 +138,7 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.border = '2px solid #fff';
+            skillIcon.setAttribute('data-ready', 'true');
         }
     }
 
@@ -155,7 +159,7 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.border = '';
+            skillIcon.removeAttribute('data-ready');
         }
     }
 
@@ -409,62 +413,113 @@ export class UIManager {
         if (this.teleportCdOverlay) {
             const teleportCooldownEnd = player.teleportCooldown;
             const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
+            const skillSlot = this.teleportCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
             let teleportPercent = 0;
             if (now < teleportCooldownEnd) {
                 const remaining = teleportCooldownEnd - now;
                 teleportPercent = (remaining / teleportTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.teleportCdOverlay.style.height = `${teleportPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
                 this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
             } else {
+                this.teleportCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
                 this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
             }
-            this.teleportCdOverlay.style.height = `${teleportPercent}%`;
         }
 
         // Update Homing Missile Cooldown (W skill)
         if (this.homingMissileCdOverlay) {
             const homingMissileCooldownEnd = player.homingMissileCooldown;
             const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
+            const skillSlot = this.homingMissileCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
             let homingMissilePercent = 0;
             if (now < homingMissileCooldownEnd) {
                 const remaining = homingMissileCooldownEnd - now;
                 homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
                 this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
             } else {
+                this.homingMissileCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
                 this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
             }
-            this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
         }
 
         // Update Laser Beam Cooldown (E skill)
         if (this.laserBeamCdOverlay) {
             const laserBeamCooldownEnd = player.laserBeamCooldown;
             const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
+            const skillSlot = this.laserBeamCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
             let laserBeamPercent = 0;
             if (now < laserBeamCooldownEnd) {
                 const remaining = laserBeamCooldownEnd - now;
                 laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
                 this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
             } else {
+                this.laserBeamCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
                 this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
             }
-            this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
         }
 
         // Update Invincibility Cooldown (R skill)
         if (this.invincibilityCdOverlay) {
             const invincibilityCooldownEnd = player.invincibilityCooldown;
             const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
+            const skillSlot = this.invincibilityCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
             let invincibilityPercent = 0;
             if (now < invincibilityCooldownEnd) {
                 const remaining = invincibilityCooldownEnd - now;
                 invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
-                // No border for R skill as it gets cast immediately
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
+            } else {
+                this.invincibilityCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
+                if (skillSlot) {
+                    skillSlot.setAttribute('data-ready', 'true');
+                }
             }
-            this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
         }
 
         // Update game mode display
