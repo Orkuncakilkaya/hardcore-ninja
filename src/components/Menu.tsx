@@ -4,7 +4,6 @@ import { GameClient } from '../client/GameClient';
 import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
-import HostControls from './HostControls';
 import LobbyControls from './LobbyControls';
 import PlayerNameInput from './PlayerNameInput';
 
@@ -14,7 +13,7 @@ interface MenuProps {
 }
 
 export default function Menu({ networkManager, gameClient }: MenuProps) {
-  const [connectionStatus, setConnectionStatus] = useState('Connecting to network...');
+  const [_connectionStatus, setConnectionStatus] = useState('Connecting to network...');
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [isHosting, setIsHosting] = useState(false);
   const [hostId, setHostId] = useState('');

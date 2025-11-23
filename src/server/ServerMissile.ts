@@ -126,6 +126,7 @@ export class ServerMissile {
     public getState(): MissileState {
         return {
             id: this.id,
+            ownerId: this.ownerId,
             position: { x: this.position.x, y: this.position.y, z: this.position.z },
             rotation: { x: this.rotation.x, y: this.rotation.y, z: this.rotation.z, w: this.rotation.w },
             targetId: this.targetId

@@ -12,7 +12,7 @@ const STORAGE_KEY_BGM_VOLUME = 'bgm_volume';
  */
 export class AudioManager {
     private listener: THREE.AudioListener;
-    private camera: THREE.Camera;
+    private camera!: THREE.Camera;
     private soundMap: Map<string, THREE.Audio | THREE.PositionalAudio>;
     private skillSounds: Map<SkillType, AudioBuffer>;
     private initialized: boolean = false;
