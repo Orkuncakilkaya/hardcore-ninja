@@ -1,0 +1,68 @@
+.hostControls {
+  margin-top: 20px;
+}
+
+.hostControls p {
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.hostIdInput {
+  margin-bottom: 20px;
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.hostButton,
+.joinButton {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.hostButton:hover:not(:disabled),
+.joinButton:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.hostButton:disabled,
+.joinButton:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.divider {
+  margin: 10px 0;
+  color: #fff;
+}
+
+.joinInput {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #000;
+  box-sizing: border-box;
+}
+
+.joinInput::placeholder {
+  color: #666;
+}
+

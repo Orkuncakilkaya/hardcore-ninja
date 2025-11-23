@@ -2,12 +2,11 @@ import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, GameMode } from '../common/constants';
 
 export class UIManager {
-    private healthBar: HTMLElement;
-    private hud: HTMLElement;
-    private teleportCdOverlay: HTMLElement;
-    private homingMissileCdOverlay: HTMLElement;
-    private laserBeamCdOverlay: HTMLElement;
-    private invincibilityCdOverlay: HTMLElement;
+    private hud: HTMLElement | null = null;
+    private teleportCdOverlay: HTMLElement | null = null;
+    private homingMissileCdOverlay: HTMLElement | null = null;
+    private laserBeamCdOverlay: HTMLElement | null = null;
+    private invincibilityCdOverlay: HTMLElement | null = null;
     private teleportSkillIcon: HTMLElement | null = null;
     private homingMissileSkillIcon: HTMLElement | null = null;
     private laserBeamSkillIcon: HTMLElement | null = null;
@@ -16,41 +15,61 @@ export class UIManager {
     private gameModeDisplay: HTMLElement | null = null;
     private tabMenu: HTMLElement | null = null;
     private leaderboard: HTMLElement | null = null;
+    private loadingOverlay: HTMLElement | null = null;
+    private loadingText: HTMLElement | null = null;
+    private loadingProgress: HTMLElement | null = null;
+    private initialized: boolean = false;
 
     constructor() {
-        this.healthBar = document.getElementById('health-bar')!;
-        // Hide the health bar in the HUD since we're displaying health in 3D
-        if (this.healthBar) {
-            this.healthBar.style.display = 'none';
-        }
-        this.hud = document.getElementById('hud')!;
+        this.initializeElements();
+        this.createLoadingOverlay();
+    }
+
+    private initializeElements() {
+        if (this.initialized) return;
+
+        this.hud = document.getElementById('hud');
         // Q skill = Teleport (cd-missile)
-        this.teleportCdOverlay = document.getElementById('cd-missile')!;
+        this.teleportCdOverlay = document.getElementById('cd-missile');
         // W skill = Homing Missile (cd-basic)
-        this.homingMissileCdOverlay = document.getElementById('cd-basic')!;
+        this.homingMissileCdOverlay = document.getElementById('cd-basic');
         // E skill = Laser Beam (cd-slash)
-        this.laserBeamCdOverlay = document.getElementById('cd-slash')!;
+        this.laserBeamCdOverlay = document.getElementById('cd-slash');
         // R skill = Invincibility (cd-tank)
-        this.invincibilityCdOverlay = document.getElementById('cd-tank')!;
+        this.invincibilityCdOverlay = document.getElementById('cd-tank');
 
         // Get skill icons (parent elements of the cooldown overlays)
-        this.teleportSkillIcon = this.teleportCdOverlay.parentElement;
-        this.homingMissileSkillIcon = this.homingMissileCdOverlay.parentElement;
-        this.laserBeamSkillIcon = this.laserBeamCdOverlay.parentElement;
+        // Check if elements exist before accessing parentElement
+        if (this.teleportCdOverlay && this.teleportCdOverlay.parentElement) {
+            this.teleportSkillIcon = this.teleportCdOverlay.parentElement;
+        }
+        if (this.homingMissileCdOverlay && this.homingMissileCdOverlay.parentElement) {
+            this.homingMissileSkillIcon = this.homingMissileCdOverlay.parentElement;
+        }
+        if (this.laserBeamCdOverlay && this.laserBeamCdOverlay.parentElement) {
+            this.laserBeamSkillIcon = this.laserBeamCdOverlay.parentElement;
+        }
 
         // Hide other unused slots
         const otherSlots = ['cd-ult'];
         otherSlots.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.parentElement!.style.display = 'none';
+            if (el && el.parentElement) {
+                el.parentElement.style.display = 'none';
+            }
         });
 
-        // Create game mode display
+        // Create game mode display and tab menu (these don't depend on React elements)
         this.createGameModeDisplay();
-
-        // Create tab menu
         this.createTabMenu();
+
+        // Only mark as initialized if critical elements are found
+        if (this.hud && this.teleportCdOverlay && this.homingMissileCdOverlay && 
+            this.laserBeamCdOverlay && this.invincibilityCdOverlay) {
+            this.initialized = true;
+        }
     }
+
 
     // Set glow effect for a skill when it's in pressed state
     public setSkillGlow(skillType: SkillType) {
@@ -69,8 +88,10 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.boxShadow = '0 0 10px 5px rgba(0, 255, 0, 0.7)';
-            skillIcon.style.border = '2px solid #fff';
+            skillIcon.setAttribute('data-active', 'true');
+            skillIcon.style.boxShadow = '0 0 20px 8px rgba(0, 255, 0, 0.8), 0 0 40px rgba(0, 255, 0, 0.4)';
+            skillIcon.style.borderColor = '#0f0';
+            skillIcon.style.transform = 'scale(1.05)';
         }
     }
 
@@ -91,8 +112,10 @@ export class UIManager {
         }
 
         if (skillIcon) {
+            skillIcon.removeAttribute('data-active');
             skillIcon.style.boxShadow = '';
-            // Don't clear border here as it might be set by setSkillBorder
+            skillIcon.style.borderColor = '';
+            skillIcon.style.transform = '';
         }
     }
 
@@ -113,7 +136,7 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.border = '2px solid #fff';
+            skillIcon.setAttribute('data-ready', 'true');
         }
     }
 
@@ -134,7 +157,7 @@ export class UIManager {
         }
 
         if (skillIcon) {
-            skillIcon.style.border = '';
+            skillIcon.removeAttribute('data-ready');
         }
     }
 
@@ -149,6 +172,7 @@ export class UIManager {
         this.gameModeDisplay.style.fontSize = '24px';
         this.gameModeDisplay.style.fontWeight = 'bold';
         this.gameModeDisplay.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
+        this.gameModeDisplay.style.display = 'none'; // Hidden by default
         this.gameModeDisplay.textContent = 'Warmup';
         document.body.appendChild(this.gameModeDisplay);
     }
@@ -212,7 +236,13 @@ export class UIManager {
     }
 
     public showHUD() {
-        this.hud.style.display = 'block';
+        if (this.hud) {
+            this.hud.style.display = 'block';
+        }
+        // Show game mode display when HUD is shown
+        if (this.gameModeDisplay) {
+            this.gameModeDisplay.style.display = 'block';
+        }
     }
 
     public showTabMenu() {
@@ -365,6 +395,11 @@ export class UIManager {
     }
 
     public update(state: GameState, localPlayerId: string, isHost: boolean = false) {
+        // Try to initialize elements if not already done
+        if (!this.initialized) {
+            this.initializeElements();
+        }
+
         const player = state.players.find(p => p.id === localPlayerId);
         if (!player) return;
 
@@ -373,58 +408,117 @@ export class UIManager {
         const now = Date.now();
 
         // Update Teleport Cooldown (Q skill)
-        const teleportCooldownEnd = player.teleportCooldown;
-        const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
+        if (this.teleportCdOverlay) {
+            const teleportCooldownEnd = player.teleportCooldown;
+            const teleportTotalCooldown = SKILL_CONFIG[SkillType.TELEPORT].cooldown;
+            const skillSlot = this.teleportCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
-        let teleportPercent = 0;
-        if (now < teleportCooldownEnd) {
-            const remaining = teleportCooldownEnd - now;
-            teleportPercent = (remaining / teleportTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
+            let teleportPercent = 0;
+            if (now < teleportCooldownEnd) {
+                const remaining = teleportCooldownEnd - now;
+                teleportPercent = (remaining / teleportTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.teleportCdOverlay.style.height = `${teleportPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
+                this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
+            } else {
+                this.teleportCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
+                this.setSkillBorder(SkillType.TELEPORT); // Skill ready, show border
+            }
         }
-        this.teleportCdOverlay.style.height = `${teleportPercent}%`;
 
         // Update Homing Missile Cooldown (W skill)
-        const homingMissileCooldownEnd = player.homingMissileCooldown;
-        const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
+        if (this.homingMissileCdOverlay) {
+            const homingMissileCooldownEnd = player.homingMissileCooldown;
+            const homingMissileTotalCooldown = SKILL_CONFIG[SkillType.HOMING_MISSILE].cooldown;
+            const skillSlot = this.homingMissileCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
-        let homingMissilePercent = 0;
-        if (now < homingMissileCooldownEnd) {
-            const remaining = homingMissileCooldownEnd - now;
-            homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
+            let homingMissilePercent = 0;
+            if (now < homingMissileCooldownEnd) {
+                const remaining = homingMissileCooldownEnd - now;
+                homingMissilePercent = (remaining / homingMissileTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
+                this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
+            } else {
+                this.homingMissileCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
+                this.setSkillBorder(SkillType.HOMING_MISSILE); // Skill ready, show border
+            }
         }
-        this.homingMissileCdOverlay.style.height = `${homingMissilePercent}%`;
 
         // Update Laser Beam Cooldown (E skill)
-        const laserBeamCooldownEnd = player.laserBeamCooldown;
-        const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
+        if (this.laserBeamCdOverlay) {
+            const laserBeamCooldownEnd = player.laserBeamCooldown;
+            const laserBeamTotalCooldown = SKILL_CONFIG[SkillType.LASER_BEAM].cooldown;
+            const skillSlot = this.laserBeamCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
-        let laserBeamPercent = 0;
-        if (now < laserBeamCooldownEnd) {
-            const remaining = laserBeamCooldownEnd - now;
-            laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
-            this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
-        } else {
-            this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
+            let laserBeamPercent = 0;
+            if (now < laserBeamCooldownEnd) {
+                const remaining = laserBeamCooldownEnd - now;
+                laserBeamPercent = (remaining / laserBeamTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
+                this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
+            } else {
+                this.laserBeamCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
+                this.setSkillBorder(SkillType.LASER_BEAM); // Skill ready, show border
+            }
         }
-        this.laserBeamCdOverlay.style.height = `${laserBeamPercent}%`;
 
         // Update Invincibility Cooldown (R skill)
-        const invincibilityCooldownEnd = player.invincibilityCooldown;
-        const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
+        if (this.invincibilityCdOverlay) {
+            const invincibilityCooldownEnd = player.invincibilityCooldown;
+            const invincibilityTotalCooldown = SKILL_CONFIG[SkillType.INVINCIBILITY].cooldown;
+            const skillSlot = this.invincibilityCdOverlay.parentElement;
+            const cooldownText = skillSlot?.querySelector('.cooldownText') as HTMLElement;
 
-        let invincibilityPercent = 0;
-        if (now < invincibilityCooldownEnd) {
-            const remaining = invincibilityCooldownEnd - now;
-            invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
-            // No border for R skill as it gets cast immediately
+            let invincibilityPercent = 0;
+            if (now < invincibilityCooldownEnd) {
+                const remaining = invincibilityCooldownEnd - now;
+                invincibilityPercent = (remaining / invincibilityTotalCooldown) * 100;
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
+                if (cooldownText) {
+                    cooldownText.textContent = remainingSeconds.toString();
+                    skillSlot?.setAttribute('data-cooldown-active', 'true');
+                }
+            } else {
+                this.invincibilityCdOverlay.style.height = '0%';
+                if (cooldownText) {
+                    cooldownText.textContent = '';
+                    skillSlot?.removeAttribute('data-cooldown-active');
+                }
+                if (skillSlot) {
+                    skillSlot.setAttribute('data-ready', 'true');
+                }
+            }
         }
-        this.invincibilityCdOverlay.style.height = `${invincibilityPercent}%`;
 
         // Update game mode display
         this.updateGameMode(state);
@@ -432,6 +526,89 @@ export class UIManager {
         // Update leaderboard if tab menu is visible
         if (this.tabMenu && this.tabMenu.style.display === 'block') {
             this.updateLeaderboard(state, localPlayerId, isHost);
+        }
+    }
+
+    private createLoadingOverlay() {
+        // Create loading overlay if it doesn't exist
+        if (this.loadingOverlay) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'loading-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            color: white;
+            font-family: Arial, sans-serif;
+        `;
+
+        const text = document.createElement('div');
+        text.id = 'loading-text';
+        text.textContent = 'Loading Resources...';
+        text.style.cssText = `
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        `;
+
+        const progressBar = document.createElement('div');
+        progressBar.id = 'loading-progress';
+        progressBar.style.cssText = `
+            width: 300px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        `;
+
+        const progressFill = document.createElement('div');
+        progressFill.id = 'loading-progress-fill';
+        progressFill.style.cssText = `
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00cc00);
+            transition: width 0.3s ease;
+        `;
+
+        progressBar.appendChild(progressFill);
+        overlay.appendChild(text);
+        overlay.appendChild(progressBar);
+        document.body.appendChild(overlay);
+
+        this.loadingOverlay = overlay;
+        this.loadingText = text;
+        this.loadingProgress = progressFill;
+    }
+
+    public showLoading(message: string = 'Loading Resources...') {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'flex';
+            if (this.loadingText) {
+                this.loadingText.textContent = message;
+            }
+        }
+    }
+
+    public updateLoadingProgress(progress: number) {
+        if (this.loadingProgress) {
+            const percentage = Math.min(100, Math.max(0, progress * 100));
+            this.loadingProgress.style.width = `${percentage}%`;
+        }
+    }
+
+    public hideLoading() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'none';
         }
     }
 }

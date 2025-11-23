@@ -24,8 +24,9 @@ export class GameServer {
     constructor(networkManager: NetworkManager, mapConfig: MapConfig) {
         this.networkManager = networkManager;
         this.mapConfig = mapConfig;
+        
         this.entityManager = new ServerEntityManager();
-        this.entityManager.loadMap(mapConfig);
+        this.entityManager.loadMap(this.mapConfig);
 
         this.setupNetworkHandlers();
     }
@@ -103,7 +104,10 @@ export class GameServer {
                         return;
                     }
 
-                    if (message.destination) {
+                    if (message.stopMovement) {
+                        console.log(`Stopping movement for ${playerId}`);
+                        p.stopMovement();
+                    } else if (message.destination) {
                         console.log(`Processing Move for ${playerId} to`, message.destination);
                         p.setDestination(new THREE.Vector3(message.destination.x, message.destination.y, message.destination.z));
                     }

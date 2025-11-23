@@ -6,6 +6,8 @@ import { ServerMissile } from './ServerMissile';
 import { ServerLaserBeam } from './ServerLaserBeam';
 
 export class ServerPlayer {
+    private readonly mapLimit: number;
+
     public id: string;
     public username?: string; // Player's display name
     public avatar?: string; // Player's avatar (for future use)
@@ -52,8 +54,9 @@ export class ServerPlayer {
     // We need to refactor SkillSystem or create a ServerSkillSystem.
     // Let's assume we refactor SkillSystem later or mock it for now.
 
-    constructor(id: string, startPosition: Vector3) {
+    constructor(id: string, startPosition: Vector3, mapLimit: number = 35) {
         this.id = id;
+        this.mapLimit = mapLimit;
         this.position = new THREE.Vector3(startPosition.x, startPosition.y, startPosition.z);
         this.rotation = new THREE.Quaternion();
     }
@@ -152,9 +155,8 @@ export class ServerPlayer {
             }
 
             // Map Boundary
-            const MAP_LIMIT = 35;
-            this.position.x = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.position.x));
-            this.position.z = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, this.position.z));
+            this.position.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.x));
+            this.position.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.z));
         }
     }
 
@@ -175,8 +177,7 @@ export class ServerPlayer {
         }
 
         // Validate bounds (map limits)
-        const MAP_LIMIT = 35;
-        if (target.x < -MAP_LIMIT || target.x > MAP_LIMIT || target.z < -MAP_LIMIT || target.z > MAP_LIMIT) {
+        if (target.x < -this.mapLimit || target.x > this.mapLimit || target.z < -this.mapLimit || target.z > this.mapLimit) {
             console.log('Teleport rejected: out of bounds');
             return false;
         }
@@ -187,15 +188,110 @@ export class ServerPlayer {
             new THREE.Vector3(1, 2, 1)
         );
 
+        let finalTarget = targetPos.clone();
+        let isInsideObstacle = false;
+        let intersectingObstacle: THREE.Box3 | null = null;
+
         for (const obstacleBox of obstacles) {
             if (playerBox.intersectsBox(obstacleBox)) {
-                console.log('Teleport rejected: destination inside obstacle');
-                return false;
+                isInsideObstacle = true;
+                intersectingObstacle = obstacleBox;
+                break;
             }
         }
 
+        // If inside obstacle, push player outside in the direction of movement
+        if (isInsideObstacle && intersectingObstacle) {
+            const direction = new THREE.Vector3().subVectors(targetPos, currentPos);
+            direction.y = 0;
+            
+            if (direction.length() > 0.01) {
+                direction.normalize();
+                
+                // Find the closest point on the obstacle's surface in the movement direction
+                const obstacleCenter = new THREE.Vector3();
+                intersectingObstacle.getCenter(obstacleCenter);
+                const obstacleSize = new THREE.Vector3();
+                intersectingObstacle.getSize(obstacleSize);
+                
+                // Calculate the half-extents
+                const halfExtents = obstacleSize.clone().multiplyScalar(0.5);
+                
+                // Find the face of the obstacle closest to the movement direction
+                let bestExitPoint = obstacleCenter.clone();
+                let maxDistance = -Infinity;
+                
+                // Check all 4 directions (north, south, east, west)
+                const directions = [
+                    new THREE.Vector3(0, 0, 1),   // North
+                    new THREE.Vector3(0, 0, -1),  // South
+                    new THREE.Vector3(1, 0, 0),   // East
+                    new THREE.Vector3(-1, 0, 0)   // West
+                ];
+                
+                for (const dir of directions) {
+                    // Check if this direction aligns with movement direction
+                    const dot = direction.dot(dir);
+                    if (dot > 0) {
+                        // Calculate exit point on this face
+                        const exitPoint = obstacleCenter.clone();
+                        exitPoint.x += dir.x * (halfExtents.x + 0.6); // 0.6 is half player width + margin
+                        exitPoint.z += dir.z * (halfExtents.z + 0.6);
+                        exitPoint.y = target.y;
+                        
+                        // Check if this exit point is valid (not inside another obstacle)
+                        const exitBox = new THREE.Box3().setFromCenterAndSize(
+                            new THREE.Vector3(exitPoint.x, exitPoint.y + 1, exitPoint.z),
+                            new THREE.Vector3(1, 2, 1)
+                        );
+                        
+                        let isValidExit = true;
+                        for (const otherObstacle of obstacles) {
+                            if (otherObstacle !== intersectingObstacle && exitBox.intersectsBox(otherObstacle)) {
+                                isValidExit = false;
+                                break;
+                            }
+                        }
+                        
+                        if (isValidExit) {
+                            const distanceToCurrent = exitPoint.distanceTo(currentPos);
+                            if (distanceToCurrent > maxDistance) {
+                                maxDistance = distanceToCurrent;
+                                bestExitPoint = exitPoint;
+                            }
+                        }
+                    }
+                }
+                
+                // If we found a valid exit point, use it
+                if (maxDistance > -Infinity) {
+                    finalTarget = bestExitPoint;
+                } else {
+                    // Fallback: push in movement direction
+                    finalTarget = obstacleCenter.clone();
+                    finalTarget.add(direction.multiplyScalar(halfExtents.length() + 1));
+                    finalTarget.y = target.y;
+                }
+            }
+        }
+
+        // Validate final target is within range
+        const finalDistance = currentPos.distanceTo(finalTarget);
+        if (finalDistance > SKILL_CONFIG.TELEPORT.range + 1) {
+            // Clamp to max range
+            const clampedDirection = new THREE.Vector3().subVectors(finalTarget, currentPos);
+            clampedDirection.y = 0;
+            clampedDirection.normalize();
+            finalTarget = currentPos.clone().add(clampedDirection.multiplyScalar(SKILL_CONFIG.TELEPORT.range));
+            finalTarget.y = target.y;
+        }
+
+        // Validate bounds (map limits)
+        finalTarget.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.x));
+        finalTarget.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.z));
+
         // Perform teleport
-        this.teleportDestination.set(target.x, target.y, target.z);
+        this.teleportDestination.set(finalTarget.x, finalTarget.y, finalTarget.z);
         this.isTeleporting = true;
         this.teleportCooldown = now + SKILL_CONFIG.TELEPORT.cooldown;
 
@@ -375,3 +471,4 @@ export class ServerPlayer {
         };
     }
 }
+
