@@ -104,6 +104,9 @@ export class GameClient {
             } else if (e.key === 'Tab') {
                 e.preventDefault();
                 this.toggleTabMenu();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.toggleSettingsMenu();
             }
         });
 
@@ -359,6 +362,10 @@ export class GameClient {
         this.uiManager.hideTabMenu();
     }
 
+    private toggleSettingsMenu() {
+        this.uiManager.toggleSettingsMenu();
+    }
+
     private setupHostActionButtons() {
         const startButton = document.getElementById('btn-start-game');
         const restartButton = document.getElementById('btn-restart-game');
@@ -411,6 +418,12 @@ export class GameClient {
         try {
             await this.audioManager.init(this.renderer.camera);
             console.log('Audio system initialized');
+
+            // Start playing background music
+            this.audioManager.playBackgroundMusic();
+
+            // Set audio manager for settings menu
+            this.uiManager.setAudioManager(this.audioManager);
         } catch (error) {
             console.error('Failed to initialize audio system:', error);
         }

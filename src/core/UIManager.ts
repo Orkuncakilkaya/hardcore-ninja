@@ -18,11 +18,18 @@ export class UIManager {
     private loadingOverlay: HTMLElement | null = null;
     private loadingText: HTMLElement | null = null;
     private loadingProgress: HTMLElement | null = null;
+
+    // Settings menu elements
+    private settingsMenu: HTMLElement | null = null;
+    private bgmVolumeSlider: HTMLInputElement | null = null;
+    private sfxVolumeSlider: HTMLInputElement | null = null;
+
     private initialized: boolean = false;
 
     constructor() {
         this.initializeElements();
         this.createLoadingOverlay();
+        this.createSettingsMenu();
     }
 
     private initializeElements() {
@@ -177,6 +184,134 @@ export class UIManager {
         document.body.appendChild(this.gameModeDisplay);
     }
 
+    private createSettingsMenu() {
+        // Create settings menu container
+        this.settingsMenu = document.createElement('div');
+        this.settingsMenu.id = 'settings-menu';
+        this.settingsMenu.style.position = 'absolute';
+        this.settingsMenu.style.top = '50%';
+        this.settingsMenu.style.left = '50%';
+        this.settingsMenu.style.transform = 'translate(-50%, -50%)';
+        this.settingsMenu.style.width = '400px';
+        this.settingsMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        this.settingsMenu.style.border = '2px solid #444';
+        this.settingsMenu.style.borderRadius = '5px';
+        this.settingsMenu.style.padding = '20px';
+        this.settingsMenu.style.display = 'none';
+        this.settingsMenu.style.color = 'white';
+        this.settingsMenu.style.fontFamily = 'Arial, sans-serif';
+        this.settingsMenu.style.zIndex = '1000';
+
+        // Create title
+        const title = document.createElement('h2');
+        title.textContent = 'Settings';
+        title.style.textAlign = 'center';
+        title.style.marginBottom = '20px';
+        title.style.color = 'white';
+        this.settingsMenu.appendChild(title);
+
+        // Create audio settings section
+        const audioSection = document.createElement('div');
+        audioSection.style.marginBottom = '20px';
+
+        const audioTitle = document.createElement('h3');
+        audioTitle.textContent = 'Audio';
+        audioTitle.style.marginBottom = '10px';
+        audioTitle.style.borderBottom = '1px solid #444';
+        audioTitle.style.paddingBottom = '5px';
+        audioSection.appendChild(audioTitle);
+
+        // BGM Volume slider
+        const bgmContainer = document.createElement('div');
+        bgmContainer.style.display = 'flex';
+        bgmContainer.style.alignItems = 'center';
+        bgmContainer.style.marginBottom = '10px';
+
+        const bgmLabel = document.createElement('label');
+        bgmLabel.textContent = 'Music Volume:';
+        bgmLabel.style.width = '120px';
+        bgmContainer.appendChild(bgmLabel);
+
+        this.bgmVolumeSlider = document.createElement('input');
+        this.bgmVolumeSlider.type = 'range';
+        this.bgmVolumeSlider.min = '0';
+        this.bgmVolumeSlider.max = '100';
+        this.bgmVolumeSlider.value = '10'; // Default 10%
+        this.bgmVolumeSlider.style.flex = '1';
+        bgmContainer.appendChild(this.bgmVolumeSlider);
+
+        const bgmValueDisplay = document.createElement('span');
+        bgmValueDisplay.textContent = '10%';
+        bgmValueDisplay.style.width = '40px';
+        bgmValueDisplay.style.textAlign = 'right';
+        bgmContainer.appendChild(bgmValueDisplay);
+
+        // Update value display when slider changes
+        this.bgmVolumeSlider.addEventListener('input', () => {
+            const value = this.bgmVolumeSlider?.value || '0';
+            bgmValueDisplay.textContent = `${value}%`;
+        });
+
+        audioSection.appendChild(bgmContainer);
+
+        // SFX Volume slider
+        const sfxContainer = document.createElement('div');
+        sfxContainer.style.display = 'flex';
+        sfxContainer.style.alignItems = 'center';
+        sfxContainer.style.marginBottom = '10px';
+
+        const sfxLabel = document.createElement('label');
+        sfxLabel.textContent = 'SFX Volume:';
+        sfxLabel.style.width = '120px';
+        sfxContainer.appendChild(sfxLabel);
+
+        this.sfxVolumeSlider = document.createElement('input');
+        this.sfxVolumeSlider.type = 'range';
+        this.sfxVolumeSlider.min = '0';
+        this.sfxVolumeSlider.max = '100';
+        this.sfxVolumeSlider.value = '50'; // Default 50%
+        this.sfxVolumeSlider.style.flex = '1';
+        sfxContainer.appendChild(this.sfxVolumeSlider);
+
+        const sfxValueDisplay = document.createElement('span');
+        sfxValueDisplay.textContent = '50%';
+        sfxValueDisplay.style.width = '40px';
+        sfxValueDisplay.style.textAlign = 'right';
+        sfxContainer.appendChild(sfxValueDisplay);
+
+        // Update value display when slider changes
+        this.sfxVolumeSlider.addEventListener('input', () => {
+            const value = this.sfxVolumeSlider?.value || '0';
+            sfxValueDisplay.textContent = `${value}%`;
+        });
+
+        audioSection.appendChild(sfxContainer);
+        this.settingsMenu.appendChild(audioSection);
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '10px 20px';
+        closeButton.style.fontSize = '16px';
+        closeButton.style.backgroundColor = '#4CAF50';
+        closeButton.style.color = 'white';
+        closeButton.style.border = 'none';
+        closeButton.style.borderRadius = '5px';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.display = 'block';
+        closeButton.style.margin = '0 auto';
+        closeButton.style.marginTop = '20px';
+
+        closeButton.addEventListener('click', () => {
+            this.hideSettingsMenu();
+        });
+
+        this.settingsMenu.appendChild(closeButton);
+
+        // Add to document
+        document.body.appendChild(this.settingsMenu);
+    }
+
     private createTabMenu() {
         // Create tab menu container
         this.tabMenu = document.createElement('div');
@@ -254,6 +389,78 @@ export class UIManager {
     public hideTabMenu() {
         if (this.tabMenu) {
             this.tabMenu.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show the settings menu
+     */
+    public showSettingsMenu() {
+        if (this.settingsMenu) {
+            this.settingsMenu.style.display = 'block';
+        }
+    }
+
+    /**
+     * Hide the settings menu
+     */
+    public hideSettingsMenu() {
+        if (this.settingsMenu) {
+            this.settingsMenu.style.display = 'none';
+        }
+    }
+
+    /**
+     * Toggle the settings menu
+     */
+    public toggleSettingsMenu() {
+        if (this.settingsMenu) {
+            if (this.settingsMenu.style.display === 'none') {
+                this.showSettingsMenu();
+            } else {
+                this.hideSettingsMenu();
+            }
+        }
+    }
+
+    /**
+     * Set the audio manager for the settings menu
+     * @param audioManager The audio manager
+     */
+    public setAudioManager(audioManager: any) {
+        // Update sliders with current values
+        if (this.bgmVolumeSlider && audioManager) {
+            const bgmVolume = Math.round(audioManager.getBgmVolume() * 100);
+            this.bgmVolumeSlider.value = bgmVolume.toString();
+
+            // Update the display next to the slider
+            const bgmValueDisplay = this.bgmVolumeSlider.nextElementSibling as HTMLElement;
+            if (bgmValueDisplay) {
+                bgmValueDisplay.textContent = `${bgmVolume}%`;
+            }
+
+            // Add event listener to update audio manager when slider changes
+            this.bgmVolumeSlider.addEventListener('change', () => {
+                const value = parseInt(this.bgmVolumeSlider?.value || '0') / 100;
+                audioManager.setBgmVolume(value);
+            });
+        }
+
+        if (this.sfxVolumeSlider && audioManager) {
+            const sfxVolume = Math.round(audioManager.getSfxVolume() * 100);
+            this.sfxVolumeSlider.value = sfxVolume.toString();
+
+            // Update the display next to the slider
+            const sfxValueDisplay = this.sfxVolumeSlider.nextElementSibling as HTMLElement;
+            if (sfxValueDisplay) {
+                sfxValueDisplay.textContent = `${sfxVolume}%`;
+            }
+
+            // Add event listener to update audio manager when slider changes
+            this.sfxVolumeSlider.addEventListener('change', () => {
+                const value = parseInt(this.sfxVolumeSlider?.value || '0') / 100;
+                audioManager.setSfxVolume(value);
+            });
         }
     }
 
