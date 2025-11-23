@@ -272,45 +272,44 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
         return (
           <div className={styles.mainMenu}>
             <div className={styles.menuButtons}>
-              <button 
-                onClick={() => {
-                  if (hasPlayerName) {
-                    setShowHostMenu(true);
-                  } else {
-                    setActiveTab('settings');
-                    setAutoFocusNameInput(true);
-                  }
-                }} 
-                className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
-                disabled={!isNetworkReady}
-              >
-                Host Game
-                {!hasPlayerName && (
-                  <div className={styles.buttonAlert}>
-                    ⚠️
-                  </div>
-                )}
-              </button>
+              <div style={{ marginBottom: '20px' }}>
+                <PlayerNameInput 
+                  networkManager={networkManager} 
+                  autoFocus={autoFocusNameInput} 
+                />
+              </div>
 
-              <button 
-                onClick={() => {
-                  if (hasPlayerName) {
-                    setShowJoinMenu(true);
-                  } else {
-                    setActiveTab('settings');
-                    setAutoFocusNameInput(true);
-                  }
-                }} 
-                className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
-                disabled={!isNetworkReady}
-              >
-                Join Game
-                {!hasPlayerName && (
-                  <div className={styles.buttonAlert}>
-                    ⚠️
-                  </div>
-                )}
-              </button>
+              <div className={!hasPlayerName ? styles.tooltipWrapper : ''}>
+                <button 
+                  onClick={() => setShowHostMenu(true)} 
+                  className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
+                  disabled={!hasPlayerName || !isNetworkReady}
+                >
+                  Host Game
+                  {!hasPlayerName && (
+                    <div className={styles.buttonAlert}>
+                      ⚠️
+                    </div>
+                  )}
+                </button>
+                {!hasPlayerName && <span className={styles.tooltip}>Please set playername before</span>}
+              </div>
+
+              <div className={!hasPlayerName ? styles.tooltipWrapper : ''}>
+                <button 
+                  onClick={() => setShowJoinMenu(true)} 
+                  className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
+                  disabled={!hasPlayerName || !isNetworkReady}
+                >
+                  Join Game
+                  {!hasPlayerName && (
+                    <div className={styles.buttonAlert}>
+                      ⚠️
+                    </div>
+                  )}
+                </button>
+                {!hasPlayerName && <span className={styles.tooltip}>Please set playername before</span>}
+              </div>
 
               <button 
                 onClick={() => setActiveTab('settings')} 

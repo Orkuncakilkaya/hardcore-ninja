@@ -105,6 +105,7 @@
   transition: all 0.3s;
   text-align: left;
   position: relative;
+  width: 100%;
 }
 
 .mainMenuButton:hover {
@@ -283,4 +284,46 @@
   color: #aaa;
   font-size: 16px;
   margin-top: 5px;
+}
+
+/* Tooltip Styles */
+.tooltipWrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.tooltipWrapper:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip {
+  visibility: hidden;
+  width: 200px;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* Position above the button */
+  left: 50%;
+  margin-left: -100px; /* Center the tooltip */
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #555 transparent transparent transparent;
 }
