@@ -39,7 +39,7 @@ export const SKILL_CONFIG = {
         cooldown: 5000,
         range: 5,
         duration: 2000, // 3 seconds
-        speed: 10,
+        speed: 25,
         damage: 100,
         radius: 20, // Activation radius around player
         mouseRadius: 3 // Target selection radius around mouse
