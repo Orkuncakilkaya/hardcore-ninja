@@ -9,6 +9,7 @@ import { InvincibilityEffect } from './effects/InvincibilityEffect';
 import { ClickIndicatorEffect } from './effects/ClickIndicatorEffect';
 import { DamageAreaEffect } from './effects/DamageAreaEffect';
 import { PlayerModel } from './models/PlayerModel';
+import { AudioManager } from './AudioManager';
 
 interface ClientPlayer {
     mesh: THREE.Group;
@@ -49,7 +50,8 @@ export class ClientEntityManager {
     public laserBeams: Map<string, THREE.Group> = new Map();
     private laserPreviewLine?: THREE.Line; // For Laser Beam preview
     private localPlayerId: string | null = null;
-    
+    private audioManager: AudioManager | null = null;
+
     // Skill effect managers
     private teleportEffect: TeleportEffect;
     private missileEffect: MissileEffect;
@@ -58,8 +60,9 @@ export class ClientEntityManager {
     private clickIndicatorEffect: ClickIndicatorEffect;
     private damageAreaEffect: DamageAreaEffect;
 
-    constructor(scene: THREE.Scene) {
+    constructor(scene: THREE.Scene, audioManager?: AudioManager) {
         this.scene = scene;
+        this.audioManager = audioManager || null;
         this.teleportEffect = new TeleportEffect(scene);
         this.missileEffect = new MissileEffect(scene);
         this.laserBeamEffect = new LaserBeamEffect(scene);
@@ -133,7 +136,7 @@ export class ClientEntityManager {
                 }
                 if (loadedCount === totalTextures) {
                     const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
-                    
+
                     // Configure texture wrapping and repeating
                     const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
                     [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
@@ -144,7 +147,7 @@ export class ClientEntityManager {
 
                     // Create ground plane geometry
                     const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
-                    
+
                     // Create material with PBR textures
                     const groundMaterial = new THREE.MeshStandardMaterial({
                         map: colorTexture,
@@ -180,7 +183,7 @@ export class ClientEntityManager {
                     reject(error);
                 }
             );
-            
+
             const normalTexture = textureLoader.load(
                 '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
                 () => {
@@ -193,7 +196,7 @@ export class ClientEntityManager {
                     reject(error);
                 }
             );
-            
+
             const roughnessTexture = textureLoader.load(
                 '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
                 () => {
@@ -206,7 +209,7 @@ export class ClientEntityManager {
                     reject(error);
                 }
             );
-            
+
             const displacementTexture = textureLoader.load(
                 '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
                 () => {
@@ -278,24 +281,24 @@ export class ClientEntityManager {
                 // Calculate velocity for prediction
                 const newPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
                 const timeDelta = (gameState.timestamp || Date.now()) - clientPlayer.lastUpdateTime;
-                
+
                 if (timeDelta > 0 && !clientPlayer.isTeleporting) {
                     const posDelta = new THREE.Vector3().subVectors(newPos, clientPlayer.targetPosition);
                     clientPlayer.velocity.copy(posDelta).divideScalar(timeDelta / 1000); // Convert to units per second
                 }
-                
+
                 // Add to position history for interpolation (keep last 3 positions)
                 const timestamp = gameState.timestamp || Date.now();
                 clientPlayer.positionHistory.push({
                     position: newPos.clone(),
                     timestamp: timestamp
                 });
-                
+
                 // Keep only last 3 positions
                 if (clientPlayer.positionHistory.length > 3) {
                     clientPlayer.positionHistory.shift();
                 }
-                
+
                 // Update targets for interpolation
                 clientPlayer.targetPosition.copy(newPos);
                 clientPlayer.targetRotation.set(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w);
@@ -304,11 +307,11 @@ export class ClientEntityManager {
                 clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
                 clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
                 clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
-                
+
                 // Handle teleport effects
                 const wasTeleporting = clientPlayer.isTeleporting;
                 clientPlayer.isTeleporting = playerState.isTeleporting || false;
-                
+
                 if (!wasTeleporting && clientPlayer.isTeleporting) {
                     // Teleport just started - save start position and create effects
                     clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
@@ -316,6 +319,11 @@ export class ClientEntityManager {
                     const trailData = this.teleportEffect.createTrail(clientPlayer.previousPosition, clientPlayer.targetPosition);
                     clientPlayer.teleportTrail = trailData.trail;
                     clientPlayer.teleportTrailParticles = trailData.trailParticles;
+
+                    // Play teleport sound at player position (only for other players)
+                    if (this.audioManager && playerState.id !== this.localPlayerId) {
+                        this.audioManager.playSkillSoundAt(SkillType.TELEPORT, clientPlayer.mesh.position);
+                    }
                 } else if (wasTeleporting && !clientPlayer.isTeleporting) {
                     // Teleport just ended - create end effect and clean up trail
                     clientPlayer.teleportEndEffect = this.teleportEffect.createEndEffect(clientPlayer.targetPosition);
@@ -331,7 +339,7 @@ export class ClientEntityManager {
                         clientPlayer.mesh.position
                     );
                 }
-                
+
                 // Update previous position for next frame
                 if (!clientPlayer.isTeleporting) {
                     clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
@@ -358,6 +366,11 @@ export class ClientEntityManager {
                     if (!clientPlayer.invincibilitySphere) {
                         clientPlayer.invincibilitySphere = this.invincibilityEffect.createShield();
                         clientPlayer.mesh.add(clientPlayer.invincibilitySphere);
+
+                        // Play invincibility sound at player position (only for other players)
+                        if (this.audioManager && playerState.id !== this.localPlayerId) {
+                            this.audioManager.playSkillSoundAt(SkillType.INVINCIBILITY, clientPlayer.mesh.position);
+                        }
                     }
                 } else {
                     if (clientPlayer.invincibilitySphere) {
@@ -404,8 +417,13 @@ export class ClientEntityManager {
                     missileMesh = this.missileEffect.createMissile();
                     this.scene.add(missileMesh);
                     this.missiles.set(missileState.id, missileMesh);
+
+                    // Play missile sound at missile position (only for missiles from other players)
+                    if (this.audioManager && missileState.ownerId !== this.localPlayerId) {
+                        this.audioManager.playSkillSoundAt(SkillType.HOMING_MISSILE, missileMesh.position);
+                    }
                 }
-                
+
                 missileMesh.position.set(missileState.position.x, missileState.position.y, missileState.position.z);
                 missileMesh.quaternion.set(missileState.rotation.x, missileState.rotation.y, missileState.rotation.z, missileState.rotation.w);
             });
@@ -432,6 +450,11 @@ export class ClientEntityManager {
                     laserGroup = this.laserBeamEffect.createLaserBeam(startPos, endPos, config.thickness);
                     this.scene.add(laserGroup);
                     this.laserBeams.set(laserState.id, laserGroup);
+
+                    // Play laser beam sound at start position (only for laser beams from other players)
+                    if (this.audioManager && laserState.ownerId !== this.localPlayerId) {
+                        this.audioManager.playSkillSoundAt(SkillType.LASER_BEAM, startPos);
+                    }
                 }
             });
         }
@@ -464,12 +487,12 @@ export class ClientEntityManager {
             // Skip position interpolation for dead players (they should be frozen in place)
             if (!player.isDead) {
                 const previousPosition = player.mesh.position.clone();
-                
+
                 // Check if player should be moving (velocity or distance to target)
                 const distanceToTarget = player.mesh.position.distanceTo(player.targetPosition);
                 const hasVelocity = player.velocity.length() > 0.01;
                 const isMoving = distanceToTarget > 0.01 || hasVelocity;
-                
+
                 // If not moving and no velocity, snap to position immediately
                 if (!isMoving && !player.isTeleporting) {
                     player.mesh.position.copy(player.targetPosition);
@@ -478,7 +501,7 @@ export class ClientEntityManager {
                     const timeSinceUpdate = now - player.lastUpdateTime;
                     const interpolationDelay = 100; // 100ms delay for smooth interpolation
                     const interpolationTime = Math.max(0, timeSinceUpdate - interpolationDelay);
-                    
+
                     // Use velocity-based prediction if we have velocity data
                     let targetPos = player.targetPosition.clone();
                     if (hasVelocity && !player.isTeleporting) {
@@ -486,24 +509,24 @@ export class ClientEntityManager {
                         const prediction = player.velocity.clone().multiplyScalar(interpolationTime / 1000);
                         targetPos.add(prediction);
                     }
-                    
+
                     // Smooth interpolation
                     const distance = player.mesh.position.distanceTo(targetPos);
-                    
+
                     // Adaptive interpolation speed based on distance
                     const interpolationSpeed = Math.min(20, Math.max(5, distance * 5));
                     player.mesh.position.lerp(targetPos, interpolationSpeed * delta);
                 }
-                
+
                 // Smooth rotation interpolation
                 player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
-                
+
                 // Rotate body group to face movement direction
                 if (player.bodyGroup && isMoving) {
                     const direction = new THREE.Vector3()
                         .subVectors(player.targetPosition, previousPosition)
                         .normalize();
-                    
+
                     if (direction.length() > 0.01) {
                         // Calculate rotation angle around Y axis
                         const angle = Math.atan2(direction.x, direction.z);
@@ -515,25 +538,25 @@ export class ClientEntityManager {
                         );
                     }
                 }
-                
+
                 // Animate shoes when walking
                 if (isMoving && !player.isDead) {
                     player.walkAnimationTime += delta * 8; // Walking speed multiplier
-                    
+
                     // Animate shoes up and down (alternating)
                     // Minimum y position is 0.1 to ensure shoes are always above damageAreaEffect (y=0.05)
                     const leftShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime)) * 0.15;
                     const rightShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime + Math.PI)) * 0.15;
-                    
+
                     // Rotate shoes slightly for walking effect
                     const leftShoeRotation = Math.sin(player.walkAnimationTime) * 0.3;
                     const rightShoeRotation = Math.sin(player.walkAnimationTime + Math.PI) * 0.3;
-                    
+
                     if (player.leftShoe) {
                         player.leftShoe.position.y = leftShoeLift;
                         player.leftShoe.rotation.x = leftShoeRotation;
                     }
-                    
+
                     if (player.rightShoe) {
                         player.rightShoe.position.y = rightShoeLift;
                         player.rightShoe.rotation.x = rightShoeRotation;
@@ -549,7 +572,7 @@ export class ClientEntityManager {
                         player.rightShoe.rotation.x = 0;
                     }
                 }
-                
+
                 // Update teleport trail if teleporting
                 if (player.isTeleporting && player.teleportTrail && player.teleportTrailParticles) {
                     this.teleportEffect.updateTrail(
@@ -559,12 +582,12 @@ export class ClientEntityManager {
                         player.mesh.position
                     );
                 }
-                
+
                 // Update teleport particle effects
                 this.teleportEffect.updateEffectParticles(player.teleportStartEffect, delta);
                 this.teleportEffect.updateEffectParticles(player.teleportEndEffect, delta);
                 this.teleportEffect.updateTrailParticles(player.teleportTrailParticles, delta);
-                
+
                 // Update player transparency during teleport
                 this.teleportEffect.updatePlayerTransparency(player.bodyMesh, player.isTeleporting);
             }
@@ -573,7 +596,7 @@ export class ClientEntityManager {
             if (player.nameLabel && camera) {
                 player.nameLabel.lookAt(camera.position);
             }
-            
+
             // Update damage area indicator - use bodyGroup rotation to match player facing direction
             // Only show damage area for alive players
             if (player.bodyGroup && !player.isDead) {
@@ -587,17 +610,17 @@ export class ClientEntityManager {
                 this.damageAreaEffect.removeDamageArea(playerId);
             }
         });
-        
+
         // Update laser beam animations
         this.laserBeams.forEach((laserGroup) => {
             this.laserBeamEffect.updateAnimation(laserGroup, delta);
         });
-        
+
         // Update missile animations
         this.missiles.forEach((missileGroup) => {
             this.missileEffect.updateAnimation(missileGroup, delta);
         });
-        
+
         // Update invincibility shield animations
         this.players.forEach((player) => {
             if (player.invincibilitySphere) {
@@ -605,7 +628,7 @@ export class ClientEntityManager {
             }
         });
     }
-    
+
     public getPlayer(id: string): ClientPlayer | undefined {
         return this.players.get(id);
     }

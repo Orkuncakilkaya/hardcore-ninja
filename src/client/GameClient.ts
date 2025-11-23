@@ -4,6 +4,7 @@ import { InputManager } from '../core/InputManager';
 import { NetworkManager } from '../network/NetworkManager';
 import { ClientEntityManager } from './ClientEntityManager';
 import { UIManager } from '../core/UIManager';
+import { AudioManager } from './AudioManager';
 import type { NetworkMessage } from '../common/messages';
 import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
 
@@ -13,12 +14,13 @@ export class GameClient {
     private networkManager: NetworkManager;
     private entityManager: ClientEntityManager;
     private uiManager: UIManager;
+    private audioManager: AudioManager;
     private groundPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     private isRunning: boolean = false;
     private clock: THREE.Clock;
     private localPlayerId: string | null = null;
     private isLeftMouseDown: boolean = false;
-    
+
     // Network throttling
     private lastMovementSendTime: number = 0;
     private movementSendInterval: number = TICK_INTERVAL * 1000; // Send at tick rate
@@ -28,7 +30,8 @@ export class GameClient {
         this.renderer = new Renderer();
         this.inputManager = new InputManager();
         this.networkManager = networkManager;
-        this.entityManager = new ClientEntityManager(this.renderer.scene);
+        this.audioManager = new AudioManager();
+        this.entityManager = new ClientEntityManager(this.renderer.scene, this.audioManager);
         this.uiManager = new UIManager();
         this.clock = new THREE.Clock();
 
@@ -47,7 +50,7 @@ export class GameClient {
         // Handle mouse down
         this.inputManager.on('mouseDown', () => {
             this.isLeftMouseDown = true;
-            
+
 
             // Normal movement
             const target = this.inputManager.getMouseGroundIntersection(this.renderer.camera, this.groundPlane);
@@ -62,7 +65,7 @@ export class GameClient {
             const wasMoving = this.isLeftMouseDown;
             this.isLeftMouseDown = false;
             this.pendingMovementTarget = null;
-            
+
             // Stop movement immediately when mouse is released
             if (wasMoving) {
                 this.stopMovement();
@@ -72,7 +75,7 @@ export class GameClient {
         // Handle continuous mouse movement for movement and skill targeting
         this.inputManager.on('input', () => {
             if (!this.localPlayerId) return;
-            
+
             const myPlayer = this.entityManager.getPlayer(this.localPlayerId);
             if (!myPlayer) return;
 
@@ -119,7 +122,7 @@ export class GameClient {
 
 
         const now = Date.now();
-        
+
         // Throttle movement requests unless immediate
         if (!immediate && (now - this.lastMovementSendTime) < this.movementSendInterval) {
             return;
@@ -196,7 +199,7 @@ export class GameClient {
             const forward = new THREE.Vector3(0, 0, 1);
             const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
             const finalPos = playerPos.clone().add(forward.multiplyScalar(maxRange));
-            
+
             this.networkManager.sendToHost({
                 type: 'SKILL_REQUEST',
                 skillType: SkillType.TELEPORT,
@@ -208,7 +211,7 @@ export class GameClient {
 
         // Normalize direction
         direction.normalize();
-        
+
         // Clamp to max range
         const maxRange = SKILL_CONFIG[SkillType.TELEPORT].range;
         const clampedDistance = Math.min(distance, maxRange);
@@ -221,6 +224,9 @@ export class GameClient {
             target: { x: finalPos.x, y: finalPos.y, z: finalPos.z },
             timestamp: now
         });
+
+        // Play teleport sound locally
+        this.audioManager.playLocalSkillSound(SkillType.TELEPORT);
     }
 
     private fireHomingMissile() {
@@ -246,6 +252,9 @@ export class GameClient {
             target: { x: target.x, y: target.y, z: target.z },
             timestamp: now
         });
+
+        // Play homing missile sound locally
+        this.audioManager.playLocalSkillSound(SkillType.HOMING_MISSILE);
     }
 
     private fireLaserBeam() {
@@ -277,6 +286,9 @@ export class GameClient {
             direction: { x: direction.x, y: direction.y, z: direction.z },
             timestamp: now
         });
+
+        // Play laser beam sound locally
+        this.audioManager.playLocalSkillSound(SkillType.LASER_BEAM);
     }
 
 
@@ -299,6 +311,9 @@ export class GameClient {
             timestamp: Date.now()
         });
 
+        // Play invincibility sound locally
+        this.audioManager.playLocalSkillSound(SkillType.INVINCIBILITY);
+
         this.uiManager.clearSkillBorder(SkillType.INVINCIBILITY);
     }
 
@@ -307,10 +322,10 @@ export class GameClient {
             case 'JOIN_RESPONSE':
                 if (message.success && message.mapConfig) {
                     this.localPlayerId = message.playerId;
-                    
+
                     // Show loading overlay
                     this.uiManager.showLoading('Loading Resources...');
-                    
+
                     // Load map and wait for textures to load
                     await this.entityManager.loadMap(message.mapConfig, (progress) => {
                         this.uiManager.updateLoadingProgress(progress);
@@ -386,11 +401,20 @@ export class GameClient {
         this.networkManager.sendToHost(joinRequest);
     }
 
-    public start() {
+    public async start() {
         if (this.isRunning) return;
         this.isRunning = true;
         window.dispatchEvent(new CustomEvent('game-started'));
         this.uiManager.showHUD();
+
+        // Initialize audio system
+        try {
+            await this.audioManager.init(this.renderer.camera);
+            console.log('Audio system initialized');
+        } catch (error) {
+            console.error('Failed to initialize audio system:', error);
+        }
+
         this.animate();
     }
 
