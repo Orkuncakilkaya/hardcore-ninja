@@ -17,6 +17,7 @@ export class ServerPlayer {
     public destination: THREE.Vector3 | null = null;
     public isMoving: boolean = false;
     public speed: number = 10;
+    public color: number;
 
     // Health & Status
     public maxHealth: number = 100;
@@ -59,6 +60,14 @@ export class ServerPlayer {
         this.mapLimit = mapLimit;
         this.position = new THREE.Vector3(startPosition.x, startPosition.y, startPosition.z);
         this.rotation = new THREE.Quaternion();
+        
+        // Assign random color for bandana
+        // Use bright/vibrant colors for better visibility
+        const hue = Math.random();
+        const saturation = 0.8 + Math.random() * 0.2; // 0.8 - 1.0
+        const lightness = 0.4 + Math.random() * 0.2; // 0.4 - 0.6
+        const color = new THREE.Color().setHSL(hue, saturation, lightness);
+        this.color = color.getHex();
     }
 
     public setDestination(point: THREE.Vector3) {
@@ -467,7 +476,8 @@ export class ServerPlayer {
             isFrozen: this.isFrozen,
             kills: this.kills,
             deaths: this.deaths,
-            lastPlayerAlive: this.lastPlayerAlive
+            lastPlayerAlive: this.lastPlayerAlive,
+            color: this.color
         };
     }
 }

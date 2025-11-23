@@ -7,6 +7,7 @@ export interface PlayerMeshResult {
     nameLabel: THREE.Sprite;
     leftShoe: THREE.Group;
     rightShoe: THREE.Group;
+    katana: THREE.Group;
 }
 
 export class PlayerModel {
@@ -15,7 +16,8 @@ export class PlayerModel {
      */
     public static createPlayerMesh(
         isLocal: boolean,
-        createPlayerNameLabel: (name: string) => THREE.Sprite
+        createPlayerNameLabel: (name: string) => THREE.Sprite,
+        color: number = 0xff0000 // Default red if not provided
     ): PlayerMeshResult {
         const group = new THREE.Group();
         
@@ -246,6 +248,80 @@ export class PlayerModel {
         rightShoe.renderOrder = 100; // Ensure entire shoe group renders above damage area
         bodyGroup.add(rightShoe); // Add to bodyGroup so it rotates with player
         
+        // Create Bandana
+        const bandanaGroup = new THREE.Group();
+        const bandanaColor = new THREE.Color(color);
+        const bandanaMaterial = new THREE.MeshStandardMaterial({ 
+            color: bandanaColor,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+
+        // Headband (torus)
+        const headbandGeometry = new THREE.TorusGeometry(0.52, 0.08, 8, 20);
+        const headband = new THREE.Mesh(headbandGeometry, bandanaMaterial);
+        headband.rotation.x = Math.PI / 2;
+        headband.position.y = 1.6; // Position on forehead
+        bandanaGroup.add(headband);
+
+        // Bandana Knot (sphere/box at back)
+        const knotGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const knot = new THREE.Mesh(knotGeometry, bandanaMaterial);
+        knot.position.set(0, 1.6, -0.55);
+        bandanaGroup.add(knot);
+
+        // Bandana Tails (planes/boxes)
+        const tailGeometry = new THREE.BoxGeometry(0.1, 0.6, 0.02);
+        
+        const leftTail = new THREE.Mesh(tailGeometry, bandanaMaterial);
+        leftTail.position.set(-0.1, 1.3, -0.6);
+        leftTail.rotation.z = 0.2;
+        leftTail.rotation.x = 0.2;
+        bandanaGroup.add(leftTail);
+
+        const rightTail = new THREE.Mesh(tailGeometry, bandanaMaterial);
+        rightTail.position.set(0.1, 1.3, -0.6);
+        rightTail.rotation.z = -0.2;
+        rightTail.rotation.x = 0.2;
+        bandanaGroup.add(rightTail);
+
+        bodyGroup.add(bandanaGroup);
+
+        // Create Katana
+        const katanaGroup = new THREE.Group();
+        
+        // Handle - Thicker and longer
+        const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8);
+        const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 }); // Dark grey/black
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+        handle.position.y = 0.2;
+        katanaGroup.add(handle);
+
+        // Guard (Tsuba) - Bigger
+        const guardGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8);
+        const guardMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700 }); // Gold
+        const guard = new THREE.Mesh(guardGeometry, guardMaterial);
+        guard.position.y = 0.4;
+        katanaGroup.add(guard);
+
+        // Blade - Thicker, longer, and wider
+        const bladeGeometry = new THREE.BoxGeometry(0.06, 1.4, 0.02);
+        const bladeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xcccccc, 
+            metalness: 0.9, 
+            roughness: 0.2 
+        });
+        const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+        blade.position.y = 1.1;
+        katanaGroup.add(blade);
+
+        // Position Katana in hand (right side)
+        katanaGroup.position.set(0.6, 1.0, 0.2);
+        katanaGroup.rotation.x = Math.PI / 4; // Angled forward
+        katanaGroup.rotation.z = -Math.PI / 8; // Angled out
+        
+        bodyGroup.add(katanaGroup);
+
         // Add bodyGroup to main group after adding shoes
         group.add(bodyGroup);
 
@@ -255,7 +331,7 @@ export class PlayerModel {
         nameLabel.position.y = 3.5; // Above player's head
         group.add(nameLabel); // Add to group so it moves with player
 
-        return { group, body, bodyGroup, nameLabel, leftShoe, rightShoe };
+        return { group, body, bodyGroup, nameLabel, leftShoe, rightShoe, katana: katanaGroup };
     }
 }
 

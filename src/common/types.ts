@@ -38,6 +38,7 @@ export interface PlayerState {
     kills?: number;
     deaths?: number;
     lastPlayerAlive?: number;
+    color: number;
 }
 
 export interface MissileState {
