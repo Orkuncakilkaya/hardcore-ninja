@@ -12,11 +12,15 @@ export class ServerEntityManager {
     public obstacles: THREE.Box3[] = [];
     public spawnPositions: THREE.Vector2[] = [];
     private claimedSpawnPoints: Map<string, number> = new Map();
+    private mapLimit: number = 35; // Default value, will be set from JSON
 
     constructor() { }
 
     public loadMap(config: MapConfig) {
         this.obstacles = [];
+
+        // Store map limit from playableArea.size (half size because it's centered at 0,0)
+        this.mapLimit = config.playableArea.size / 2;
 
         // Walls
         config.walls.forEach(wall => {
@@ -66,7 +70,7 @@ export class ServerEntityManager {
             console.warn(`No free spawn points for ${id}, spawning at 0,0,0`);
         }
 
-        const player = new ServerPlayer(id, { x: spawnPos.x, y: spawnPos.y, z: spawnPos.z });
+        const player = new ServerPlayer(id, { x: spawnPos.x, y: spawnPos.y, z: spawnPos.z }, this.mapLimit);
         this.players.set(id, player);
         return player;
     }
@@ -151,3 +155,4 @@ export class ServerEntityManager {
         };
     }
 }
+

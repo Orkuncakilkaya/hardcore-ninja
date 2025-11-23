@@ -6,7 +6,7 @@ import { ServerMissile } from './ServerMissile';
 import { ServerLaserBeam } from './ServerLaserBeam';
 
 export class ServerPlayer {
-    private static readonly MAP_LIMIT = 35;
+    private readonly mapLimit: number;
 
     public id: string;
     public username?: string; // Player's display name
@@ -54,8 +54,9 @@ export class ServerPlayer {
     // We need to refactor SkillSystem or create a ServerSkillSystem.
     // Let's assume we refactor SkillSystem later or mock it for now.
 
-    constructor(id: string, startPosition: Vector3) {
+    constructor(id: string, startPosition: Vector3, mapLimit: number = 35) {
         this.id = id;
+        this.mapLimit = mapLimit;
         this.position = new THREE.Vector3(startPosition.x, startPosition.y, startPosition.z);
         this.rotation = new THREE.Quaternion();
     }
@@ -154,8 +155,8 @@ export class ServerPlayer {
             }
 
             // Map Boundary
-            this.position.x = Math.max(-ServerPlayer.MAP_LIMIT, Math.min(ServerPlayer.MAP_LIMIT, this.position.x));
-            this.position.z = Math.max(-ServerPlayer.MAP_LIMIT, Math.min(ServerPlayer.MAP_LIMIT, this.position.z));
+            this.position.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.x));
+            this.position.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.z));
         }
     }
 
@@ -176,7 +177,7 @@ export class ServerPlayer {
         }
 
         // Validate bounds (map limits)
-        if (target.x < -ServerPlayer.MAP_LIMIT || target.x > ServerPlayer.MAP_LIMIT || target.z < -ServerPlayer.MAP_LIMIT || target.z > ServerPlayer.MAP_LIMIT) {
+        if (target.x < -this.mapLimit || target.x > this.mapLimit || target.z < -this.mapLimit || target.z > this.mapLimit) {
             console.log('Teleport rejected: out of bounds');
             return false;
         }
@@ -286,8 +287,8 @@ export class ServerPlayer {
         }
 
         // Validate bounds (map limits)
-        finalTarget.x = Math.max(-ServerPlayer.MAP_LIMIT, Math.min(ServerPlayer.MAP_LIMIT, finalTarget.x));
-        finalTarget.z = Math.max(-ServerPlayer.MAP_LIMIT, Math.min(ServerPlayer.MAP_LIMIT, finalTarget.z));
+        finalTarget.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.x));
+        finalTarget.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.z));
 
         // Perform teleport
         this.teleportDestination.set(finalTarget.x, finalTarget.y, finalTarget.z);
@@ -470,3 +471,4 @@ export class ServerPlayer {
         };
     }
 }
+
