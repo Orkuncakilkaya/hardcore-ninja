@@ -62,12 +62,14 @@ export class DamageAreaEffect {
             emissiveIntensity: 0.3,
             transparent: true,
             opacity: 0.6,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthWrite: false // Don't write to depth buffer so shoes render on top
         });
         
         const mesh = new THREE.Mesh(geometry, material);
         mesh.rotation.x = -Math.PI / 2; // Rotate to lay flat on ground
-        mesh.position.y = 0.05; // Slightly above ground
+        mesh.position.y = 0.05; // Lower position to ensure shoes are always above
+        mesh.renderOrder = 0; // Render below player shoes (which have renderOrder 100+)
         
         // Add outline for better visibility
         const outlineGeometry = new THREE.EdgesGeometry(geometry);
@@ -79,6 +81,7 @@ export class DamageAreaEffect {
         const outline = new THREE.LineSegments(outlineGeometry, outlineMaterial);
         outline.rotation.x = -Math.PI / 2;
         outline.position.y = 0.06; // Slightly above the mesh
+        outline.renderOrder = 0; // Render below player shoes
         
         damageArea.add(mesh);
         damageArea.add(outline);
@@ -87,7 +90,7 @@ export class DamageAreaEffect {
         // Shape is drawn with tip pointing +Y, when rotated to ground it becomes +Z (forward)
         // Rotate 180 degrees to flip the direction
         damageArea.position.copy(position);
-        damageArea.position.y = 0;
+        damageArea.position.y = 0.05; // Lower position to ensure shoes are always above
         damageArea.rotation.y = rotationY + Math.PI; // Rotate 180 degrees
         
         this.scene.add(damageArea);
@@ -101,7 +104,7 @@ export class DamageAreaEffect {
         const damageArea = this.damageAreas.get(playerId);
         if (damageArea) {
             damageArea.position.copy(position);
-            damageArea.position.y = 0;
+            damageArea.position.y = 0.05; // Lower position to ensure shoes are always above
             damageArea.rotation.y = rotationY + Math.PI; // Rotate 180 degrees
         } else {
             // Create if doesn't exist

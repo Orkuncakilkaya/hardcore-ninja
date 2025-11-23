@@ -29,7 +29,7 @@ export class ClickIndicatorEffect {
         });
         const outerRing = new THREE.Mesh(outerRingGeometry, outerRingMaterial);
         outerRing.rotation.x = -Math.PI / 2;
-        outerRing.position.y = 0.1;
+        outerRing.position.y = 0.15; // Above ground (accounting for displacement)
         indicator.add(outerRing);
         
         // Inner ring (smaller)
@@ -44,7 +44,7 @@ export class ClickIndicatorEffect {
         });
         const innerRing = new THREE.Mesh(innerRingGeometry, innerRingMaterial);
         innerRing.rotation.x = -Math.PI / 2;
-        innerRing.position.y = 0.11;
+        innerRing.position.y = 0.16; // Above ground (accounting for displacement)
         indicator.add(innerRing);
         
         // Center point (smaller)
@@ -59,12 +59,12 @@ export class ClickIndicatorEffect {
         });
         const center = new THREE.Mesh(centerGeometry, centerMaterial);
         center.rotation.x = -Math.PI / 2;
-        center.position.y = 0.12;
+        center.position.y = 0.17; // Above ground (accounting for displacement)
         indicator.add(center);
         
         // Position indicator
         indicator.position.copy(position);
-        indicator.position.y = 0;
+        indicator.position.y = 0.15; // Above ground (accounting for displacement)
         
         // Store references for animation
         indicator.userData.outerRing = outerRing;

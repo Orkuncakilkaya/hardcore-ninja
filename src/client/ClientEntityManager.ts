@@ -101,6 +101,9 @@ export class ClientEntityManager {
     }
 
     public loadMap(config: MapConfig) {
+        // Create ground plane with tiles texture
+        this.createGroundPlane(config.playableArea.size);
+
         // Create walls and boxes
         config.walls.forEach(wall => {
             const box = new Box(wall.id, new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z), wall.dimensions.width, wall.dimensions.height, wall.dimensions.depth, wall.color);
@@ -113,6 +116,46 @@ export class ClientEntityManager {
             this.boxes.push(b);
             this.scene.add(b.mesh);
         });
+    }
+
+    private createGroundPlane(size: number) {
+        const textureLoader = new THREE.TextureLoader();
+
+        // Load texture maps
+        const colorTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg');
+        const normalTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg');
+        const roughnessTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg');
+        const displacementTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg');
+
+        // Configure texture wrapping and repeating
+        const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
+        [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(repeat, repeat);
+        });
+
+        // Create ground plane geometry
+        const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
+        
+        // Create material with PBR textures
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: colorTexture,
+            normalMap: normalTexture,
+            roughnessMap: roughnessTexture,
+            displacementMap: displacementTexture,
+            displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
+            roughness: 0.8,
+            metalness: 0.1
+        });
+
+        // Create mesh
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+        groundMesh.position.y = 0;
+        groundMesh.receiveShadow = true; // Enable shadow receiving
+
+        this.scene.add(groundMesh);
     }
 
     public updateState(gameState: GameState, myPeerId: string) {
@@ -414,8 +457,9 @@ export class ClientEntityManager {
                     player.walkAnimationTime += delta * 8; // Walking speed multiplier
                     
                     // Animate shoes up and down (alternating)
-                    const leftShoeLift = Math.abs(Math.sin(player.walkAnimationTime)) * 0.15;
-                    const rightShoeLift = Math.abs(Math.sin(player.walkAnimationTime + Math.PI)) * 0.15;
+                    // Minimum y position is 0.1 to ensure shoes are always above damageAreaEffect (y=0.05)
+                    const leftShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime)) * 0.15;
+                    const rightShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime + Math.PI)) * 0.15;
                     
                     // Rotate shoes slightly for walking effect
                     const leftShoeRotation = Math.sin(player.walkAnimationTime) * 0.3;
@@ -431,13 +475,13 @@ export class ClientEntityManager {
                         player.rightShoe.rotation.x = rightShoeRotation;
                     }
                 } else {
-                    // Reset shoes to ground when not moving
+                    // Reset shoes to ground when not moving (but keep above damageAreaEffect)
                     if (player.leftShoe) {
-                        player.leftShoe.position.y = 0;
+                        player.leftShoe.position.y = 0.1; // Keep above damageAreaEffect
                         player.leftShoe.rotation.x = 0;
                     }
                     if (player.rightShoe) {
-                        player.rightShoe.position.y = 0;
+                        player.rightShoe.position.y = 0.1; // Keep above damageAreaEffect
                         player.rightShoe.rotation.x = 0;
                     }
                 }

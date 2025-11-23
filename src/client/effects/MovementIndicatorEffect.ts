@@ -35,7 +35,7 @@ export class MovementIndicatorEffect {
         });
         this.circle = new THREE.Mesh(circleGeometry, circleMaterial);
         this.circle.rotation.x = -Math.PI / 2; // Face upward
-        this.circle.position.y = 0.05; // Higher above ground to be visible
+        this.circle.position.y = 0.15; // Above ground (accounting for displacement)
         indicator.add(this.circle);
 
         // Arrow group (will rotate to show direction)
@@ -72,13 +72,13 @@ export class MovementIndicatorEffect {
         this.arrow.add(shaft);
 
         // Position arrow above circle
-        this.arrow.position.y = 0.06; // Higher above circle to be visible
+        this.arrow.position.y = 0.16; // Above ground (accounting for displacement)
         this.arrow.rotation.x = -Math.PI / 2; // Lay flat on ground
 
         indicator.add(this.arrow);
 
         // Position indicator above ground
-        indicator.position.y = 0;
+        indicator.position.y = 0.15; // Above ground (accounting for displacement)
 
         this.indicator = indicator;
         this.indicator.visible = false;
@@ -102,7 +102,7 @@ export class MovementIndicatorEffect {
 
         // Position indicator at player position (on ground)
         this.indicator.position.copy(from);
-        this.indicator.position.y = 0.05; // Slightly above ground to be visible
+        this.indicator.position.y = 0.15; // Above ground (accounting for displacement)
 
         // Calculate rotation angle around Y axis to face movement direction
         const angle = Math.atan2(direction.x, direction.z);
@@ -119,7 +119,7 @@ export class MovementIndicatorEffect {
         if (!this.indicator) return;
         
         this.indicator.position.copy(position);
-        this.indicator.position.y = 0.05; // Slightly above ground to be visible
+        this.indicator.position.y = 0.15; // Above ground (accounting for displacement)
     }
 
     public show() {

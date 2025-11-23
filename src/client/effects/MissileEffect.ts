@@ -25,7 +25,7 @@ export class MissileEffect {
         const prMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
         this.playerRadiusMesh = new THREE.Mesh(prGeo, prMat);
         this.playerRadiusMesh.rotation.x = -Math.PI / 2;
-        this.playerRadiusMesh.position.y = 0.1;
+        this.playerRadiusMesh.position.y = 0.15; // Above ground (accounting for displacement)
         this.playerRadiusMesh.visible = false;
         this.scene.add(this.playerRadiusMesh);
         
@@ -34,7 +34,7 @@ export class MissileEffect {
         const mrMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
         this.mouseRadiusMesh = new THREE.Mesh(mrGeo, mrMat);
         this.mouseRadiusMesh.rotation.x = -Math.PI / 2;
-        this.mouseRadiusMesh.position.y = 0.1;
+        this.mouseRadiusMesh.position.y = 0.15; // Above ground (accounting for displacement)
         this.mouseRadiusMesh.visible = false;
         this.scene.add(this.mouseRadiusMesh);
         
@@ -71,7 +71,7 @@ export class MissileEffect {
         const lockSprite = new THREE.Sprite(lockMaterial);
         // Scale adjusted for new canvas size (256x192)
         lockSprite.scale.set(2.5, 1.875, 1);
-        lockSprite.position.y = 0.15;
+        lockSprite.position.y = 0.2; // Above ground radius
         lockSprite.visible = false;
         this.mouseRadiusMesh.add(lockSprite);
         this.mouseRadiusMesh.userData.lockSprite = lockSprite;
@@ -116,7 +116,7 @@ export class MissileEffect {
      */
     public updateMouseRadiusPosition(mousePosition: THREE.Vector3, _playerPosition: THREE.Vector3): void {
         if (this.mouseRadiusMesh && this.mouseRadiusMesh.visible) {
-            this.mouseRadiusMesh.position.set(mousePosition.x, 0.1, mousePosition.z);
+            this.mouseRadiusMesh.position.set(mousePosition.x, 0.15, mousePosition.z); // Above ground (accounting for displacement)
             
             // Show lock sprite
             if (this.mouseRadiusMesh.userData.lockSprite) {

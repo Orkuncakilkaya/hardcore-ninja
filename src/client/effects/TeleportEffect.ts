@@ -30,7 +30,7 @@ export class TeleportEffect {
         const tpMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
         this.teleportRadiusMesh = new THREE.Mesh(tpGeo, tpMat);
         this.teleportRadiusMesh.rotation.x = -Math.PI / 2;
-        this.teleportRadiusMesh.position.y = 0.1;
+        this.teleportRadiusMesh.position.y = 0.15; // Above ground (accounting for displacement)
         this.teleportRadiusMesh.visible = false;
         this.scene.add(this.teleportRadiusMesh);
     }
@@ -68,7 +68,7 @@ export class TeleportEffect {
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
         ring.rotation.x = -Math.PI / 2;
         ring.position.copy(position);
-        ring.position.y = 0.1;
+        ring.position.y = 0.15; // Above ground (accounting for displacement)
         
         // Create particle burst
         const particles = ParticleUtils.createParticleBurst(position, 0x00ffff);
@@ -112,7 +112,7 @@ export class TeleportEffect {
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
         ring.rotation.x = -Math.PI / 2;
         ring.position.copy(position);
-        ring.position.y = 0.1;
+        ring.position.y = 0.15; // Above ground (accounting for displacement)
         ring.scale.setScalar(0.5);
         
         // Create particle burst
