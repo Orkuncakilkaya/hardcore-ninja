@@ -100,9 +100,9 @@ export class ClientEntityManager {
         }
     }
 
-    public loadMap(config: MapConfig) {
-        // Create ground plane with tiles texture
-        this.createGroundPlane(config.playableArea.size);
+    public async loadMap(config: MapConfig, onProgress?: (progress: number) => void): Promise<void> {
+        // Load textures first and wait for them
+        await this.createGroundPlane(config.playableArea.size, onProgress);
 
         // Create walls and boxes
         config.walls.forEach(wall => {
@@ -118,44 +118,108 @@ export class ClientEntityManager {
         });
     }
 
-    private createGroundPlane(size: number) {
-        const textureLoader = new THREE.TextureLoader();
+    private createGroundPlane(size: number, onProgress?: (progress: number) => void): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const textureLoader = new THREE.TextureLoader();
+            let loadedCount = 0;
+            const totalTextures = 4;
+            const textures: THREE.Texture[] = [];
 
-        // Load texture maps
-        const colorTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg');
-        const normalTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg');
-        const roughnessTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg');
-        const displacementTexture = textureLoader.load('/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg');
+            const updateProgress = () => {
+                loadedCount++;
+                const progress = loadedCount / totalTextures;
+                if (onProgress) {
+                    onProgress(progress);
+                }
+                if (loadedCount === totalTextures) {
+                    const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
+                    
+                    // Configure texture wrapping and repeating
+                    const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
+                    [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        texture.repeat.set(repeat, repeat);
+                    });
 
-        // Configure texture wrapping and repeating
-        const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
-        [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(repeat, repeat);
+                    // Create ground plane geometry
+                    const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
+                    
+                    // Create material with PBR textures
+                    const groundMaterial = new THREE.MeshStandardMaterial({
+                        map: colorTexture,
+                        normalMap: normalTexture,
+                        roughnessMap: roughnessTexture,
+                        displacementMap: displacementTexture,
+                        displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
+                        roughness: 0.8,
+                        metalness: 0.1
+                    });
+
+                    // Create mesh
+                    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+                    groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+                    groundMesh.position.y = 0;
+                    groundMesh.receiveShadow = true; // Enable shadow receiving
+
+                    this.scene.add(groundMesh);
+                    resolve();
+                }
+            };
+
+            // Load texture maps with callbacks
+            const colorTexture = textureLoader.load(
+                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg',
+                () => {
+                    textures[0] = colorTexture;
+                    updateProgress();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading color texture:', error);
+                    reject(error);
+                }
+            );
+            
+            const normalTexture = textureLoader.load(
+                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
+                () => {
+                    textures[1] = normalTexture;
+                    updateProgress();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading normal texture:', error);
+                    reject(error);
+                }
+            );
+            
+            const roughnessTexture = textureLoader.load(
+                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
+                () => {
+                    textures[2] = roughnessTexture;
+                    updateProgress();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading roughness texture:', error);
+                    reject(error);
+                }
+            );
+            
+            const displacementTexture = textureLoader.load(
+                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
+                () => {
+                    textures[3] = displacementTexture;
+                    updateProgress();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading displacement texture:', error);
+                    reject(error);
+                }
+            );
         });
-
-        // Create ground plane geometry
-        const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
-        
-        // Create material with PBR textures
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            map: colorTexture,
-            normalMap: normalTexture,
-            roughnessMap: roughnessTexture,
-            displacementMap: displacementTexture,
-            displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
-            roughness: 0.8,
-            metalness: 0.1
-        });
-
-        // Create mesh
-        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-        groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-        groundMesh.position.y = 0;
-        groundMesh.receiveShadow = true; // Enable shadow receiving
-
-        this.scene.add(groundMesh);
     }
 
     public updateState(gameState: GameState, myPeerId: string) {

@@ -302,12 +302,22 @@ export class GameClient {
         this.uiManager.clearSkillBorder(SkillType.INVINCIBILITY);
     }
 
-    private handleMessage(message: NetworkMessage) {
+    private async handleMessage(message: NetworkMessage) {
         switch (message.type) {
             case 'JOIN_RESPONSE':
                 if (message.success && message.mapConfig) {
                     this.localPlayerId = message.playerId;
-                    this.entityManager.loadMap(message.mapConfig);
+                    
+                    // Show loading overlay
+                    this.uiManager.showLoading('Loading Resources...');
+                    
+                    // Load map and wait for textures to load
+                    await this.entityManager.loadMap(message.mapConfig, (progress) => {
+                        this.uiManager.updateLoadingProgress(progress);
+                    });
+
+                    // Hide loading overlay
+                    this.uiManager.hideLoading();
 
                     this.networkManager.sendToHost({
                         type: 'STATE_REQUEST'

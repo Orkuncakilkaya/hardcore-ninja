@@ -15,10 +15,14 @@ export class UIManager {
     private gameModeDisplay: HTMLElement | null = null;
     private tabMenu: HTMLElement | null = null;
     private leaderboard: HTMLElement | null = null;
+    private loadingOverlay: HTMLElement | null = null;
+    private loadingText: HTMLElement | null = null;
+    private loadingProgress: HTMLElement | null = null;
     private initialized: boolean = false;
 
     constructor() {
         this.initializeElements();
+        this.createLoadingOverlay();
     }
 
     private initializeElements() {
@@ -522,6 +526,89 @@ export class UIManager {
         // Update leaderboard if tab menu is visible
         if (this.tabMenu && this.tabMenu.style.display === 'block') {
             this.updateLeaderboard(state, localPlayerId, isHost);
+        }
+    }
+
+    private createLoadingOverlay() {
+        // Create loading overlay if it doesn't exist
+        if (this.loadingOverlay) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'loading-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            color: white;
+            font-family: Arial, sans-serif;
+        `;
+
+        const text = document.createElement('div');
+        text.id = 'loading-text';
+        text.textContent = 'Loading Resources...';
+        text.style.cssText = `
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        `;
+
+        const progressBar = document.createElement('div');
+        progressBar.id = 'loading-progress';
+        progressBar.style.cssText = `
+            width: 300px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        `;
+
+        const progressFill = document.createElement('div');
+        progressFill.id = 'loading-progress-fill';
+        progressFill.style.cssText = `
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00cc00);
+            transition: width 0.3s ease;
+        `;
+
+        progressBar.appendChild(progressFill);
+        overlay.appendChild(text);
+        overlay.appendChild(progressBar);
+        document.body.appendChild(overlay);
+
+        this.loadingOverlay = overlay;
+        this.loadingText = text;
+        this.loadingProgress = progressFill;
+    }
+
+    public showLoading(message: string = 'Loading Resources...') {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'flex';
+            if (this.loadingText) {
+                this.loadingText.textContent = message;
+            }
+        }
+    }
+
+    public updateLoadingProgress(progress: number) {
+        if (this.loadingProgress) {
+            const percentage = Math.min(100, Math.max(0, progress * 100));
+            this.loadingProgress.style.width = `${percentage}%`;
+        }
+    }
+
+    public hideLoading() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'none';
         }
     }
 }
