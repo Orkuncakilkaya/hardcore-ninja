@@ -1,21 +1,286 @@
-.menu {
-  pointer-events: auto;
-  background: rgba(0, 0, 0, 0.8);
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  max-width: 400px;
+.menuContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  background-image: url('/resources/images/background.png');
+  background-size: cover;
+  background-position: center;
+  pointer-events: auto;
 }
 
-.menu h1 {
-  margin: 0 0 20px 0;
+.menu {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 40px;
+  text-align: left;
+  width: 400px;
+  height: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.gameTitle {
+  margin: 0 0 30px 0;
   color: #fff;
+  font-size: 48px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  text-align: left;
 }
 
 .connectionStatus {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   color: #fff;
+  font-size: 16px;
 }
 
+.menuSection {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.menuSection:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sectionTitle {
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.audioControl {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.audioLabel {
+  color: #fff;
+  width: 120px;
+  text-align: left;
+}
+
+.audioSlider {
+  flex: 1;
+}
+
+.audioValue {
+  color: #fff;
+  width: 40px;
+  text-align: right;
+}
+
+.mainMenu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.menuButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mainMenuButton {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 15px 20px;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+  position: relative;
+}
+
+.mainMenuButton:hover {
+  background-color: #45a049;
+  transform: translateX(10px);
+}
+
+.mainMenuButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.disabledButton {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.buttonAlert {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #ff9800;
+}
+
+.menuOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.menuDialog {
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: 30px;
+  border-radius: 8px;
+  width: 400px;
+  border: 2px solid #444;
+}
+
+.dialogTitle {
+  color: white;
+  font-size: 24px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.hostIdInput {
+  padding: 10px;
+  margin: 10px 0;
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid #555;
+  background-color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.hostButton {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px 20px;
+  margin: 20px 0 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.hostButton:hover {
+  background-color: #45a049;
+}
+
+.joinInput {
+  padding: 10px;
+  margin: 10px 0;
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid #555;
+  background-color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.joinButton {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px 20px;
+  margin: 20px 0 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.joinButton:hover {
+  background-color: #0b7dda;
+}
+
+.joinButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.backButton {
+  background-color: #555;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  margin-top: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.backButton:hover {
+  background-color: #444;
+}
+
+/* Settings and Credits Styles */
+.menuContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.contentTitle {
+  color: white;
+  font-size: 32px;
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.settingsSection {
+  margin-bottom: 30px;
+}
+
+.settingsSectionTitle {
+  color: white;
+  font-size: 20px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 5px;
+}
+
+.creditsSection {
+  margin-bottom: 30px;
+}
+
+.creditItem {
+  margin-bottom: 20px;
+}
+
+.creditName {
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.creditEmail {
+  color: #aaa;
+  font-size: 16px;
+  margin-top: 5px;
+}

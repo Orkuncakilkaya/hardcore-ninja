@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NetworkManager } from '../network/NetworkManager';
 import styles from './PlayerNameInput.module.css';
 
 interface PlayerNameInputProps {
   networkManager: NetworkManager;
+  autoFocus?: boolean;
 }
 
-export default function PlayerNameInput({ networkManager }: PlayerNameInputProps) {
+export default function PlayerNameInput({ networkManager, autoFocus = false }: PlayerNameInputProps) {
   const [playerName, setPlayerName] = useState('');
   const [isEditing, setIsEditing] = useState(true);
   const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedName = localStorage.getItem('player_name');
@@ -37,6 +39,13 @@ export default function PlayerNameInput({ networkManager }: PlayerNameInputProps
       window.removeEventListener('player-name-changed', handleNameChange as EventListener);
     };
   }, []);
+
+  // Focus the input field when autoFocus is true and we're in editing mode
+  useEffect(() => {
+    if (autoFocus && isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus, isEditing]);
 
   const handleSave = () => {
     const name = inputValue.trim();
@@ -72,6 +81,7 @@ export default function PlayerNameInput({ networkManager }: PlayerNameInputProps
         placeholder="Enter your name"
         maxLength={15}
         className={styles.playerNameInput}
+        ref={inputRef}
       />
       <button onClick={handleSave} className={styles.saveButton}>
         Save Name
@@ -79,4 +89,3 @@ export default function PlayerNameInput({ networkManager }: PlayerNameInputProps
     </div>
   );
 }
-
