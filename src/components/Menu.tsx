@@ -4,7 +4,6 @@ import { GameClient } from '../client/GameClient';
 import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
-import HostControls from './HostControls';
 import LobbyControls from './LobbyControls';
 import PlayerNameInput from './PlayerNameInput';
 
@@ -14,7 +13,8 @@ interface MenuProps {
 }
 
 export default function Menu({ networkManager, gameClient }: MenuProps) {
-  const [connectionStatus, setConnectionStatus] = useState('Connecting to network...');
+  // Status message shown to the user
+  const [statusMessage, setStatusMessage] = useState('Connecting to network...');
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [isHosting, setIsHosting] = useState(false);
   const [hostId, setHostId] = useState('');
@@ -32,14 +32,14 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   useEffect(() => {
     const handleNetworkReady = (_e: CustomEvent) => {
-      setConnectionStatus('Network Ready!');
+      setStatusMessage('Network Ready!');
       setIsNetworkReady(true);
       setHostId(networkManager.peerId);
     };
 
     const handleConnected = (_e: CustomEvent) => {
       if (!networkManager.isHost) {
-        setConnectionStatus('Connected! Joining game...');
+        setStatusMessage('Connected! Joining game...');
         gameClient.joinGame(inputHostId);
       }
     };
@@ -71,11 +71,12 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   // Apply audio settings when they change
   useEffect(() => {
-    if (gameClient.audioManager) {
-      gameClient.audioManager.setBgmVolume(bgmVolume / 100);
-      gameClient.audioManager.setSfxVolume(sfxVolume / 100);
+    const audioManager = gameClient.getAudioManager();
+    if (audioManager) {
+      audioManager.setBgmVolume(bgmVolume / 100);
+      audioManager.setSfxVolume(sfxVolume / 100);
     }
-  }, [bgmVolume, sfxVolume, gameClient.audioManager]);
+  }, [bgmVolume, sfxVolume, gameClient]);
 
   // Reset autoFocus when activeTab changes or component unmounts
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const handleHostGame = async () => {
     networkManager.hostGame();
     setIsHosting(true);
-    setConnectionStatus('Hosting game...');
+    setStatusMessage('Hosting game...');
 
     try {
       const mapConfig = await MapLoader.loadMap('/maps/default_map.json');
@@ -98,14 +99,14 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       gameClient.joinGame(networkManager.peerId);
     } catch (e) {
       console.error('Failed to start server:', e);
-      setConnectionStatus('Error starting server');
+      setStatusMessage('Error starting server');
     }
   };
 
   const handleJoinGame = (hostIdToJoin: string) => {
     setInputHostId(hostIdToJoin);
     networkManager.joinGame(hostIdToJoin);
-    setConnectionStatus('Connecting...');
+    setStatusMessage('Connecting...');
   };
 
   const handleBgmVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,6 +336,11 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     <div className={styles.menuContainer}>
       <div className={styles.menu}>
         {renderContent()}
+        {!isNetworkReady && (
+          <div className={styles.statusMessage}>
+            {statusMessage}
+          </div>
+        )}
       </div>
       {showHostMenu && renderHostMenu()}
       {showJoinMenu && renderJoinMenu()}

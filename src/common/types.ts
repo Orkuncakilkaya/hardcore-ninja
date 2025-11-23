@@ -42,6 +42,7 @@ export interface PlayerState {
 
 export interface MissileState {
     id: string;
+    ownerId: string; // ID of the player who fired the missile
     position: Vector3;
     rotation: Quaternion;
     targetId: string | null; // ID of the player being targeted, or null if directional

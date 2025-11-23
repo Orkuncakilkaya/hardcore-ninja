@@ -21,6 +21,11 @@ export class GameClient {
     private localPlayerId: string | null = null;
     private isLeftMouseDown: boolean = false;
 
+    // Getter for audioManager
+    public getAudioManager(): AudioManager {
+        return this.audioManager;
+    }
+
     // Network throttling
     private lastMovementSendTime: number = 0;
     private movementSendInterval: number = TICK_INTERVAL * 1000; // Send at tick rate
