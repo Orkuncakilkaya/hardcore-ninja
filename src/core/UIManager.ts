@@ -34,14 +34,14 @@ export class UIManager {
         if (this.initialized) return;
 
         this.hud = document.getElementById('hud');
-        // Q skill = Teleport (cd-missile)
-        this.teleportCdOverlay = document.getElementById('cd-missile');
-        // W skill = Homing Missile (cd-basic)
-        this.homingMissileCdOverlay = document.getElementById('cd-basic');
-        // E skill = Laser Beam (cd-slash)
-        this.laserBeamCdOverlay = document.getElementById('cd-slash');
-        // R skill = Invincibility (cd-tank)
-        this.invincibilityCdOverlay = document.getElementById('cd-tank');
+        // Q skill = Teleport
+        this.teleportCdOverlay = document.getElementById('cd-teleport');
+        // W skill = Homing Missile
+        this.homingMissileCdOverlay = document.getElementById('cd-homing-missile');
+        // E skill = Laser Beam
+        this.laserBeamCdOverlay = document.getElementById('cd-laser-beam');
+        // R skill = Invincibility
+        this.invincibilityCdOverlay = document.getElementById('cd-invincibility');
 
         // Get skill icons (parent elements of the cooldown overlays)
         // Check if elements exist before accessing parentElement

@@ -30,13 +30,13 @@ const SKILLS = [
 const getCooldownId = (skillType: SkillType): string => {
   switch (skillType) {
     case SkillType.TELEPORT:
-      return 'cd-missile';
+      return 'cd-teleport';
     case SkillType.HOMING_MISSILE:
-      return 'cd-basic';
+      return 'cd-homing-missile';
     case SkillType.LASER_BEAM:
-      return 'cd-slash';
+      return 'cd-laser-beam';
     case SkillType.INVINCIBILITY:
-      return 'cd-tank';
+      return 'cd-invincibility';
     default:
       return '';
   }
