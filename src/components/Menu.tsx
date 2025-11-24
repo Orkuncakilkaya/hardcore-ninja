@@ -13,6 +13,7 @@ interface MenuProps {
 }
 
 export default function Menu({ networkManager, gameClient }: MenuProps) {
+  // Status message shown to the user
   const [statusMessage, setStatusMessage] = useState('Connecting to network...');
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [isHosting, setIsHosting] = useState(false);

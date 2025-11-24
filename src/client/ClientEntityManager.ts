@@ -26,6 +26,7 @@ interface ClientPlayer {
     nameLabel: THREE.Sprite | null; // Reference to the player name label
     leftShoe: THREE.Group; // Reference to left shoe for animation
     rightShoe: THREE.Group; // Reference to right shoe for animation
+    katana: THREE.Group; // Reference to katana for animation
     health: number; // Current health value
     maxHealth: number; // Maximum health value
     isTeleporting: boolean; // Whether player is currently teleporting
@@ -234,7 +235,7 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body, bodyGroup, nameLabel, leftShoe, rightShoe } = this.createPlayerMesh(playerState.id === myPeerId);
+                const { group, body, bodyGroup, nameLabel, leftShoe, rightShoe, katana } = this.createPlayerMesh(playerState.id === myPeerId, playerState.color);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 const initialPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
@@ -245,6 +246,7 @@ export class ClientEntityManager {
                     nameLabel: nameLabel,
                     leftShoe: leftShoe,
                     rightShoe: rightShoe,
+                    katana: katana,
                     health: playerState.health,
                     maxHealth: playerState.maxHealth,
                     targetPosition: initialPos.clone(),
@@ -561,6 +563,13 @@ export class ClientEntityManager {
                         player.rightShoe.position.y = rightShoeLift;
                         player.rightShoe.rotation.x = rightShoeRotation;
                     }
+
+                    // Animate Katana (sway while running)
+                    if (player.katana) {
+                        const katanaSway = Math.sin(player.walkAnimationTime * 0.5) * 0.2;
+                        player.katana.rotation.z = -Math.PI / 8 + katanaSway;
+                        player.katana.rotation.x = Math.PI / 4 + Math.abs(katanaSway) * 0.5;
+                    }
                 } else {
                     // Reset shoes to ground when not moving (but keep above damageAreaEffect)
                     if (player.leftShoe) {
@@ -570,6 +579,11 @@ export class ClientEntityManager {
                     if (player.rightShoe) {
                         player.rightShoe.position.y = 0.1; // Keep above damageAreaEffect
                         player.rightShoe.rotation.x = 0;
+                    }
+                    // Reset Katana
+                    if (player.katana) {
+                        player.katana.rotation.z = -Math.PI / 8;
+                        player.katana.rotation.x = Math.PI / 4;
                     }
                 }
 
@@ -633,10 +647,11 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group } {
+    private createPlayerMesh(isLocal: boolean, color?: number): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group, katana: THREE.Group } {
         return PlayerModel.createPlayerMesh(
             isLocal,
-            (name) => this.createPlayerNameLabel(name)
+            (name) => this.createPlayerNameLabel(name),
+            color
         );
     }
 
