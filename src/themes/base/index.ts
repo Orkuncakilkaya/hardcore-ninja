@@ -1,9 +1,9 @@
 import { createTheme } from '@mantine/core';
 
 export const theme = createTheme({
-  fontFamily: 'Kode Mono, monospace',
+  fontFamily: 'Sour Gummy, monospace',
   headings: {
-    fontFamily: 'Kode Mono, monospace'
+    fontFamily: 'Sour Gummy, monospace'
   },
   primaryColor: 'cyan',
   radius: {
