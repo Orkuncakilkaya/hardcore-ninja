@@ -7,8 +7,9 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  background-image: url('/resources/images/background.png');
+  background-image: url('/resources/images/background.webp');
   background-size: cover;
+  background-repeat: no-repeat;
   background-position: center;
   pointer-events: auto;
 }
@@ -331,10 +332,13 @@
   right: 20px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
   padding: 10px 15px;
-  border-radius: 0;
+  border-radius: 32px;
+  min-width: 120px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 

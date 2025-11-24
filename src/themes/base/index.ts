@@ -7,10 +7,10 @@ export const theme = createTheme({
   },
   primaryColor: 'cyan',
   radius: {
-    xs: '0px',
-    sm: '0px',
-    md: '0px',
-    lg: '0px',
-    xl: '0px',
+    xs: '16px',
+    sm: '32px',
+    md: '42px',
+    lg: '64px',
+    xl: '92px',
   },
 });
