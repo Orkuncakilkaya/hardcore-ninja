@@ -5,11 +5,11 @@ import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
+import Settings from './Settings';
 import { 
   Button, 
   TextInput, 
   Modal, 
-  Slider, 
   Text, 
   Title, 
   Group, 
@@ -34,8 +34,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [isHosting, setIsHosting] = useState(false);
   const [hostId, setHostId] = useState('');
   const [inputHostId, setInputHostId] = useState('');
-  const [bgmVolume, setBgmVolume] = useState(10);
-  const [sfxVolume, setSfxVolume] = useState(50);
   const [activeTab, setActiveTab] = useState('main'); // 'main', 'settings', 'host', 'join', 'credits'
   const [playerName, setPlayerName] = useState('');
   const [showHostMenu, setShowHostMenu] = useState(false);
@@ -83,14 +81,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     };
   }, [networkManager]);
 
-  // Apply audio settings when they change
-  useEffect(() => {
-    const audioManager = gameClient.getAudioManager();
-    if (audioManager) {
-      audioManager.setBgmVolume(bgmVolume / 100);
-      audioManager.setSfxVolume(sfxVolume / 100);
-    }
-  }, [bgmVolume, sfxVolume, gameClient]);
 
 
 
@@ -132,51 +122,12 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   // Render the settings content
   const renderSettingsContent = () => (
-    <Stack gap="md">
-      <Title order={2} ta="center">Settings</Title>
-
-      <Paper p="md" withBorder>
-        <Stack gap="md">
-          <Title order={3} size="h4">Audio</Title>
-          
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Text>Music Volume</Text>
-              <Text>{bgmVolume}%</Text>
-            </Group>
-            <Slider 
-              value={bgmVolume} 
-              onChange={setBgmVolume} 
-              min={0} 
-              max={100} 
-              label={null}
-            />
-          </Stack>
-
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Text>SFX Volume</Text>
-              <Text>{sfxVolume}%</Text>
-            </Group>
-            <Slider 
-              value={sfxVolume} 
-              onChange={setSfxVolume} 
-              min={0} 
-              max={100} 
-              label={null}
-            />
-          </Stack>
-        </Stack>
-      </Paper>
-
-      <Button 
-        variant="light" 
-        onClick={() => setActiveTab('main')} 
-        fullWidth
-      >
-        Back to Menu
-      </Button>
-    </Stack>
+    <Settings
+      opened={true}
+      onClose={() => setActiveTab('main')}
+      audioManager={gameClient.getAudioManager()}
+      variant="inline"
+    />
   );
 
   // Render the credits content
