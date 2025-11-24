@@ -5,7 +5,7 @@ import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
-import PlayerNameInput from './PlayerNameInput';
+
 
 interface MenuProps {
   networkManager: NetworkManager;
@@ -13,7 +13,6 @@ interface MenuProps {
 }
 
 export default function Menu({ networkManager, gameClient }: MenuProps) {
-  // Status message shown to the user
   const [statusMessage, setStatusMessage] = useState('Connecting to network...');
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [isHosting, setIsHosting] = useState(false);
@@ -25,7 +24,9 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [playerName, setPlayerName] = useState('');
   const [showHostMenu, setShowHostMenu] = useState(false);
   const [showJoinMenu, setShowJoinMenu] = useState(false);
-  const [autoFocusNameInput, setAutoFocusNameInput] = useState(false);
+  const [showNameEditModal, setShowNameEditModal] = useState(false);
+  const [tempName, setTempName] = useState('');
+
 
   const bgmVolumeRef = useRef<HTMLInputElement>(null);
   const sfxVolumeRef = useRef<HTMLInputElement>(null);
@@ -78,12 +79,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     }
   }, [bgmVolume, sfxVolume, gameClient]);
 
-  // Reset autoFocus when activeTab changes or component unmounts
-  useEffect(() => {
-    if (activeTab !== 'settings') {
-      setAutoFocusNameInput(false);
-    }
-  }, [activeTab]);
+
 
   const handleHostGame = async () => {
     networkManager.hostGame();
@@ -119,21 +115,28 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     setSfxVolume(value);
   };
 
-  // Check if player name is saved
-  const hasPlayerName = playerName && playerName.trim().length > 0;
+  const handleEditName = () => {
+    setTempName(playerName);
+    setShowNameEditModal(true);
+  };
+
+  const handleSaveName = () => {
+    if (tempName.trim()) {
+      networkManager.playerName = tempName.trim();
+      setShowNameEditModal(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowNameEditModal(false);
+  };
 
   // Render the settings content
   const renderSettingsContent = () => (
     <div className={styles.menuContent}>
       <h2 className={styles.contentTitle}>Settings</h2>
 
-      <div className={styles.settingsSection}>
-        <h3 className={styles.settingsSectionTitle}>Player</h3>
-        <PlayerNameInput 
-          networkManager={networkManager} 
-          autoFocus={autoFocusNameInput} 
-        />
-      </div>
+
 
       <div className={styles.settingsSection}>
         <h3 className={styles.settingsSectionTitle}>Audio</h3>
@@ -258,6 +261,38 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     </div>
   );
 
+  // Render the name edit modal
+  const renderNameEditModal = () => (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalDialog}>
+        <h2 className={styles.modalTitle}>Edit Player Name</h2>
+        <input
+          type="text"
+          value={tempName}
+          onChange={(e) => setTempName(e.target.value)}
+          placeholder="Enter Name"
+          maxLength={15}
+          className={styles.modalInput}
+          autoFocus
+        />
+        <div className={styles.modalButtons}>
+          <button 
+            onClick={handleSaveName} 
+            className={styles.saveButton}
+          >
+            Save
+          </button>
+          <button 
+            onClick={handleCancelEdit} 
+            className={styles.cancelButton}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Render the main content
   const renderContent = () => {
     if (isHosting) {
@@ -274,43 +309,19 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
           <div className={styles.mainMenu}>
             <div className={styles.menuButtons}>
               <button 
-                onClick={() => {
-                  if (hasPlayerName) {
-                    setShowHostMenu(true);
-                  } else {
-                    setActiveTab('settings');
-                    setAutoFocusNameInput(true);
-                  }
-                }} 
-                className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
+                onClick={() => setShowHostMenu(true)} 
+                className={styles.mainMenuButton}
                 disabled={!isNetworkReady}
               >
                 Host Game
-                {!hasPlayerName && (
-                  <div className={styles.buttonAlert}>
-                    ⚠️
-                  </div>
-                )}
               </button>
 
               <button 
-                onClick={() => {
-                  if (hasPlayerName) {
-                    setShowJoinMenu(true);
-                  } else {
-                    setActiveTab('settings');
-                    setAutoFocusNameInput(true);
-                  }
-                }} 
-                className={`${styles.mainMenuButton} ${!hasPlayerName ? styles.disabledButton : ''}`}
+                onClick={() => setShowJoinMenu(true)} 
+                className={styles.mainMenuButton}
                 disabled={!isNetworkReady}
               >
                 Join Game
-                {!hasPlayerName && (
-                  <div className={styles.buttonAlert}>
-                    ⚠️
-                  </div>
-                )}
               </button>
 
               <button 
@@ -342,8 +353,18 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
           </div>
         )}
       </div>
+      
+      {/* Top Right Name Display */}
+      <div className={styles.topRightNameDisplay}>
+        <span className={styles.playerNameText}>{playerName}</span>
+        <button onClick={handleEditName} className={styles.editNameButton} title="Edit Name">
+          ✏️
+        </button>
+      </div>
+
       {showHostMenu && renderHostMenu()}
       {showJoinMenu && renderJoinMenu()}
+      {showNameEditModal && renderNameEditModal()}
     </div>
   );
 }

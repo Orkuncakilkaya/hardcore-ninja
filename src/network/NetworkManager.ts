@@ -49,12 +49,16 @@ export class NetworkManager {
             // Dispatch event or callback to update UI with ID
             window.dispatchEvent(new CustomEvent('network-ready', { detail: id }));
 
-            // Load saved player name if available
-            const savedName = localStorage.getItem('player_name');
-            if (savedName) {
-                this._playerName = savedName;
-                window.dispatchEvent(new CustomEvent('player-name-changed', { detail: savedName }));
+            // Load saved player name if available, otherwise generate random
+            let savedName = localStorage.getItem('player_name');
+            if (!savedName) {
+                const randomId = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                savedName = `Player${randomId}`;
+                localStorage.setItem('player_name', savedName);
             }
+            
+            this._playerName = savedName;
+            window.dispatchEvent(new CustomEvent('player-name-changed', { detail: savedName }));
 
             // Load saved avatar if available
             const savedAvatar = localStorage.getItem('player_avatar');
