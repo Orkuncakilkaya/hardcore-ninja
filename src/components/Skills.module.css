@@ -24,11 +24,15 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 
+  box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .skillSlot::before {
@@ -89,6 +93,15 @@
   margin-top: 2px;
   position: relative;
   z-index: 2;
+}
+
+.skillLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
 }
 
 .cooldownOverlay {
@@ -160,16 +173,6 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.5);
 }
 
-.skillSlot[data-active="true"] {
-  border-color: #0f0 !important;
-  box-shadow: 
-    0 0 20px 8px rgba(0, 255, 0, 0.8),
-    0 0 40px rgba(0, 255, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.5) !important;
-  animation: active-pulse 1s ease-in-out infinite;
-}
-
 @keyframes pulse-glow {
   0%, 100% {
     box-shadow: 
@@ -183,23 +186,6 @@
       0 4px 8px rgba(0, 0, 0, 0.4),
       0 0 20px rgba(74, 158, 255, 0.6),
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.5);
-  }
-}
-
-@keyframes active-pulse {
-  0%, 100% {
-    box-shadow: 
-      0 0 20px 8px rgba(0, 255, 0, 0.8),
-      0 0 40px rgba(0, 255, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.5);
-  }
-  50% {
-    box-shadow: 
-      0 0 25px 10px rgba(0, 255, 0, 1),
-      0 0 50px rgba(0, 255, 0, 0.6),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
       inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   }
 }
