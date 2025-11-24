@@ -1,4 +1,4 @@
-import { Modal, Table, Button, Group, Title, Stack } from '@mantine/core';
+import { Modal, Table, Button, Group, Stack } from '@mantine/core';
 import type { GameState } from '../common/types';
 import { GameMode } from '../common/constants';
 import styles from './Scoreboard.module.css';
