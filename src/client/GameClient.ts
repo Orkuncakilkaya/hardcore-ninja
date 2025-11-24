@@ -14,7 +14,7 @@ export class GameClient {
     private networkManager: NetworkManager;
     private entityManager: ClientEntityManager;
     private uiManager: UIManager;
-    private audioManager: AudioManager;
+    public audioManager: AudioManager;
     private groundPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     private isRunning: boolean = false;
     private clock: THREE.Clock;
