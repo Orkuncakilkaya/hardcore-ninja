@@ -1,11 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { NetworkManager } from '../network/NetworkManager';
 import { GameClient } from '../client/GameClient';
 import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
-
+import { 
+  Button, 
+  TextInput, 
+  Modal, 
+  Slider, 
+  Text, 
+  Title, 
+  Group, 
+  Stack, 
+  Paper,
+  ActionIcon,
+  CopyButton,
+  Tooltip,
+  rem
+} from '@mantine/core';
+import { Icon } from '@iconify/react';
 
 interface MenuProps {
   networkManager: NetworkManager;
@@ -27,9 +42,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [tempName, setTempName] = useState('');
 
-
-  const bgmVolumeRef = useRef<HTMLInputElement>(null);
-  const sfxVolumeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleNetworkReady = (_e: CustomEvent) => {
@@ -105,16 +117,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     setStatusMessage('Connecting...');
   };
 
-  const handleBgmVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    setBgmVolume(value);
-  };
-
-  const handleSfxVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    setSfxVolume(value);
-  };
-
   const handleEditName = () => {
     setTempName(playerName);
     setShowNameEditModal(true);
@@ -127,170 +129,191 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     }
   };
 
-  const handleCancelEdit = () => {
-    setShowNameEditModal(false);
-  };
-
   // Render the settings content
   const renderSettingsContent = () => (
-    <div className={styles.menuContent}>
-      <h2 className={styles.contentTitle}>Settings</h2>
+    <Stack gap="md">
+      <Title order={2} ta="center">Settings</Title>
 
+      <Paper p="md" withBorder>
+        <Stack gap="md">
+          <Title order={3} size="h4">Audio</Title>
+          
+          <Stack gap="xs">
+            <Group justify="space-between">
+              <Text>Music Volume</Text>
+              <Text>{bgmVolume}%</Text>
+            </Group>
+            <Slider 
+              value={bgmVolume} 
+              onChange={setBgmVolume} 
+              min={0} 
+              max={100} 
+              label={null}
+            />
+          </Stack>
 
+          <Stack gap="xs">
+            <Group justify="space-between">
+              <Text>SFX Volume</Text>
+              <Text>{sfxVolume}%</Text>
+            </Group>
+            <Slider 
+              value={sfxVolume} 
+              onChange={setSfxVolume} 
+              min={0} 
+              max={100} 
+              label={null}
+            />
+          </Stack>
+        </Stack>
+      </Paper>
 
-      <div className={styles.settingsSection}>
-        <h3 className={styles.settingsSectionTitle}>Audio</h3>
-        <div className={styles.audioControl}>
-          <label className={styles.audioLabel}>Music Volume:</label>
-          <input 
-            type="range" 
-            min="0" 
-            max="100" 
-            value={bgmVolume} 
-            onChange={handleBgmVolumeChange}
-            className={styles.audioSlider}
-            ref={bgmVolumeRef}
-          />
-          <span className={styles.audioValue}>{bgmVolume}%</span>
-        </div>
-        <div className={styles.audioControl}>
-          <label className={styles.audioLabel}>SFX Volume:</label>
-          <input 
-            type="range" 
-            min="0" 
-            max="100" 
-            value={sfxVolume} 
-            onChange={handleSfxVolumeChange}
-            className={styles.audioSlider}
-            ref={sfxVolumeRef}
-          />
-          <span className={styles.audioValue}>{sfxVolume}%</span>
-        </div>
-      </div>
-
-      <button 
+      <Button 
+        variant="light" 
         onClick={() => setActiveTab('main')} 
-        className={styles.backButton}
+        fullWidth
       >
         Back to Menu
-      </button>
-    </div>
+      </Button>
+    </Stack>
   );
 
   // Render the credits content
   const renderCreditsContent = () => (
-    <div className={styles.menuContent}>
-      <h2 className={styles.contentTitle}>Credits</h2>
+    <Stack gap="md">
+      <Title order={2} ta="center">Credits</Title>
 
-      <div className={styles.creditsSection}>
-        <div className={styles.creditItem}>
-          <div className={styles.creditName}>Orkun ÇAKILKAYA</div>
-          <div className={styles.creditEmail}>orkuncakilkaya@gmail.com</div>
-        </div>
+      <Paper p="md" withBorder>
+        <Stack gap="md">
+          <Stack gap={0}>
+            <Text fw={700}>Orkun ÇAKILKAYA</Text>
+            <Text size="sm" c="dimmed">orkuncakilkaya@gmail.com</Text>
+          </Stack>
 
-        <div className={styles.creditItem}>
-          <div className={styles.creditName}>Selim DOYRANLI</div>
-          <div className={styles.creditEmail}>selimdoyranli@gmail.com</div>
-        </div>
-      </div>
+          <Stack gap={0}>
+            <Text fw={700}>Selim DOYRANLI</Text>
+            <Text size="sm" c="dimmed">selimdoyranli@gmail.com</Text>
+          </Stack>
+        </Stack>
+      </Paper>
 
-      <button 
+      <Button 
+        variant="light" 
         onClick={() => setActiveTab('main')} 
-        className={styles.backButton}
+        fullWidth
       >
         Back to Menu
-      </button>
-    </div>
+      </Button>
+    </Stack>
   );
 
-  // Render the host menu
+  // Render the host menu modal
   const renderHostMenu = () => (
-    <div className={styles.menuOverlay}>
-      <div className={styles.menuDialog}>
-        <h2 className={styles.dialogTitle}>Host Game</h2>
-        <p>Click ID to copy peer ID</p>
-        <input
-          type="text"
-          value={hostId}
-          readOnly
-          onClick={() => navigator.clipboard.writeText(hostId)}
-          className={styles.hostIdInput}
-        />
-        <button 
-          onClick={handleHostGame} 
-          className={styles.hostButton}
-        >
-          Start Game
-        </button>
-        <button 
-          onClick={() => setShowHostMenu(false)} 
-          className={styles.backButton}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <Modal 
+      opened={showHostMenu} 
+      onClose={() => setShowHostMenu(false)} 
+      title="Host Game"
+      centered
+      zIndex={10000}
+      withinPortal={false}
+      styles={{ root: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' } }}
+    >
+      <Stack gap="md">
+        <Text size="sm">Share this ID with your friends so they can join your game.</Text>
+        
+        <Group>
+          <TextInput 
+            value={hostId} 
+            readOnly 
+            style={{ flex: 1 }}
+          />
+          <CopyButton value={hostId} timeout={2000}>
+            {({ copied, copy }) => (
+              <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="right">
+                <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
+                  {copied ? <Icon icon="tabler:check" style={{ width: rem(16) }} /> : <Icon icon="tabler:copy" style={{ width: rem(16) }} />}
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </CopyButton>
+        </Group>
+
+        <Group grow>
+          <Button variant="default" onClick={() => setShowHostMenu(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleHostGame}>
+            Start Game
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 
-  // Render the join menu
+  // Render the join menu modal
   const renderJoinMenu = () => (
-    <div className={styles.menuOverlay}>
-      <div className={styles.menuDialog}>
-        <h2 className={styles.dialogTitle}>Join Game</h2>
-        <input
-          type="text"
-          value={inputHostId}
-          onChange={(e) => setInputHostId(e.target.value.replace(/\s/g, ''))}
+    <Modal 
+      opened={showJoinMenu} 
+      onClose={() => setShowJoinMenu(false)} 
+      title="Join Game"
+      centered
+      zIndex={10000}
+      withinPortal={false}
+      styles={{ root: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' } }}
+    >
+      <Stack gap="md">
+        <TextInput
           placeholder="Enter Host ID"
-          className={styles.joinInput}
+          value={inputHostId}
+          onChange={(e) => setInputHostId(e.currentTarget.value.replace(/\s/g, ''))}
+          label="Host ID"
         />
-        <button 
-          onClick={() => handleJoinGame(inputHostId)} 
-          className={styles.joinButton}
-          disabled={!inputHostId.trim()}
-        >
-          Join Game
-        </button>
-        <button 
-          onClick={() => setShowJoinMenu(false)} 
-          className={styles.backButton}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+        
+        <Group grow>
+          <Button variant="default" onClick={() => setShowJoinMenu(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => handleJoinGame(inputHostId)}
+            disabled={!inputHostId.trim()}
+          >
+            Join Game
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 
   // Render the name edit modal
   const renderNameEditModal = () => (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalDialog}>
-        <h2 className={styles.modalTitle}>Edit Player Name</h2>
-        <input
-          type="text"
-          value={tempName}
-          onChange={(e) => setTempName(e.target.value)}
+    <Modal 
+      opened={showNameEditModal} 
+      onClose={() => setShowNameEditModal(false)} 
+      title="Edit Player Name"
+      centered
+      zIndex={10000}
+      withinPortal={false}
+      styles={{ root: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' } }}
+    >
+      <Stack gap="md">
+        <TextInput
           placeholder="Enter Name"
+          value={tempName}
+          onChange={(e) => setTempName(e.currentTarget.value)}
           maxLength={15}
-          className={styles.modalInput}
-          autoFocus
+          data-autofocus
         />
-        <div className={styles.modalButtons}>
-          <button 
-            onClick={handleSaveName} 
-            className={styles.saveButton}
-          >
-            Save
-          </button>
-          <button 
-            onClick={handleCancelEdit} 
-            className={styles.cancelButton}
-          >
+        
+        <Group grow>
+          <Button variant="default" onClick={() => setShowNameEditModal(false)}>
             Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button onClick={handleSaveName}>
+            Save
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 
   // Render the main content
@@ -306,60 +329,80 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
         return renderCreditsContent();
       default:
         return (
-          <div className={styles.mainMenu}>
-            <div className={styles.menuButtons}>
-              <button 
-                onClick={() => setShowHostMenu(true)} 
-                className={styles.mainMenuButton}
-                disabled={!isNetworkReady}
-              >
-                Host Game
-              </button>
+          <Stack gap="md" styles={{ root: { width: '100%' } }}>
+            <Button 
+              size="lg"
+              onClick={() => setShowHostMenu(true)} 
+              disabled={!isNetworkReady}
+            >
+              Host Game
+            </Button>
 
-              <button 
-                onClick={() => setShowJoinMenu(true)} 
-                className={styles.mainMenuButton}
-                disabled={!isNetworkReady}
-              >
-                Join Game
-              </button>
+            <Button 
+              size="lg"
+              onClick={() => setShowJoinMenu(true)} 
+              disabled={!isNetworkReady}
+            >
+              Join Game
+            </Button>
 
-              <button 
-                onClick={() => setActiveTab('settings')} 
-                className={styles.mainMenuButton}
-              >
-                Settings
-              </button>
+            <Button 
+              size="lg"
+              variant="light"
+              onClick={() => setActiveTab('settings')} 
+            >
+              Settings
+            </Button>
 
-              <button 
-                onClick={() => setActiveTab('credits')} 
-                className={styles.mainMenuButton}
-              >
-                Credits
-              </button>
-            </div>
-          </div>
+            <Button 
+              size="lg"
+              variant="light"
+              onClick={() => setActiveTab('credits')} 
+            >
+              Credits
+            </Button>
+          </Stack>
         );
     }
   };
 
   return (
     <div className={styles.menuContainer}>
-      <div className={styles.menu}>
-        {renderContent()}
-        {!isNetworkReady && (
-          <div className={styles.statusMessage}>
-            {statusMessage}
-          </div>
-        )}
-      </div>
+      <Paper 
+        h="100%" 
+        w={400} 
+        p="xl" 
+        radius={0} 
+        withBorder 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          pointerEvents: 'auto'
+        }}
+      >
+        <Stack align="stretch" gap="xl" styles={{ root: { width: '100%' } }}>
+          
+          {renderContent()}
+          
+          {!isNetworkReady && (
+            <Text c="dimmed" size="sm" ta="center">
+              {statusMessage}
+            </Text>
+          )}
+        </Stack>
+      </Paper>
       
       {/* Top Right Name Display */}
       <div className={styles.topRightNameDisplay}>
-        <span className={styles.playerNameText}>{playerName}</span>
-        <button onClick={handleEditName} className={styles.editNameButton} title="Edit Name">
-          ✏️
-        </button>
+        <Group gap="xs">
+          <Text fw={500}>{playerName}</Text>
+          <ActionIcon variant="subtle" size="sm" onClick={handleEditName}>
+            <Icon icon="tabler:edit" style={{ width: rem(16) }} />
+          </ActionIcon>
+        </Group>
       </div>
 
       {showHostMenu && renderHostMenu()}
