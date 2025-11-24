@@ -10,6 +10,7 @@ import {
   Group
 } from '@mantine/core';
 import { AudioManager } from '../client/AudioManager';
+import styles from './Settings.module.css';
 
 interface SettingsProps {
   opened: boolean;
@@ -21,11 +22,6 @@ interface SettingsProps {
 export default function Settings({ opened, onClose, audioManager, variant = 'modal' }: SettingsProps) {
   const [bgmVolume, setBgmVolume] = useState(10);
   const [sfxVolume, setSfxVolume] = useState(50);
-
-  // Debug: Log when modal opens/closes
-  useEffect(() => {
-    console.log('Settings modal opened:', opened);
-  }, [opened]);
 
   // Load current volume settings from audioManager
   useEffect(() => {
@@ -60,9 +56,9 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
                 min={0} 
                 max={100} 
                 label={null}
-                style={{ flex: 1 }}
+                className={styles.slider}
               />
-              <Text style={{ minWidth: '50px', textAlign: 'right' }}>{bgmVolume}%</Text>
+              <Text className={styles.volumeText}>{bgmVolume}%</Text>
             </Group>
           </Stack>
 
@@ -75,9 +71,9 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
                 min={0} 
                 max={100} 
                 label={null}
-                style={{ flex: 1 }}
+                className={styles.slider}
               />
-              <Text style={{ minWidth: '50px', textAlign: 'right' }}>{sfxVolume}%</Text>
+              <Text className={styles.volumeText}>{sfxVolume}%</Text>
             </Group>
           </Stack>
         </Stack>
@@ -117,24 +113,11 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
         centered
         zIndex={10000}
         withinPortal={false}
-        styles={{
-          root: {
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: 10000,
-          },
-          overlay: {
-            zIndex: 9999,
-          },
-          inner: {
-            zIndex: 10000,
-          },
-          content: {
-            zIndex: 10000,
-          },
+        classNames={{
+          root: styles.modalRoot,
+          overlay: styles.modalOverlay,
+          inner: styles.modalInner,
+          content: styles.modalContent,
         }}
       >
         {settingsContent}

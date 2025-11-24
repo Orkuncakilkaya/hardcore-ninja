@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
 import { Modal, Table, Button, Group, Title, Stack } from '@mantine/core';
 import type { GameState } from '../common/types';
 import { GameMode } from '../common/constants';
+import styles from './Scoreboard.module.css';
 
 interface ScoreboardProps {
   opened: boolean;
@@ -22,11 +22,6 @@ export default function Scoreboard({
   onStartGame,
   onRestartGame
 }: ScoreboardProps) {
-  // Debug: Log when modal opens/closes
-  useEffect(() => {
-    console.log('Scoreboard modal opened:', opened, 'gameState:', gameState);
-  }, [opened, gameState]);
-
   if (!gameState) {
     return null;
   }
@@ -39,10 +34,7 @@ export default function Scoreboard({
   const rows = sortedPlayers.map((player) => (
     <Table.Tr 
       key={player.id}
-      style={{ 
-        color: player.id === localPlayerId ? '#4CAF50' : 'white',
-        fontWeight: player.id === localPlayerId ? 'bold' : 'normal'
-      }}
+      className={player.id === localPlayerId ? styles.localPlayerRow : styles.playerRow}
     >
       <Table.Td>{player.username || player.id.substring(0, 8)}</Table.Td>
       <Table.Td>{player.kills || 0}</Table.Td>
@@ -68,24 +60,11 @@ export default function Scoreboard({
       size="lg"
       withinPortal={false}
       withCloseButton={false}
-      styles={{
-        root: {
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 10000,
-        },
-        overlay: {
-          zIndex: 9999,
-        },
-        inner: {
-          zIndex: 10000,
-        },
-        content: {
-          zIndex: 10000,
-        },
+      classNames={{
+        root: styles.modalRoot,
+        overlay: styles.modalOverlay,
+        inner: styles.modalInner,
+        content: styles.modalContent,
       }}
     >
       <Stack gap="md">
@@ -107,7 +86,7 @@ export default function Scoreboard({
               <Button 
                 color="green"
                 onClick={onStartGame}
-                style={{ flex: 1 }}
+                className={styles.actionButton}
               >
                 Start Game
               </Button>
@@ -116,7 +95,7 @@ export default function Scoreboard({
               <Button 
                 color="red"
                 onClick={onRestartGame}
-                style={{ flex: 1 }}
+                className={styles.actionButton}
               >
                 Restart Game
               </Button>
