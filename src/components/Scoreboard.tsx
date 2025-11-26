@@ -13,14 +13,14 @@ interface ScoreboardProps {
   onRestartGame?: () => void;
 }
 
-export default function Scoreboard({ 
-  opened, 
-  onClose, 
-  gameState, 
+export default function Scoreboard({
+  opened,
+  onClose,
+  gameState,
   localPlayerId,
   isHost,
   onStartGame,
-  onRestartGame
+  onRestartGame,
 }: ScoreboardProps) {
   if (!gameState) {
     return null;
@@ -31,8 +31,8 @@ export default function Scoreboard({
     return (b.kills || 0) - (a.kills || 0);
   });
 
-  const rows = sortedPlayers.map((player) => (
-    <Table.Tr 
+  const rows = sortedPlayers.map(player => (
+    <Table.Tr
       key={player.id}
       className={player.id === localPlayerId ? styles.localPlayerRow : styles.playerRow}
     >
@@ -43,7 +43,8 @@ export default function Scoreboard({
     </Table.Tr>
   ));
 
-  const showStartButton = isHost && gameState.gameMode === GameMode.WARMUP && gameState.players.length >= 2;
+  const showStartButton =
+    isHost && gameState.gameMode === GameMode.WARMUP && gameState.players.length >= 2;
   const showRestartButton = isHost;
 
   if (!opened) {
@@ -51,9 +52,9 @@ export default function Scoreboard({
   }
 
   return (
-    <Modal 
-      opened={opened} 
-      onClose={onClose} 
+    <Modal
+      opened={opened}
+      onClose={onClose}
       title="Scoreboard"
       centered
       zIndex={10000}
@@ -83,20 +84,12 @@ export default function Scoreboard({
         {(showStartButton || showRestartButton) && (
           <Group justify="space-between" mt="md">
             {showStartButton && (
-              <Button 
-                color="green"
-                onClick={onStartGame}
-                className={styles.actionButton}
-              >
+              <Button color="green" onClick={onStartGame} className={styles.actionButton}>
                 Start Game
               </Button>
             )}
             {showRestartButton && (
-              <Button 
-                color="red"
-                onClick={onRestartGame}
-                className={styles.actionButton}
-              >
+              <Button color="red" onClick={onRestartGame} className={styles.actionButton}>
                 Restart Game
               </Button>
             )}
@@ -106,4 +99,3 @@ export default function Scoreboard({
     </Modal>
   );
 }
-

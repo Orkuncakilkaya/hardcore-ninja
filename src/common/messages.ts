@@ -2,84 +2,84 @@ import type { InputState, GameState, Vector3, MapConfig } from './types';
 import { SkillType } from './constants';
 
 export type MessageType =
-    | 'JOIN_REQUEST'
-    | 'JOIN_RESPONSE'
-    | 'PLAYER_INPUT'
-    | 'GAME_STATE_UPDATE'
-    | 'SKILL_REQUEST'
-    | 'STATE_REQUEST'
-    | 'PLAYER_DIED'
-    | 'START_GAME'
-    | 'RESTART_GAME'
-    | 'SPAWN_POINTS_REQUEST' // Legacy, might remove
-    | 'SPAWN_POINT_RESPONSE' // Legacy, might remove
-    | 'MAP_CONFIG';
+  | 'JOIN_REQUEST'
+  | 'JOIN_RESPONSE'
+  | 'PLAYER_INPUT'
+  | 'GAME_STATE_UPDATE'
+  | 'SKILL_REQUEST'
+  | 'STATE_REQUEST'
+  | 'PLAYER_DIED'
+  | 'START_GAME'
+  | 'RESTART_GAME'
+  | 'SPAWN_POINTS_REQUEST' // Legacy, might remove
+  | 'SPAWN_POINT_RESPONSE' // Legacy, might remove
+  | 'MAP_CONFIG';
 
 export interface BaseMessage {
-    type: MessageType;
+  type: MessageType;
 }
 
 export interface JoinRequestMessage extends BaseMessage {
-    type: 'JOIN_REQUEST';
-    playerId: string;
-    username?: string;
-    avatar?: string;
+  type: 'JOIN_REQUEST';
+  playerId: string;
+  username?: string;
+  avatar?: string;
 }
 
 export interface JoinResponseMessage extends BaseMessage {
-    type: 'JOIN_RESPONSE';
-    success: boolean;
-    mapConfig?: MapConfig;
-    playerId: string;
-    spawnPosition: Vector3;
+  type: 'JOIN_RESPONSE';
+  success: boolean;
+  mapConfig?: MapConfig;
+  playerId: string;
+  spawnPosition: Vector3;
 }
 
 export interface InputMessage extends BaseMessage {
-    type: 'PLAYER_INPUT';
-    input: InputState;
-    destination?: Vector3;
-    stopMovement?: boolean;
-    timestamp?: number;
+  type: 'PLAYER_INPUT';
+  input: InputState;
+  destination?: Vector3;
+  stopMovement?: boolean;
+  timestamp?: number;
 }
 
 export interface StateUpdateMessage extends BaseMessage {
-    type: 'GAME_STATE_UPDATE';
-    state: GameState;
-    timestamp: number;
+  type: 'GAME_STATE_UPDATE';
+  state: GameState;
+  timestamp: number;
 }
 
 export interface SkillRequestMessage extends BaseMessage {
-    type: 'SKILL_REQUEST';
-    skillType: SkillType;
-    target?: Vector3;
-    direction?: Vector3; // For directional skills like laser beam
-    timestamp: number;
+  type: 'SKILL_REQUEST';
+  skillType: SkillType;
+  target?: Vector3;
+  direction?: Vector3; // For directional skills like laser beam
+  timestamp: number;
 }
 
 export interface StateRequestMessage extends BaseMessage {
-    type: 'STATE_REQUEST';
+  type: 'STATE_REQUEST';
 }
 
 export interface PlayerDiedMessage extends BaseMessage {
-    type: 'PLAYER_DIED';
-    id: string;
+  type: 'PLAYER_DIED';
+  id: string;
 }
 
 export interface StartGameMessage extends BaseMessage {
-    type: 'START_GAME';
+  type: 'START_GAME';
 }
 
 export interface RestartGameMessage extends BaseMessage {
-    type: 'RESTART_GAME';
+  type: 'RESTART_GAME';
 }
 
 export type NetworkMessage =
-    | JoinRequestMessage
-    | JoinResponseMessage
-    | InputMessage
-    | StateUpdateMessage
-    | SkillRequestMessage
-    | StateRequestMessage
-    | PlayerDiedMessage
-    | StartGameMessage
-    | RestartGameMessage;
+  | JoinRequestMessage
+  | JoinResponseMessage
+  | InputMessage
+  | StateUpdateMessage
+  | SkillRequestMessage
+  | StateRequestMessage
+  | PlayerDiedMessage
+  | StartGameMessage
+  | RestartGameMessage;

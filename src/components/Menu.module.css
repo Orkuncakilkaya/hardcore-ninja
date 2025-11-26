@@ -90,7 +90,7 @@
 }
 
 .mainMenuButton {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
@@ -169,7 +169,7 @@
 }
 
 .hostButton {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
@@ -198,7 +198,7 @@
 }
 
 .joinButton {
-  background-color: #2196F3;
+  background-color: #2196f3;
   color: white;
   border: none;
   border-radius: 5px;
@@ -315,7 +315,7 @@
 }
 
 .tooltip::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 100%;
   left: 50%;
@@ -416,7 +416,7 @@
 
 .saveButton {
   flex: 1;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;

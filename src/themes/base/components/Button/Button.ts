@@ -3,7 +3,7 @@ import classes from './Button.module.css';
 
 const Button: MantineThemeComponent = {
   defaultProps: {},
-  classNames: classes
+  classNames: classes,
 };
 
 export default Button;

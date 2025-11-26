@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
-  Modal, 
-  Slider, 
-  Text, 
-  Title, 
-  Stack, 
-  Paper,
-  Button,
-  Group
-} from '@mantine/core';
+import { Modal, Slider, Text, Title, Stack, Paper, Button, Group } from '@mantine/core';
 import { AudioManager } from '../client/AudioManager';
 import styles from './Settings.module.css';
 
@@ -19,7 +10,12 @@ interface SettingsProps {
   variant?: 'modal' | 'inline';
 }
 
-export default function Settings({ opened, onClose, audioManager, variant = 'modal' }: SettingsProps) {
+export default function Settings({
+  opened,
+  onClose,
+  audioManager,
+  variant = 'modal',
+}: SettingsProps) {
   const [bgmVolume, setBgmVolume] = useState(10);
   const [sfxVolume, setSfxVolume] = useState(50);
 
@@ -41,20 +37,24 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
 
   const settingsContent = (
     <Stack gap="md">
-      <Title order={2} ta="center">Settings</Title>
+      <Title order={2} ta="center">
+        Settings
+      </Title>
 
       <Paper p="md" withBorder>
         <Stack gap="md">
-          <Title order={3} size="h4">Audio</Title>
-          
+          <Title order={3} size="h4">
+            Audio
+          </Title>
+
           <Stack gap="xs">
             <Text>Music Volume</Text>
             <Group justify="space-between">
-              <Slider 
-                value={bgmVolume} 
-                onChange={setBgmVolume} 
-                min={0} 
-                max={100} 
+              <Slider
+                value={bgmVolume}
+                onChange={setBgmVolume}
+                min={0}
+                max={100}
                 label={null}
                 className={styles.slider}
               />
@@ -65,11 +65,11 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
           <Stack gap="xs">
             <Text>SFX Volume</Text>
             <Group justify="space-between">
-              <Slider 
-                value={sfxVolume} 
-                onChange={setSfxVolume} 
-                min={0} 
-                max={100} 
+              <Slider
+                value={sfxVolume}
+                onChange={setSfxVolume}
+                min={0}
+                max={100}
                 label={null}
                 className={styles.slider}
               />
@@ -80,20 +80,12 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
       </Paper>
 
       {variant === 'modal' && (
-        <Button 
-          variant="light" 
-          onClick={onClose} 
-          fullWidth
-        >
+        <Button variant="light" onClick={onClose} fullWidth>
           Close
         </Button>
       )}
       {variant === 'inline' && (
-        <Button 
-          variant="light" 
-          onClick={onClose} 
-          fullWidth
-        >
+        <Button variant="light" onClick={onClose} fullWidth>
           Back to Menu
         </Button>
       )}
@@ -104,11 +96,11 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
     if (!opened) {
       return null;
     }
-    
+
     return (
-      <Modal 
-        opened={opened} 
-        onClose={onClose} 
+      <Modal
+        opened={opened}
+        onClose={onClose}
         title="Settings"
         centered
         zIndex={10000}
@@ -127,4 +119,3 @@ export default function Settings({ opened, onClose, audioManager, variant = 'mod
 
   return settingsContent;
 }
-

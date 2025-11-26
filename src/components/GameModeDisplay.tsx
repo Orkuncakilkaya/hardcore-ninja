@@ -57,7 +57,9 @@ export default function GameModeDisplay({ gameState, visible }: GameModeDisplayP
     case GameMode.GAME_OVER:
       if (gameState.winnerId) {
         const winner = gameState.players.find(p => p.id === gameState.winnerId);
-        modeText = winner ? `Game Over - Player ${winner.username || winner.id.substring(0, 4)} Wins!` : 'Game Over';
+        modeText = winner
+          ? `Game Over - Player ${winner.username || winner.id.substring(0, 4)} Wins!`
+          : 'Game Over';
       } else {
         modeText = 'Game Over';
       }
@@ -72,4 +74,3 @@ export default function GameModeDisplay({ gameState, visible }: GameModeDisplayP
     </Paper>
   );
 }
-

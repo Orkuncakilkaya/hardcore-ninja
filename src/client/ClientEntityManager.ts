@@ -12,829 +12,926 @@ import { PlayerModel } from './models/PlayerModel';
 import { AudioManager } from './AudioManager';
 
 interface ClientPlayer {
-    mesh: THREE.Group;
-    targetPosition: THREE.Vector3;
-    targetRotation: THREE.Quaternion;
-    teleportCooldown: number;
-    homingMissileCooldown: number;
-    laserBeamCooldown: number;
-    invincibilityCooldown: number;
-    invincibilitySphere: THREE.Group | null;
-    isDead: boolean;
-    bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
-    bodyGroup: THREE.Group; // Group containing body and eyes (for rotation)
-    nameLabel: THREE.Sprite | null; // Reference to the player name label
-    leftLeg: THREE.Group; // Reference to left leg for animation
-    rightLeg: THREE.Group; // Reference to right leg for animation
-    katana: THREE.Group; // Reference to katana for animation
-    bandanaTails: THREE.Group; // Reference to bandana tails for animation
-    health: number; // Current health value
-    maxHealth: number; // Maximum health value
-    isTeleporting: boolean; // Whether player is currently teleporting
-    previousPosition: THREE.Vector3; // Previous position for trail
-    teleportTrail: THREE.Line | null; // Trail effect during teleport
-    teleportStartEffect: THREE.Group | null; // Start position effect
-    teleportEndEffect: THREE.Group | null; // End position effect
-    teleportTrailParticles: THREE.Points | null; // Particle trail
-    walkAnimationTime: number; // Time accumulator for walk animation
-    // Interpolation state
-    lastUpdateTime: number; // Timestamp of last state update
-    positionHistory: Array<{ position: THREE.Vector3; timestamp: number }>; // Position history for interpolation
-    velocity: THREE.Vector3; // Estimated velocity for prediction
+  mesh: THREE.Group;
+  targetPosition: THREE.Vector3;
+  targetRotation: THREE.Quaternion;
+  teleportCooldown: number;
+  homingMissileCooldown: number;
+  laserBeamCooldown: number;
+  invincibilityCooldown: number;
+  invincibilitySphere: THREE.Group | null;
+  isDead: boolean;
+  bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
+  bodyGroup: THREE.Group; // Group containing body and eyes (for rotation)
+  nameLabel: THREE.Sprite | null; // Reference to the player name label
+  leftLeg: THREE.Group; // Reference to left leg for animation
+  rightLeg: THREE.Group; // Reference to right leg for animation
+  katana: THREE.Group; // Reference to katana for animation
+  bandanaTails: THREE.Group; // Reference to bandana tails for animation
+  health: number; // Current health value
+  maxHealth: number; // Maximum health value
+  isTeleporting: boolean; // Whether player is currently teleporting
+  previousPosition: THREE.Vector3; // Previous position for trail
+  teleportTrail: THREE.Line | null; // Trail effect during teleport
+  teleportStartEffect: THREE.Group | null; // Start position effect
+  teleportEndEffect: THREE.Group | null; // End position effect
+  teleportTrailParticles: THREE.Points | null; // Particle trail
+  walkAnimationTime: number; // Time accumulator for walk animation
+  // Interpolation state
+  lastUpdateTime: number; // Timestamp of last state update
+  positionHistory: Array<{ position: THREE.Vector3; timestamp: number }>; // Position history for interpolation
+  velocity: THREE.Vector3; // Estimated velocity for prediction
 }
 
 export class ClientEntityManager {
-    public scene: THREE.Scene;
-    public players: Map<string, ClientPlayer> = new Map();
-    public boxes: Box[] = [];
-    public walls: Box[] = [];
-    public missiles: Map<string, THREE.Group> = new Map();
-    public laserBeams: Map<string, THREE.Group> = new Map();
-    private laserPreviewLine?: THREE.Line; // For Laser Beam preview
-    private localPlayerId: string | null = null;
-    private audioManager: AudioManager | null = null;
+  public scene: THREE.Scene;
+  public players: Map<string, ClientPlayer> = new Map();
+  public boxes: Box[] = [];
+  public walls: Box[] = [];
+  public missiles: Map<string, THREE.Group> = new Map();
+  public laserBeams: Map<string, THREE.Group> = new Map();
+  private laserPreviewLine?: THREE.Line; // For Laser Beam preview
+  private localPlayerId: string | null = null;
+  private audioManager: AudioManager | null = null;
 
-    // Skill effect managers
-    private teleportEffect: TeleportEffect;
-    private missileEffect: MissileEffect;
-    private laserBeamEffect: LaserBeamEffect;
-    private invincibilityEffect: InvincibilityEffect;
-    private clickIndicatorEffect: ClickIndicatorEffect;
-    private damageAreaEffect: DamageAreaEffect;
+  // Skill effect managers
+  private teleportEffect: TeleportEffect;
+  private missileEffect: MissileEffect;
+  private laserBeamEffect: LaserBeamEffect;
+  private invincibilityEffect: InvincibilityEffect;
+  private clickIndicatorEffect: ClickIndicatorEffect;
+  private damageAreaEffect: DamageAreaEffect;
 
-    constructor(scene: THREE.Scene, audioManager?: AudioManager) {
-        this.scene = scene;
-        this.audioManager = audioManager || null;
-        this.teleportEffect = new TeleportEffect(scene);
-        this.missileEffect = new MissileEffect(scene);
-        this.laserBeamEffect = new LaserBeamEffect(scene);
-        this.invincibilityEffect = new InvincibilityEffect(scene);
-        this.clickIndicatorEffect = new ClickIndicatorEffect(scene);
-        this.damageAreaEffect = new DamageAreaEffect(scene);
-        this.createSkillRadii();
+  constructor(scene: THREE.Scene, audioManager?: AudioManager) {
+    this.scene = scene;
+    this.audioManager = audioManager || null;
+    this.teleportEffect = new TeleportEffect(scene);
+    this.missileEffect = new MissileEffect(scene);
+    this.laserBeamEffect = new LaserBeamEffect(scene);
+    this.invincibilityEffect = new InvincibilityEffect(scene);
+    this.clickIndicatorEffect = new ClickIndicatorEffect(scene);
+    this.damageAreaEffect = new DamageAreaEffect(scene);
+    this.createSkillRadii();
+  }
+
+  private createSkillRadii() {
+    // Skill radii are now managed by their respective effect classes
+  }
+
+  public setSkillTargeting(skillType: SkillType | null, isTargeting: boolean) {
+    this.teleportEffect.setRadiusVisible(false);
+    this.missileEffect.setTargetingVisible(false);
+    if (this.laserPreviewLine) this.laserPreviewLine.visible = false;
+
+    if (!isTargeting || !skillType) return;
+
+    if (skillType === SkillType.TELEPORT) {
+      this.teleportEffect.setRadiusVisible(true);
+    } else if (skillType === SkillType.HOMING_MISSILE) {
+      this.missileEffect.setTargetingVisible(true);
+    } else if (skillType === SkillType.LASER_BEAM) {
+      if (!this.laserPreviewLine) {
+        this.createLaserPreviewLine();
+      }
+      if (this.laserPreviewLine) this.laserPreviewLine.visible = true;
     }
+  }
 
-    private createSkillRadii() {
-        // Skill radii are now managed by their respective effect classes
+  public updateMouseRadiusPosition(position: THREE.Vector3) {
+    // Get player position for distance check
+    const myPlayer = this.players.get(this.localPlayerId || '');
+    if (myPlayer) {
+      this.missileEffect.updateMouseRadiusPosition(position, myPlayer.mesh.position);
     }
+  }
 
-    public setSkillTargeting(skillType: SkillType | null, isTargeting: boolean) {
-        this.teleportEffect.setRadiusVisible(false);
-        this.missileEffect.setTargetingVisible(false);
-        if (this.laserPreviewLine) this.laserPreviewLine.visible = false;
+  public async loadMap(config: MapConfig, onProgress?: (progress: number) => void): Promise<void> {
+    // Load textures first and wait for them
+    await this.createGroundPlane(config.playableArea.size, onProgress);
 
-        if (!isTargeting || !skillType) return;
+    // Create walls and boxes
+    config.walls.forEach(wall => {
+      const box = new Box(
+        wall.id,
+        new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z),
+        wall.dimensions.width,
+        wall.dimensions.height,
+        wall.dimensions.depth,
+        wall.color
+      );
+      this.walls.push(box);
+      this.scene.add(box.mesh);
+    });
 
-        if (skillType === SkillType.TELEPORT) {
-            this.teleportEffect.setRadiusVisible(true);
-        } else if (skillType === SkillType.HOMING_MISSILE) {
-            this.missileEffect.setTargetingVisible(true);
-        } else if (skillType === SkillType.LASER_BEAM) {
-            if (!this.laserPreviewLine) {
-                this.createLaserPreviewLine();
-            }
-            if (this.laserPreviewLine) this.laserPreviewLine.visible = true;
+    config.boxes.forEach(box => {
+      const b = new Box(
+        box.id,
+        new THREE.Vector3(box.position.x, box.position.y, box.position.z),
+        box.dimensions.width,
+        box.dimensions.height,
+        box.dimensions.depth,
+        box.color
+      );
+      this.boxes.push(b);
+      this.scene.add(b.mesh);
+    });
+  }
+
+  private createGroundPlane(size: number, onProgress?: (progress: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const textureLoader = new THREE.TextureLoader();
+      let loadedCount = 0;
+      const totalTextures = 4;
+      const textures: THREE.Texture[] = [];
+
+      const updateProgress = () => {
+        loadedCount++;
+        const progress = loadedCount / totalTextures;
+        if (onProgress) {
+          onProgress(progress);
         }
-    }
+        if (loadedCount === totalTextures) {
+          const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
 
-    public updateMouseRadiusPosition(position: THREE.Vector3) {
-        // Get player position for distance check
-        const myPlayer = this.players.get(this.localPlayerId || '');
-        if (myPlayer) {
-            this.missileEffect.updateMouseRadiusPosition(position, myPlayer.mesh.position);
+          // Configure texture wrapping and repeating
+          const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
+          [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(repeat, repeat);
+          });
+
+          // Create ground plane geometry
+          const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
+
+          // Create material with PBR textures
+          const groundMaterial = new THREE.MeshStandardMaterial({
+            map: colorTexture,
+            normalMap: normalTexture,
+            roughnessMap: roughnessTexture,
+            displacementMap: displacementTexture,
+            displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
+            roughness: 0.8,
+            metalness: 0.1,
+          });
+
+          // Create mesh
+          const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+          groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+          groundMesh.position.y = 0;
+          groundMesh.receiveShadow = true; // Enable shadow receiving
+
+          this.scene.add(groundMesh);
+          resolve();
         }
-    }
+      };
 
-    public async loadMap(config: MapConfig, onProgress?: (progress: number) => void): Promise<void> {
-        // Load textures first and wait for them
-        await this.createGroundPlane(config.playableArea.size, onProgress);
-
-        // Create walls and boxes
-        config.walls.forEach(wall => {
-            const box = new Box(wall.id, new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z), wall.dimensions.width, wall.dimensions.height, wall.dimensions.depth, wall.color);
-            this.walls.push(box);
-            this.scene.add(box.mesh);
-        });
-
-        config.boxes.forEach(box => {
-            const b = new Box(box.id, new THREE.Vector3(box.position.x, box.position.y, box.position.z), box.dimensions.width, box.dimensions.height, box.dimensions.depth, box.color);
-            this.boxes.push(b);
-            this.scene.add(b.mesh);
-        });
-    }
-
-    private createGroundPlane(size: number, onProgress?: (progress: number) => void): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const textureLoader = new THREE.TextureLoader();
-            let loadedCount = 0;
-            const totalTextures = 4;
-            const textures: THREE.Texture[] = [];
-
-            const updateProgress = () => {
-                loadedCount++;
-                const progress = loadedCount / totalTextures;
-                if (onProgress) {
-                    onProgress(progress);
-                }
-                if (loadedCount === totalTextures) {
-                    const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
-
-                    // Configure texture wrapping and repeating
-                    const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
-                    [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
-                        texture.wrapS = THREE.RepeatWrapping;
-                        texture.wrapT = THREE.RepeatWrapping;
-                        texture.repeat.set(repeat, repeat);
-                    });
-
-                    // Create ground plane geometry
-                    const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
-
-                    // Create material with PBR textures
-                    const groundMaterial = new THREE.MeshStandardMaterial({
-                        map: colorTexture,
-                        normalMap: normalTexture,
-                        roughnessMap: roughnessTexture,
-                        displacementMap: displacementTexture,
-                        displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
-                        roughness: 0.8,
-                        metalness: 0.1
-                    });
-
-                    // Create mesh
-                    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-                    groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-                    groundMesh.position.y = 0;
-                    groundMesh.receiveShadow = true; // Enable shadow receiving
-
-                    this.scene.add(groundMesh);
-                    resolve();
-                }
-            };
-
-            // Load texture maps with callbacks
-            const colorTexture = textureLoader.load(
-                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg',
-                () => {
-                    textures[0] = colorTexture;
-                    updateProgress();
-                },
-                undefined,
-                (error) => {
-                    console.error('Error loading color texture:', error);
-                    reject(error);
-                }
-            );
-
-            const normalTexture = textureLoader.load(
-                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
-                () => {
-                    textures[1] = normalTexture;
-                    updateProgress();
-                },
-                undefined,
-                (error) => {
-                    console.error('Error loading normal texture:', error);
-                    reject(error);
-                }
-            );
-
-            const roughnessTexture = textureLoader.load(
-                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
-                () => {
-                    textures[2] = roughnessTexture;
-                    updateProgress();
-                },
-                undefined,
-                (error) => {
-                    console.error('Error loading roughness texture:', error);
-                    reject(error);
-                }
-            );
-
-            const displacementTexture = textureLoader.load(
-                '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
-                () => {
-                    textures[3] = displacementTexture;
-                    updateProgress();
-                },
-                undefined,
-                (error) => {
-                    console.error('Error loading displacement texture:', error);
-                    reject(error);
-                }
-            );
-        });
-    }
-
-    public updateState(gameState: GameState, myPeerId: string) {
-        this.localPlayerId = myPeerId;
-        const activeIds = new Set<string>();
-
-        gameState.players.forEach(playerState => {
-            activeIds.add(playerState.id);
-            let clientPlayer = this.players.get(playerState.id);
-
-            if (!clientPlayer) {
-                const { group, body, bodyGroup, nameLabel, leftLeg, rightLeg, katana, bandanaTails } = this.createPlayerMesh(playerState.id === myPeerId, playerState.color);
-                group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
-                this.scene.add(group);
-                const initialPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
-                clientPlayer = {
-                    mesh: group,
-                    bodyMesh: body,
-                    bodyGroup: bodyGroup,
-                    nameLabel: nameLabel,
-                    leftLeg: leftLeg,
-                    rightLeg: rightLeg,
-                    katana: katana,
-                    bandanaTails: bandanaTails,
-                    health: playerState.health,
-                    maxHealth: playerState.maxHealth,
-                    targetPosition: initialPos.clone(),
-                    targetRotation: new THREE.Quaternion(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w),
-                    teleportCooldown: playerState.teleportCooldown,
-                    homingMissileCooldown: playerState.homingMissileCooldown,
-                    laserBeamCooldown: playerState.laserBeamCooldown,
-                    invincibilityCooldown: playerState.invincibilityCooldown,
-                    invincibilitySphere: null,
-                    isDead: playerState.isDead,
-                    isTeleporting: playerState.isTeleporting || false,
-                    previousPosition: initialPos.clone(),
-                    teleportTrail: null,
-                    teleportStartEffect: null,
-                    teleportEndEffect: null,
-                    teleportTrailParticles: null,
-                    walkAnimationTime: 0,
-                    lastUpdateTime: gameState.timestamp || Date.now(),
-                    positionHistory: [{ position: initialPos.clone(), timestamp: gameState.timestamp || Date.now() }],
-                    velocity: new THREE.Vector3()
-                };
-
-                // Set player name if available
-                if (playerState.username) {
-                    this.updatePlayerNameLabel(nameLabel, playerState.username);
-                } else if (playerState.id === myPeerId) {
-                    this.updatePlayerNameLabel(nameLabel, "You");
-                } else {
-                    this.updatePlayerNameLabel(nameLabel, "Player " + playerState.id.substring(0, 4));
-                }
-
-                this.players.set(playerState.id, clientPlayer);
-            } else {
-                // Calculate velocity for prediction
-                const newPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
-                const timeDelta = (gameState.timestamp || Date.now()) - clientPlayer.lastUpdateTime;
-
-                if (timeDelta > 0 && !clientPlayer.isTeleporting) {
-                    const posDelta = new THREE.Vector3().subVectors(newPos, clientPlayer.targetPosition);
-                    clientPlayer.velocity.copy(posDelta).divideScalar(timeDelta / 1000); // Convert to units per second
-                }
-
-                // Add to position history for interpolation (keep last 3 positions)
-                const timestamp = gameState.timestamp || Date.now();
-                clientPlayer.positionHistory.push({
-                    position: newPos.clone(),
-                    timestamp: timestamp
-                });
-
-                // Keep only last 3 positions
-                if (clientPlayer.positionHistory.length > 3) {
-                    clientPlayer.positionHistory.shift();
-                }
-
-                // Update targets for interpolation
-                clientPlayer.targetPosition.copy(newPos);
-                clientPlayer.targetRotation.set(playerState.rotation.x, playerState.rotation.y, playerState.rotation.z, playerState.rotation.w);
-                clientPlayer.lastUpdateTime = timestamp;
-                clientPlayer.teleportCooldown = playerState.teleportCooldown;
-                clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
-                clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
-                clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
-
-                // Handle teleport effects
-                const wasTeleporting = clientPlayer.isTeleporting;
-                clientPlayer.isTeleporting = playerState.isTeleporting || false;
-
-                if (!wasTeleporting && clientPlayer.isTeleporting) {
-                    // Teleport just started - save start position and create effects
-                    clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
-                    clientPlayer.teleportStartEffect = this.teleportEffect.createStartEffect(clientPlayer.mesh.position);
-                    const trailData = this.teleportEffect.createTrail(clientPlayer.previousPosition, clientPlayer.targetPosition);
-                    clientPlayer.teleportTrail = trailData.trail;
-                    clientPlayer.teleportTrailParticles = trailData.trailParticles;
-
-                    // Play teleport sound at player position (only for other players)
-                    if (this.audioManager && playerState.id !== this.localPlayerId) {
-                        this.audioManager.playSkillSoundAt(SkillType.TELEPORT, clientPlayer.mesh.position);
-                    }
-                } else if (wasTeleporting && !clientPlayer.isTeleporting) {
-                    // Teleport just ended - create end effect and clean up trail
-                    clientPlayer.teleportEndEffect = this.teleportEffect.createEndEffect(clientPlayer.targetPosition);
-                    this.teleportEffect.cleanupTrail(clientPlayer.teleportTrail, clientPlayer.teleportTrailParticles);
-                    clientPlayer.teleportTrail = null;
-                    clientPlayer.teleportTrailParticles = null;
-                } else if (clientPlayer.isTeleporting && clientPlayer.teleportTrail && clientPlayer.teleportTrailParticles) {
-                    // Still teleporting - update trail
-                    this.teleportEffect.updateTrail(
-                        clientPlayer.teleportTrail,
-                        clientPlayer.teleportTrailParticles,
-                        clientPlayer.previousPosition,
-                        clientPlayer.mesh.position
-                    );
-                }
-
-                // Update previous position for next frame
-                if (!clientPlayer.isTeleporting) {
-                    clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
-                }
-
-                // Update health
-                if (clientPlayer.health !== playerState.health || clientPlayer.maxHealth !== playerState.maxHealth) {
-                    clientPlayer.health = playerState.health;
-                    clientPlayer.maxHealth = playerState.maxHealth;
-                }
-
-                // Update player name if changed
-                if (playerState.username && clientPlayer.nameLabel) {
-                    // If player is local, always show "You"
-                    if (playerState.id === myPeerId) {
-                        this.updatePlayerNameLabel(clientPlayer.nameLabel, "You");
-                    } else {
-                        this.updatePlayerNameLabel(clientPlayer.nameLabel, playerState.username);
-                    }
-                }
-
-                // Update invincibility sphere visibility
-                if (playerState.isInvulnerable) {
-                    if (!clientPlayer.invincibilitySphere) {
-                        clientPlayer.invincibilitySphere = this.invincibilityEffect.createShield();
-                        clientPlayer.mesh.add(clientPlayer.invincibilitySphere);
-
-                        // Play invincibility sound at player position (only for other players)
-                        if (this.audioManager && playerState.id !== this.localPlayerId) {
-                            this.audioManager.playSkillSoundAt(SkillType.INVINCIBILITY, clientPlayer.mesh.position);
-                        }
-                    }
-                } else {
-                    if (clientPlayer.invincibilitySphere) {
-                        clientPlayer.mesh.remove(clientPlayer.invincibilitySphere);
-                        clientPlayer.invincibilitySphere = null;
-                    }
-                }
-
-                // Handle dead state changes
-                if (playerState.isDead !== clientPlayer.isDead) {
-                    clientPlayer.isDead = playerState.isDead;
-
-                    if (playerState.isDead) {
-                        // Player is dead - turn gray and rotate to lay down
-                        (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(0x808080); // Gray color
-
-                        // Rotate player to lay down (90 degrees around X axis)
-                        clientPlayer.mesh.rotation.x = Math.PI / 2;
-                    } else {
-                        // Player is alive again - restore original color based on whether it's local or not
-                        const isLocal = playerState.id === myPeerId;
-                        (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(isLocal ? 0x00ff00 : 0xff0000);
-
-                        // Reset rotation
-                        clientPlayer.mesh.rotation.x = 0;
-                    }
-                }
-            }
-
-            // Update skill radius positions if targeting
-            if (playerState.id === myPeerId && clientPlayer) {
-                this.teleportEffect.updateRadiusPosition(clientPlayer.mesh.position);
-                this.missileEffect.updatePlayerRadiusPosition(clientPlayer.mesh.position);
-            }
-        });
-
-        // Update Missiles
-        const activeMissileIds = new Set<string>();
-        if (gameState.missiles) {
-            gameState.missiles.forEach(missileState => {
-                activeMissileIds.add(missileState.id);
-                let missileMesh = this.missiles.get(missileState.id);
-                if (!missileMesh) {
-                    missileMesh = this.missileEffect.createMissile();
-                    this.scene.add(missileMesh);
-                    this.missiles.set(missileState.id, missileMesh);
-
-                    // Play missile sound at missile position (only for missiles from other players)
-                    if (this.audioManager && missileState.ownerId !== this.localPlayerId) {
-                        this.audioManager.playSkillSoundAt(SkillType.HOMING_MISSILE, missileMesh.position);
-                    }
-                }
-
-                missileMesh.position.set(missileState.position.x, missileState.position.y, missileState.position.z);
-                missileMesh.quaternion.set(missileState.rotation.x, missileState.rotation.y, missileState.rotation.z, missileState.rotation.w);
-            });
+      // Load texture maps with callbacks
+      const colorTexture = textureLoader.load(
+        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg',
+        () => {
+          textures[0] = colorTexture;
+          updateProgress();
+        },
+        undefined,
+        error => {
+          console.error('Error loading color texture:', error);
+          reject(error);
         }
+      );
 
-        // Remove destroyed missiles
-        for (const [id, mesh] of this.missiles) {
-            if (!activeMissileIds.has(id)) {
-                this.scene.remove(mesh);
-                this.missiles.delete(id);
-            }
+      const normalTexture = textureLoader.load(
+        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
+        () => {
+          textures[1] = normalTexture;
+          updateProgress();
+        },
+        undefined,
+        error => {
+          console.error('Error loading normal texture:', error);
+          reject(error);
         }
+      );
 
-        // Update Laser Beams
-        const activeLaserIds = new Set<string>();
-        if (gameState.laserBeams) {
-            gameState.laserBeams.forEach(laserState => {
-                activeLaserIds.add(laserState.id);
-                let laserGroup = this.laserBeams.get(laserState.id);
-                if (!laserGroup) {
-                    const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-                    const startPos = new THREE.Vector3(laserState.startPosition.x, laserState.startPosition.y, laserState.startPosition.z);
-                    const endPos = new THREE.Vector3(laserState.endPosition.x, laserState.endPosition.y, laserState.endPosition.z);
-                    laserGroup = this.laserBeamEffect.createLaserBeam(startPos, endPos, config.thickness);
-                    this.scene.add(laserGroup);
-                    this.laserBeams.set(laserState.id, laserGroup);
-
-                    // Play laser beam sound at start position (only for laser beams from other players)
-                    if (this.audioManager && laserState.ownerId !== this.localPlayerId) {
-                        this.audioManager.playSkillSoundAt(SkillType.LASER_BEAM, startPos);
-                    }
-                }
-            });
+      const roughnessTexture = textureLoader.load(
+        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
+        () => {
+          textures[2] = roughnessTexture;
+          updateProgress();
+        },
+        undefined,
+        error => {
+          console.error('Error loading roughness texture:', error);
+          reject(error);
         }
+      );
 
-        // Remove expired laser beams
-        for (const [id, mesh] of this.laserBeams) {
-            if (!activeLaserIds.has(id)) {
-                this.scene.remove(mesh);
-                this.laserBeams.delete(id);
-            }
+      const displacementTexture = textureLoader.load(
+        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
+        () => {
+          textures[3] = displacementTexture;
+          updateProgress();
+        },
+        undefined,
+        error => {
+          console.error('Error loading displacement texture:', error);
+          reject(error);
         }
+      );
+    });
+  }
 
-        // Remove disconnected players
-        for (const [id, player] of this.players) {
-            if (!activeIds.has(id)) {
-                this.scene.remove(player.mesh);
-                this.damageAreaEffect.removeDamageArea(id);
-                this.players.delete(id);
-            }
-        }
-    }
+  public updateState(gameState: GameState, myPeerId: string) {
+    this.localPlayerId = myPeerId;
+    const activeIds = new Set<string>();
 
-    public update(delta: number) {
-        // Get camera for billboard effect
-        const camera = this.scene.getObjectByProperty('type', 'PerspectiveCamera') as THREE.Camera;
-        const now = Date.now();
+    gameState.players.forEach(playerState => {
+      activeIds.add(playerState.id);
+      let clientPlayer = this.players.get(playerState.id);
 
-        // Interpolate
-        this.players.forEach((player, playerId) => {
-            // Skip position interpolation for dead players (they should be frozen in place)
-            if (!player.isDead) {
-                const previousPosition = player.mesh.position.clone();
-
-                // Check if player should be moving (velocity or distance to target)
-                const distanceToTarget = player.mesh.position.distanceTo(player.targetPosition);
-                const hasVelocity = player.velocity.length() > 0.01;
-                // Increased threshold to 0.05 to stop animations sooner when close to target
-                const isMoving = distanceToTarget > 0.05 || hasVelocity;
-
-                // If not moving and no velocity, snap to position immediately
-                if (!isMoving && !player.isTeleporting) {
-                    player.mesh.position.copy(player.targetPosition);
-                } else {
-                    // Improved interpolation with lag compensation
-                    const timeSinceUpdate = now - player.lastUpdateTime;
-                    const interpolationDelay = 100; // 100ms delay for smooth interpolation
-                    const interpolationTime = Math.max(0, timeSinceUpdate - interpolationDelay);
-
-                    // Use velocity-based prediction if we have velocity data
-                    const targetPos = player.targetPosition.clone();
-                    if (hasVelocity && !player.isTeleporting) {
-                        // Predict position based on velocity
-                        const prediction = player.velocity.clone().multiplyScalar(interpolationTime / 1000);
-                        targetPos.add(prediction);
-                    }
-
-                    // Smooth interpolation
-                    const distance = player.mesh.position.distanceTo(targetPos);
-
-                    // Adaptive interpolation speed based on distance
-                    // Increased min speed to 10 to catch up faster
-                    const interpolationSpeed = Math.min(25, Math.max(10, distance * 10));
-                    player.mesh.position.lerp(targetPos, interpolationSpeed * delta);
-                }
-
-                // Smooth rotation interpolation
-                player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
-
-                // Rotate body group to face movement direction
-                if (player.bodyGroup && isMoving) {
-                    const direction = new THREE.Vector3()
-                        .subVectors(player.targetPosition, previousPosition)
-                        .normalize();
-
-                    if (direction.length() > 0.01) {
-                        // Calculate rotation angle around Y axis
-                        const angle = Math.atan2(direction.x, direction.z);
-                        // Smoothly rotate body group to face movement direction
-                        player.bodyGroup.rotation.y = THREE.MathUtils.lerp(
-                            player.bodyGroup.rotation.y,
-                            angle,
-                            15 * delta
-                        );
-                    }
-                }
-
-                // Animate legs when walking
-                if (isMoving && !player.isDead) {
-                    player.walkAnimationTime += delta * 10; // Faster walking speed
-
-                    // Leg swing (rotation around X axis)
-                    const swingAmplitude = 0.6;
-                    const leftLegAngle = Math.sin(player.walkAnimationTime) * swingAmplitude;
-                    const rightLegAngle = Math.sin(player.walkAnimationTime + Math.PI) * swingAmplitude;
-
-                    if (player.leftLeg) {
-                        player.leftLeg.rotation.x = leftLegAngle;
-                    }
-
-                    if (player.rightLeg) {
-                        player.rightLeg.rotation.x = rightLegAngle;
-                    }
-
-                    // Body bobbing (up and down)
-                    const bobAmplitude = 0.05;
-                    // Cos(2t) is 1 at t=0 (legs together) and -1 at t=PI/2 (legs spread)
-                    // We want it to oscillate between 0 and -2*amp (or similar), or just offset around 1.0
-                    // Let's make it bounce up from 1.0-amp to 1.0+amp
-                    const bobOffset = Math.cos(player.walkAnimationTime * 2) * bobAmplitude;
-                    
-                    // Base Y is 1.0, add bobbing
-                    player.bodyMesh.position.y = 1.0 + bobOffset;
-
-                    // Animate Katana (sway while running)
-                    if (player.katana) {
-                        const katanaSway = Math.sin(player.walkAnimationTime * 0.5) * 0.2;
-                        player.katana.rotation.z = -Math.PI / 8 + katanaSway;
-                        player.katana.rotation.x = Math.PI / 4 + Math.abs(katanaSway) * 0.5;
-                    }
-
-                    // Animate Bandana (sway in wind/movement)
-                    if (player.bandanaTails) {
-                        const windSway = Math.sin(player.walkAnimationTime * 1.5) * 0.3;
-                        const runLift = 0.4; // Lift up when running
-                        player.bandanaTails.rotation.x = runLift + Math.abs(windSway) * 0.2;
-                        player.bandanaTails.rotation.y = windSway;
-                    }
-                } else {
-                    // Reset animation time to ensure consistent stop state
-                    player.walkAnimationTime = 0;
-
-                    // Reset legs to standing position
-                    if (player.leftLeg) {
-                        player.leftLeg.rotation.x = 0;
-                    }
-                    if (player.rightLeg) {
-                        player.rightLeg.rotation.x = 0;
-                    }
-                    
-                    // Reset body height
-                    player.bodyMesh.position.y = 1.0;
-
-                    // Reset Katana
-                    if (player.katana) {
-                        player.katana.rotation.z = -Math.PI / 8;
-                        player.katana.rotation.x = Math.PI / 4;
-                    }
-
-                    // Reset Bandana
-                    if (player.bandanaTails) {
-                        player.bandanaTails.rotation.x = 0;
-                        player.bandanaTails.rotation.y = 0;
-                    }
-                }
-
-                // Update teleport trail if teleporting
-                if (player.isTeleporting && player.teleportTrail && player.teleportTrailParticles) {
-                    this.teleportEffect.updateTrail(
-                        player.teleportTrail,
-                        player.teleportTrailParticles,
-                        player.previousPosition,
-                        player.mesh.position
-                    );
-                }
-
-                // Update teleport particle effects
-                this.teleportEffect.updateEffectParticles(player.teleportStartEffect, delta);
-                this.teleportEffect.updateEffectParticles(player.teleportEndEffect, delta);
-                this.teleportEffect.updateTrailParticles(player.teleportTrailParticles, delta);
-
-                // Update player transparency during teleport
-                this.teleportEffect.updatePlayerTransparency(player.bodyMesh, player.isTeleporting);
-            }
-
-            // Make name label face the camera (billboard effect)
-            if (player.nameLabel && camera) {
-                player.nameLabel.lookAt(camera.position);
-            }
-
-            // Update damage area indicator - use bodyGroup rotation to match player facing direction
-            // Only show damage area for alive players
-            if (player.bodyGroup && !player.isDead) {
-                this.damageAreaEffect.updateDamageArea(
-                    playerId,
-                    player.mesh.position,
-                    player.bodyGroup.rotation.y
-                );
-            } else {
-                // Remove damage area for dead players
-                this.damageAreaEffect.removeDamageArea(playerId);
-            }
-        });
-
-        // Update laser beam animations
-        this.laserBeams.forEach((laserGroup) => {
-            this.laserBeamEffect.updateAnimation(laserGroup, delta);
-        });
-
-        // Update missile animations
-        this.missiles.forEach((missileGroup) => {
-            this.missileEffect.updateAnimation(missileGroup, delta);
-        });
-
-        // Update invincibility shield animations
-        this.players.forEach((player) => {
-            if (player.invincibilitySphere) {
-                this.invincibilityEffect.updateAnimation(player.invincibilitySphere, delta);
-            }
-        });
-    }
-
-    public getPlayer(id: string): ClientPlayer | undefined {
-        return this.players.get(id);
-    }
-
-    private createPlayerMesh(isLocal: boolean, color?: number): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftLeg: THREE.Group, rightLeg: THREE.Group, katana: THREE.Group, bandanaTails: THREE.Group } {
-        return PlayerModel.createPlayerMesh(
-            isLocal,
-            (name) => this.createPlayerNameLabel(name),
-            color
+      if (!clientPlayer) {
+        const { group, body, bodyGroup, nameLabel, leftLeg, rightLeg, katana, bandanaTails } =
+          this.createPlayerMesh(playerState.id === myPeerId, playerState.color);
+        group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
+        this.scene.add(group);
+        const initialPos = new THREE.Vector3(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
         );
-    }
+        clientPlayer = {
+          mesh: group,
+          bodyMesh: body,
+          bodyGroup: bodyGroup,
+          nameLabel: nameLabel,
+          leftLeg: leftLeg,
+          rightLeg: rightLeg,
+          katana: katana,
+          bandanaTails: bandanaTails,
+          health: playerState.health,
+          maxHealth: playerState.maxHealth,
+          targetPosition: initialPos.clone(),
+          targetRotation: new THREE.Quaternion(
+            playerState.rotation.x,
+            playerState.rotation.y,
+            playerState.rotation.z,
+            playerState.rotation.w
+          ),
+          teleportCooldown: playerState.teleportCooldown,
+          homingMissileCooldown: playerState.homingMissileCooldown,
+          laserBeamCooldown: playerState.laserBeamCooldown,
+          invincibilityCooldown: playerState.invincibilityCooldown,
+          invincibilitySphere: null,
+          isDead: playerState.isDead,
+          isTeleporting: playerState.isTeleporting || false,
+          previousPosition: initialPos.clone(),
+          teleportTrail: null,
+          teleportStartEffect: null,
+          teleportEndEffect: null,
+          teleportTrailParticles: null,
+          walkAnimationTime: 0,
+          lastUpdateTime: gameState.timestamp || Date.now(),
+          positionHistory: [
+            { position: initialPos.clone(), timestamp: gameState.timestamp || Date.now() },
+          ],
+          velocity: new THREE.Vector3(),
+        };
 
-    private createPlayerNameLabel(name: string): THREE.Sprite {
-        // Create a canvas to draw the text
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-
-        // Set canvas size
-        canvas.width = 256;
-        canvas.height = 64;
-
-        if (context) {
-            // Clear canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Set text style
-            context.font = 'bold 32px Arial';
-            context.textAlign = 'center';
-            context.textBaseline = 'middle';
-
-            // Add background with rounded corners
-            context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
-
-            // Draw text
-            context.fillStyle = 'white';
-            context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
+        // Set player name if available
+        if (playerState.username) {
+          this.updatePlayerNameLabel(nameLabel, playerState.username);
+        } else if (playerState.id === myPeerId) {
+          this.updatePlayerNameLabel(nameLabel, 'You');
+        } else {
+          this.updatePlayerNameLabel(nameLabel, 'Player ' + playerState.id.substring(0, 4));
         }
 
-        // Create texture from canvas
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
+        this.players.set(playerState.id, clientPlayer);
+      } else {
+        // Calculate velocity for prediction
+        const newPos = new THREE.Vector3(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        const timeDelta = (gameState.timestamp || Date.now()) - clientPlayer.lastUpdateTime;
 
-        // Create sprite material
-        const material = new THREE.SpriteMaterial({ 
-            map: texture,
-            transparent: true
+        if (timeDelta > 0 && !clientPlayer.isTeleporting) {
+          const posDelta = new THREE.Vector3().subVectors(newPos, clientPlayer.targetPosition);
+          clientPlayer.velocity.copy(posDelta).divideScalar(timeDelta / 1000); // Convert to units per second
+        }
+
+        // Add to position history for interpolation (keep last 3 positions)
+        const timestamp = gameState.timestamp || Date.now();
+        clientPlayer.positionHistory.push({
+          position: newPos.clone(),
+          timestamp: timestamp,
         });
 
-        // Create sprite
-        const sprite = new THREE.Sprite(material);
-
-        // Scale sprite
-        sprite.scale.set(3, 0.75, 1);
-
-        // Position sprite above player
-        sprite.position.y = 3.5; // Position above player's head
-
-        return sprite;
-    }
-
-    // Helper method to draw rounded rectangles on canvas
-    private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number, fill: boolean, stroke: boolean) {
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + width - radius, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-        ctx.lineTo(x + width, y + height - radius);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-        ctx.lineTo(x + radius, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-        if (fill) {
-            ctx.fill();
-        }
-        if (stroke) {
-            ctx.stroke();
-        }
-    }
-
-
-    private updatePlayerNameLabel(nameLabel: THREE.Sprite, name: string) {
-        if (!nameLabel) return;
-
-        // Get the sprite material
-        const material = nameLabel.material as THREE.SpriteMaterial;
-        if (!material || !material.map) return;
-
-        // Get the canvas from the texture
-        const texture = material.map;
-        const canvas = texture.image as HTMLCanvasElement;
-        const context = canvas.getContext('2d');
-
-        if (context) {
-            // Clear canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Set text style
-            context.font = 'bold 32px Arial';
-            context.textAlign = 'center';
-            context.textBaseline = 'middle';
-
-            // Add background with rounded corners
-            context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
-
-            // Draw text
-            context.fillStyle = 'white';
-            context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
-
-            // Update texture
-            texture.needsUpdate = true;
-        }
-    }
-
-
-
-    private createLaserPreviewLine() {
-        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-        const geometry = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, config.range)
-        ]);
-        const material = new THREE.LineBasicMaterial({ 
-            color: 0xff0000, 
-            linewidth: 3,
-            transparent: true,
-            opacity: 0.8
-        });
-        this.laserPreviewLine = new THREE.Line(geometry, material);
-        this.laserPreviewLine.visible = false;
-        this.scene.add(this.laserPreviewLine);
-    }
-
-    public updateLaserPreview(playerPos: THREE.Vector3, direction: THREE.Vector3) {
-        // Create the laser preview line if it doesn't exist
-        if (!this.laserPreviewLine) {
-            this.createLaserPreviewLine();
+        // Keep only last 3 positions
+        if (clientPlayer.positionHistory.length > 3) {
+          clientPlayer.positionHistory.shift();
         }
 
-        // If the laser preview line is not visible, make it visible
-        if (this.laserPreviewLine && !this.laserPreviewLine.visible) {
-            this.laserPreviewLine.visible = true;
+        // Update targets for interpolation
+        clientPlayer.targetPosition.copy(newPos);
+        clientPlayer.targetRotation.set(
+          playerState.rotation.x,
+          playerState.rotation.y,
+          playerState.rotation.z,
+          playerState.rotation.w
+        );
+        clientPlayer.lastUpdateTime = timestamp;
+        clientPlayer.teleportCooldown = playerState.teleportCooldown;
+        clientPlayer.homingMissileCooldown = playerState.homingMissileCooldown;
+        clientPlayer.laserBeamCooldown = playerState.laserBeamCooldown;
+        clientPlayer.invincibilityCooldown = playerState.invincibilityCooldown;
+
+        // Handle teleport effects
+        const wasTeleporting = clientPlayer.isTeleporting;
+        clientPlayer.isTeleporting = playerState.isTeleporting || false;
+
+        if (!wasTeleporting && clientPlayer.isTeleporting) {
+          // Teleport just started - save start position and create effects
+          clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
+          clientPlayer.teleportStartEffect = this.teleportEffect.createStartEffect(
+            clientPlayer.mesh.position
+          );
+          const trailData = this.teleportEffect.createTrail(
+            clientPlayer.previousPosition,
+            clientPlayer.targetPosition
+          );
+          clientPlayer.teleportTrail = trailData.trail;
+          clientPlayer.teleportTrailParticles = trailData.trailParticles;
+
+          // Play teleport sound at player position (only for other players)
+          if (this.audioManager && playerState.id !== this.localPlayerId) {
+            this.audioManager.playSkillSoundAt(SkillType.TELEPORT, clientPlayer.mesh.position);
+          }
+        } else if (wasTeleporting && !clientPlayer.isTeleporting) {
+          // Teleport just ended - create end effect and clean up trail
+          clientPlayer.teleportEndEffect = this.teleportEffect.createEndEffect(
+            clientPlayer.targetPosition
+          );
+          this.teleportEffect.cleanupTrail(
+            clientPlayer.teleportTrail,
+            clientPlayer.teleportTrailParticles
+          );
+          clientPlayer.teleportTrail = null;
+          clientPlayer.teleportTrailParticles = null;
+        } else if (
+          clientPlayer.isTeleporting &&
+          clientPlayer.teleportTrail &&
+          clientPlayer.teleportTrailParticles
+        ) {
+          // Still teleporting - update trail
+          this.teleportEffect.updateTrail(
+            clientPlayer.teleportTrail,
+            clientPlayer.teleportTrailParticles,
+            clientPlayer.previousPosition,
+            clientPlayer.mesh.position
+          );
         }
 
-        if (!this.laserPreviewLine) return;
+        // Update previous position for next frame
+        if (!clientPlayer.isTeleporting) {
+          clientPlayer.previousPosition.copy(clientPlayer.mesh.position);
+        }
 
-        const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-        const endPos = playerPos.clone().add(direction.clone().normalize().multiplyScalar(config.range));
+        // Update health
+        if (
+          clientPlayer.health !== playerState.health ||
+          clientPlayer.maxHealth !== playerState.maxHealth
+        ) {
+          clientPlayer.health = playerState.health;
+          clientPlayer.maxHealth = playerState.maxHealth;
+        }
 
-        // Update line geometry
-        const positions = new Float32Array([
-            playerPos.x, playerPos.y + 1, playerPos.z,
-            endPos.x, endPos.y + 1, endPos.z
-        ]);
-        this.laserPreviewLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        this.laserPreviewLine.geometry.attributes.position.needsUpdate = true;
+        // Update player name if changed
+        if (playerState.username && clientPlayer.nameLabel) {
+          // If player is local, always show "You"
+          if (playerState.id === myPeerId) {
+            this.updatePlayerNameLabel(clientPlayer.nameLabel, 'You');
+          } else {
+            this.updatePlayerNameLabel(clientPlayer.nameLabel, playerState.username);
+          }
+        }
+
+        // Update invincibility sphere visibility
+        if (playerState.isInvulnerable) {
+          if (!clientPlayer.invincibilitySphere) {
+            clientPlayer.invincibilitySphere = this.invincibilityEffect.createShield();
+            clientPlayer.mesh.add(clientPlayer.invincibilitySphere);
+
+            // Play invincibility sound at player position (only for other players)
+            if (this.audioManager && playerState.id !== this.localPlayerId) {
+              this.audioManager.playSkillSoundAt(
+                SkillType.INVINCIBILITY,
+                clientPlayer.mesh.position
+              );
+            }
+          }
+        } else {
+          if (clientPlayer.invincibilitySphere) {
+            clientPlayer.mesh.remove(clientPlayer.invincibilitySphere);
+            clientPlayer.invincibilitySphere = null;
+          }
+        }
+
+        // Handle dead state changes
+        if (playerState.isDead !== clientPlayer.isDead) {
+          clientPlayer.isDead = playerState.isDead;
+
+          if (playerState.isDead) {
+            // Player is dead - turn gray and rotate to lay down
+            (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(0x808080); // Gray color
+
+            // Rotate player to lay down (90 degrees around X axis)
+            clientPlayer.mesh.rotation.x = Math.PI / 2;
+          } else {
+            // Player is alive again - restore original color based on whether it's local or not
+            const isLocal = playerState.id === myPeerId;
+            (clientPlayer.bodyMesh.material as THREE.MeshStandardMaterial).color.set(
+              isLocal ? 0x00ff00 : 0xff0000
+            );
+
+            // Reset rotation
+            clientPlayer.mesh.rotation.x = 0;
+          }
+        }
+      }
+
+      // Update skill radius positions if targeting
+      if (playerState.id === myPeerId && clientPlayer) {
+        this.teleportEffect.updateRadiusPosition(clientPlayer.mesh.position);
+        this.missileEffect.updatePlayerRadiusPosition(clientPlayer.mesh.position);
+      }
+    });
+
+    // Update Missiles
+    const activeMissileIds = new Set<string>();
+    if (gameState.missiles) {
+      gameState.missiles.forEach(missileState => {
+        activeMissileIds.add(missileState.id);
+        let missileMesh = this.missiles.get(missileState.id);
+        if (!missileMesh) {
+          missileMesh = this.missileEffect.createMissile();
+          this.scene.add(missileMesh);
+          this.missiles.set(missileState.id, missileMesh);
+
+          // Play missile sound at missile position (only for missiles from other players)
+          if (this.audioManager && missileState.ownerId !== this.localPlayerId) {
+            this.audioManager.playSkillSoundAt(SkillType.HOMING_MISSILE, missileMesh.position);
+          }
+        }
+
+        missileMesh.position.set(
+          missileState.position.x,
+          missileState.position.y,
+          missileState.position.z
+        );
+        missileMesh.quaternion.set(
+          missileState.rotation.x,
+          missileState.rotation.y,
+          missileState.rotation.z,
+          missileState.rotation.w
+        );
+      });
     }
 
-    /**
-     * Creates a click indicator effect on the ground at the specified position
-     */
-    public createClickIndicator(position: THREE.Vector3): void {
-        this.clickIndicatorEffect.createClickIndicator(position);
+    // Remove destroyed missiles
+    for (const [id, mesh] of this.missiles) {
+      if (!activeMissileIds.has(id)) {
+        this.scene.remove(mesh);
+        this.missiles.delete(id);
+      }
     }
+
+    // Update Laser Beams
+    const activeLaserIds = new Set<string>();
+    if (gameState.laserBeams) {
+      gameState.laserBeams.forEach(laserState => {
+        activeLaserIds.add(laserState.id);
+        let laserGroup = this.laserBeams.get(laserState.id);
+        if (!laserGroup) {
+          const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+          const startPos = new THREE.Vector3(
+            laserState.startPosition.x,
+            laserState.startPosition.y,
+            laserState.startPosition.z
+          );
+          const endPos = new THREE.Vector3(
+            laserState.endPosition.x,
+            laserState.endPosition.y,
+            laserState.endPosition.z
+          );
+          laserGroup = this.laserBeamEffect.createLaserBeam(startPos, endPos, config.thickness);
+          this.scene.add(laserGroup);
+          this.laserBeams.set(laserState.id, laserGroup);
+
+          // Play laser beam sound at start position (only for laser beams from other players)
+          if (this.audioManager && laserState.ownerId !== this.localPlayerId) {
+            this.audioManager.playSkillSoundAt(SkillType.LASER_BEAM, startPos);
+          }
+        }
+      });
+    }
+
+    // Remove expired laser beams
+    for (const [id, mesh] of this.laserBeams) {
+      if (!activeLaserIds.has(id)) {
+        this.scene.remove(mesh);
+        this.laserBeams.delete(id);
+      }
+    }
+
+    // Remove disconnected players
+    for (const [id, player] of this.players) {
+      if (!activeIds.has(id)) {
+        this.scene.remove(player.mesh);
+        this.damageAreaEffect.removeDamageArea(id);
+        this.players.delete(id);
+      }
+    }
+  }
+
+  public update(delta: number) {
+    // Get camera for billboard effect
+    const camera = this.scene.getObjectByProperty('type', 'PerspectiveCamera') as THREE.Camera;
+    const now = Date.now();
+
+    // Interpolate
+    this.players.forEach((player, playerId) => {
+      // Skip position interpolation for dead players (they should be frozen in place)
+      if (!player.isDead) {
+        const previousPosition = player.mesh.position.clone();
+
+        // Check if player should be moving (velocity or distance to target)
+        const distanceToTarget = player.mesh.position.distanceTo(player.targetPosition);
+        const hasVelocity = player.velocity.length() > 0.01;
+        // Increased threshold to 0.05 to stop animations sooner when close to target
+        const isMoving = distanceToTarget > 0.05 || hasVelocity;
+
+        // If not moving and no velocity, snap to position immediately
+        if (!isMoving && !player.isTeleporting) {
+          player.mesh.position.copy(player.targetPosition);
+        } else {
+          // Improved interpolation with lag compensation
+          const timeSinceUpdate = now - player.lastUpdateTime;
+          const interpolationDelay = 100; // 100ms delay for smooth interpolation
+          const interpolationTime = Math.max(0, timeSinceUpdate - interpolationDelay);
+
+          // Use velocity-based prediction if we have velocity data
+          const targetPos = player.targetPosition.clone();
+          if (hasVelocity && !player.isTeleporting) {
+            // Predict position based on velocity
+            const prediction = player.velocity.clone().multiplyScalar(interpolationTime / 1000);
+            targetPos.add(prediction);
+          }
+
+          // Smooth interpolation
+          const distance = player.mesh.position.distanceTo(targetPos);
+
+          // Adaptive interpolation speed based on distance
+          // Increased min speed to 10 to catch up faster
+          const interpolationSpeed = Math.min(25, Math.max(10, distance * 10));
+          player.mesh.position.lerp(targetPos, interpolationSpeed * delta);
+        }
+
+        // Smooth rotation interpolation
+        player.mesh.quaternion.slerp(player.targetRotation, 10 * delta);
+
+        // Rotate body group to face movement direction
+        if (player.bodyGroup && isMoving) {
+          const direction = new THREE.Vector3()
+            .subVectors(player.targetPosition, previousPosition)
+            .normalize();
+
+          if (direction.length() > 0.01) {
+            // Calculate rotation angle around Y axis
+            const angle = Math.atan2(direction.x, direction.z);
+            // Smoothly rotate body group to face movement direction
+            player.bodyGroup.rotation.y = THREE.MathUtils.lerp(
+              player.bodyGroup.rotation.y,
+              angle,
+              15 * delta
+            );
+          }
+        }
+
+        // Animate legs when walking
+        if (isMoving && !player.isDead) {
+          player.walkAnimationTime += delta * 10; // Faster walking speed
+
+          // Leg swing (rotation around X axis)
+          const swingAmplitude = 0.6;
+          const leftLegAngle = Math.sin(player.walkAnimationTime) * swingAmplitude;
+          const rightLegAngle = Math.sin(player.walkAnimationTime + Math.PI) * swingAmplitude;
+
+          if (player.leftLeg) {
+            player.leftLeg.rotation.x = leftLegAngle;
+          }
+
+          if (player.rightLeg) {
+            player.rightLeg.rotation.x = rightLegAngle;
+          }
+
+          // Body bobbing (up and down)
+          const bobAmplitude = 0.05;
+          // Cos(2t) is 1 at t=0 (legs together) and -1 at t=PI/2 (legs spread)
+          // We want it to oscillate between 0 and -2*amp (or similar), or just offset around 1.0
+          // Let's make it bounce up from 1.0-amp to 1.0+amp
+          const bobOffset = Math.cos(player.walkAnimationTime * 2) * bobAmplitude;
+
+          // Base Y is 1.0, add bobbing
+          player.bodyMesh.position.y = 1.0 + bobOffset;
+
+          // Animate Katana (sway while running)
+          if (player.katana) {
+            const katanaSway = Math.sin(player.walkAnimationTime * 0.5) * 0.2;
+            player.katana.rotation.z = -Math.PI / 8 + katanaSway;
+            player.katana.rotation.x = Math.PI / 4 + Math.abs(katanaSway) * 0.5;
+          }
+
+          // Animate Bandana (sway in wind/movement)
+          if (player.bandanaTails) {
+            const windSway = Math.sin(player.walkAnimationTime * 1.5) * 0.3;
+            const runLift = 0.4; // Lift up when running
+            player.bandanaTails.rotation.x = runLift + Math.abs(windSway) * 0.2;
+            player.bandanaTails.rotation.y = windSway;
+          }
+        } else {
+          // Reset animation time to ensure consistent stop state
+          player.walkAnimationTime = 0;
+
+          // Reset legs to standing position
+          if (player.leftLeg) {
+            player.leftLeg.rotation.x = 0;
+          }
+          if (player.rightLeg) {
+            player.rightLeg.rotation.x = 0;
+          }
+
+          // Reset body height
+          player.bodyMesh.position.y = 1.0;
+
+          // Reset Katana
+          if (player.katana) {
+            player.katana.rotation.z = -Math.PI / 8;
+            player.katana.rotation.x = Math.PI / 4;
+          }
+
+          // Reset Bandana
+          if (player.bandanaTails) {
+            player.bandanaTails.rotation.x = 0;
+            player.bandanaTails.rotation.y = 0;
+          }
+        }
+
+        // Update teleport trail if teleporting
+        if (player.isTeleporting && player.teleportTrail && player.teleportTrailParticles) {
+          this.teleportEffect.updateTrail(
+            player.teleportTrail,
+            player.teleportTrailParticles,
+            player.previousPosition,
+            player.mesh.position
+          );
+        }
+
+        // Update teleport particle effects
+        this.teleportEffect.updateEffectParticles(player.teleportStartEffect, delta);
+        this.teleportEffect.updateEffectParticles(player.teleportEndEffect, delta);
+        this.teleportEffect.updateTrailParticles(player.teleportTrailParticles, delta);
+
+        // Update player transparency during teleport
+        this.teleportEffect.updatePlayerTransparency(player.bodyMesh, player.isTeleporting);
+      }
+
+      // Make name label face the camera (billboard effect)
+      if (player.nameLabel && camera) {
+        player.nameLabel.lookAt(camera.position);
+      }
+
+      // Update damage area indicator - use bodyGroup rotation to match player facing direction
+      // Only show damage area for alive players
+      if (player.bodyGroup && !player.isDead) {
+        this.damageAreaEffect.updateDamageArea(
+          playerId,
+          player.mesh.position,
+          player.bodyGroup.rotation.y
+        );
+      } else {
+        // Remove damage area for dead players
+        this.damageAreaEffect.removeDamageArea(playerId);
+      }
+    });
+
+    // Update laser beam animations
+    this.laserBeams.forEach(laserGroup => {
+      this.laserBeamEffect.updateAnimation(laserGroup, delta);
+    });
+
+    // Update missile animations
+    this.missiles.forEach(missileGroup => {
+      this.missileEffect.updateAnimation(missileGroup, delta);
+    });
+
+    // Update invincibility shield animations
+    this.players.forEach(player => {
+      if (player.invincibilitySphere) {
+        this.invincibilityEffect.updateAnimation(player.invincibilitySphere, delta);
+      }
+    });
+  }
+
+  public getPlayer(id: string): ClientPlayer | undefined {
+    return this.players.get(id);
+  }
+
+  private createPlayerMesh(
+    isLocal: boolean,
+    color?: number
+  ): {
+    group: THREE.Group;
+    body: THREE.Mesh;
+    bodyGroup: THREE.Group;
+    nameLabel: THREE.Sprite;
+    leftLeg: THREE.Group;
+    rightLeg: THREE.Group;
+    katana: THREE.Group;
+    bandanaTails: THREE.Group;
+  } {
+    return PlayerModel.createPlayerMesh(isLocal, name => this.createPlayerNameLabel(name), color);
+  }
+
+  private createPlayerNameLabel(name: string): THREE.Sprite {
+    // Create a canvas to draw the text
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    // Set canvas size
+    canvas.width = 256;
+    canvas.height = 64;
+
+    if (context) {
+      // Clear canvas
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Set text style
+      context.font = 'bold 32px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+
+      // Add background with rounded corners
+      context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
+
+      // Draw text
+      context.fillStyle = 'white';
+      context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
+    }
+
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    // Create sprite material
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+
+    // Create sprite
+    const sprite = new THREE.Sprite(material);
+
+    // Scale sprite
+    sprite.scale.set(3, 0.75, 1);
+
+    // Position sprite above player
+    sprite.position.y = 3.5; // Position above player's head
+
+    return sprite;
+  }
+
+  // Helper method to draw rounded rectangles on canvas
+  private roundRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number,
+    fill: boolean,
+    stroke: boolean
+  ) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) {
+      ctx.fill();
+    }
+    if (stroke) {
+      ctx.stroke();
+    }
+  }
+
+  private updatePlayerNameLabel(nameLabel: THREE.Sprite, name: string) {
+    if (!nameLabel) return;
+
+    // Get the sprite material
+    const material = nameLabel.material as THREE.SpriteMaterial;
+    if (!material || !material.map) return;
+
+    // Get the canvas from the texture
+    const texture = material.map;
+    const canvas = texture.image as HTMLCanvasElement;
+    const context = canvas.getContext('2d');
+
+    if (context) {
+      // Clear canvas
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Set text style
+      context.font = 'bold 32px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+
+      // Add background with rounded corners
+      context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.roundRect(context, 10, 10, canvas.width - 20, canvas.height - 20, 10, true, false);
+
+      // Draw text
+      context.fillStyle = 'white';
+      context.fillText(name || 'Player', canvas.width / 2, canvas.height / 2);
+
+      // Update texture
+      texture.needsUpdate = true;
+    }
+  }
+
+  private createLaserPreviewLine() {
+    const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, config.range),
+    ]);
+    const material = new THREE.LineBasicMaterial({
+      color: 0xff0000,
+      linewidth: 3,
+      transparent: true,
+      opacity: 0.8,
+    });
+    this.laserPreviewLine = new THREE.Line(geometry, material);
+    this.laserPreviewLine.visible = false;
+    this.scene.add(this.laserPreviewLine);
+  }
+
+  public updateLaserPreview(playerPos: THREE.Vector3, direction: THREE.Vector3) {
+    // Create the laser preview line if it doesn't exist
+    if (!this.laserPreviewLine) {
+      this.createLaserPreviewLine();
+    }
+
+    // If the laser preview line is not visible, make it visible
+    if (this.laserPreviewLine && !this.laserPreviewLine.visible) {
+      this.laserPreviewLine.visible = true;
+    }
+
+    if (!this.laserPreviewLine) return;
+
+    const config = SKILL_CONFIG[SkillType.LASER_BEAM];
+    const endPos = playerPos
+      .clone()
+      .add(direction.clone().normalize().multiplyScalar(config.range));
+
+    // Update line geometry
+    const positions = new Float32Array([
+      playerPos.x,
+      playerPos.y + 1,
+      playerPos.z,
+      endPos.x,
+      endPos.y + 1,
+      endPos.z,
+    ]);
+    this.laserPreviewLine.geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(positions, 3)
+    );
+    this.laserPreviewLine.geometry.attributes.position.needsUpdate = true;
+  }
+
+  /**
+   * Creates a click indicator effect on the ground at the specified position
+   */
+  public createClickIndicator(position: THREE.Vector3): void {
+    this.clickIndicatorEffect.createClickIndicator(position);
+  }
 }

@@ -81,7 +81,7 @@ function App() {
   const handleStartGame = () => {
     if (gameClient && networkManager.isHost) {
       networkManager.sendToHost({
-        type: 'START_GAME'
+        type: 'START_GAME',
       });
     }
   };
@@ -89,7 +89,7 @@ function App() {
   const handleRestartGame = () => {
     if (gameClient && networkManager.isHost) {
       networkManager.sendToHost({
-        type: 'RESTART_GAME'
+        type: 'RESTART_GAME',
       });
     }
   };
@@ -102,15 +102,10 @@ function App() {
         </div>
       )}
       <HUD />
-      {gameStarted && (
-        <GameModeDisplay 
-          gameState={gameState}
-          visible={gameStarted}
-        />
-      )}
+      {gameStarted && <GameModeDisplay gameState={gameState} visible={gameStarted} />}
       {gameClient && (
         <>
-          <Settings 
+          <Settings
             opened={settingsOpened}
             onClose={() => setSettingsOpened(false)}
             audioManager={gameClient.getAudioManager()}

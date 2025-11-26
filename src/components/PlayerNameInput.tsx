@@ -7,7 +7,10 @@ interface PlayerNameInputProps {
   autoFocus?: boolean;
 }
 
-export default function PlayerNameInput({ networkManager, autoFocus = false }: PlayerNameInputProps) {
+export default function PlayerNameInput({
+  networkManager,
+  autoFocus = false,
+}: PlayerNameInputProps) {
   const [playerName, setPlayerName] = useState('');
   const [isEditing, setIsEditing] = useState(true);
   const [inputValue, setInputValue] = useState('');
@@ -77,7 +80,7 @@ export default function PlayerNameInput({ networkManager, autoFocus = false }: P
       <input
         type="text"
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        onChange={e => setInputValue(e.target.value)}
         placeholder="Enter your name"
         maxLength={15}
         className={styles.playerNameInput}

@@ -6,19 +6,19 @@ import { MapLoader } from '../core/MapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
 import Settings from './Settings';
-import { 
-  Button, 
-  TextInput, 
-  Modal, 
-  Text, 
-  Title, 
-  Group, 
-  Stack, 
+import {
+  Button,
+  TextInput,
+  Modal,
+  Text,
+  Title,
+  Group,
+  Stack,
   Paper,
   ActionIcon,
   CopyButton,
   Tooltip,
-  rem
+  rem,
 } from '@mantine/core';
 import { Icon } from '@iconify/react';
 
@@ -40,7 +40,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [showJoinMenu, setShowJoinMenu] = useState(false);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [tempName, setTempName] = useState('');
-
 
   useEffect(() => {
     const handleNetworkReady = (_e: CustomEvent) => {
@@ -80,9 +79,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       window.removeEventListener('player-name-changed', handleNameChange as EventListener);
     };
   }, [networkManager]);
-
-
-
 
   const handleHostGame = async () => {
     networkManager.hostGame();
@@ -133,27 +129,29 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   // Render the credits content
   const renderCreditsContent = () => (
     <Stack gap="md">
-      <Title order={2} ta="center">Credits</Title>
+      <Title order={2} ta="center">
+        Credits
+      </Title>
 
       <Paper p="md" withBorder>
         <Stack gap="md">
           <Stack gap={0}>
             <Text fw={700}>Orkun ÇAKILKAYA</Text>
-            <Text size="sm" c="dimmed">orkuncakilkaya@gmail.com</Text>
+            <Text size="sm" c="dimmed">
+              orkuncakilkaya@gmail.com
+            </Text>
           </Stack>
 
           <Stack gap={0}>
             <Text fw={700}>Selim DOYRANLI</Text>
-            <Text size="sm" c="dimmed">selimdoyranli@gmail.com</Text>
+            <Text size="sm" c="dimmed">
+              selimdoyranli@gmail.com
+            </Text>
           </Stack>
         </Stack>
       </Paper>
 
-      <Button 
-        variant="light" 
-        onClick={() => setActiveTab('main')} 
-        fullWidth
-      >
+      <Button variant="light" onClick={() => setActiveTab('main')} fullWidth>
         Back to Menu
       </Button>
     </Stack>
@@ -161,9 +159,9 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   // Render the host menu modal
   const renderHostMenu = () => (
-    <Modal 
-      opened={showHostMenu} 
-      onClose={() => setShowHostMenu(false)} 
+    <Modal
+      opened={showHostMenu}
+      onClose={() => setShowHostMenu(false)}
       title="Host Game"
       centered
       zIndex={10000}
@@ -172,18 +170,18 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     >
       <Stack gap="md">
         <Text size="sm">Share this ID with your friends so they can join your game.</Text>
-        
+
         <Group>
-          <TextInput 
-            value={hostId} 
-            readOnly 
-            style={{ flex: 1 }}
-          />
+          <TextInput value={hostId} readOnly style={{ flex: 1 }} />
           <CopyButton value={hostId} timeout={2000}>
             {({ copied, copy }) => (
               <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="right">
                 <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                  {copied ? <Icon icon="tabler:check" style={{ width: rem(16) }} /> : <Icon icon="tabler:copy" style={{ width: rem(16) }} />}
+                  {copied ? (
+                    <Icon icon="tabler:check" style={{ width: rem(16) }} />
+                  ) : (
+                    <Icon icon="tabler:copy" style={{ width: rem(16) }} />
+                  )}
                 </ActionIcon>
               </Tooltip>
             )}
@@ -194,9 +192,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
           <Button variant="default" onClick={() => setShowHostMenu(false)}>
             Cancel
           </Button>
-          <Button onClick={handleHostGame}>
-            Start Game
-          </Button>
+          <Button onClick={handleHostGame}>Start Game</Button>
         </Group>
       </Stack>
     </Modal>
@@ -204,9 +200,9 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   // Render the join menu modal
   const renderJoinMenu = () => (
-    <Modal 
-      opened={showJoinMenu} 
-      onClose={() => setShowJoinMenu(false)} 
+    <Modal
+      opened={showJoinMenu}
+      onClose={() => setShowJoinMenu(false)}
       title="Join Game"
       centered
       zIndex={10000}
@@ -217,18 +213,15 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
         <TextInput
           placeholder="Enter Host ID"
           value={inputHostId}
-          onChange={(e) => setInputHostId(e.currentTarget.value.replace(/\s/g, ''))}
+          onChange={e => setInputHostId(e.currentTarget.value.replace(/\s/g, ''))}
           label="Host ID"
         />
-        
+
         <Group grow>
           <Button variant="default" onClick={() => setShowJoinMenu(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={() => handleJoinGame(inputHostId)}
-            disabled={!inputHostId.trim()}
-          >
+          <Button onClick={() => handleJoinGame(inputHostId)} disabled={!inputHostId.trim()}>
             Join Game
           </Button>
         </Group>
@@ -238,9 +231,9 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   // Render the name edit modal
   const renderNameEditModal = () => (
-    <Modal 
-      opened={showNameEditModal} 
-      onClose={() => setShowNameEditModal(false)} 
+    <Modal
+      opened={showNameEditModal}
+      onClose={() => setShowNameEditModal(false)}
       title="Edit Player Name"
       centered
       zIndex={10000}
@@ -251,18 +244,16 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
         <TextInput
           placeholder="Enter Name"
           value={tempName}
-          onChange={(e) => setTempName(e.currentTarget.value)}
+          onChange={e => setTempName(e.currentTarget.value)}
           maxLength={15}
           data-autofocus
         />
-        
+
         <Group grow>
           <Button variant="default" onClick={() => setShowNameEditModal(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSaveName}>
-            Save
-          </Button>
+          <Button onClick={handleSaveName}>Save</Button>
         </Group>
       </Stack>
     </Modal>
@@ -282,35 +273,19 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       default:
         return (
           <Stack gap="md" styles={{ root: { width: '100%' } }}>
-            <Button 
-              size="lg"
-              onClick={() => setShowHostMenu(true)} 
-              disabled={!isNetworkReady}
-            >
+            <Button size="lg" onClick={() => setShowHostMenu(true)} disabled={!isNetworkReady}>
               Host Game
             </Button>
 
-            <Button 
-              size="lg"
-              onClick={() => setShowJoinMenu(true)} 
-              disabled={!isNetworkReady}
-            >
+            <Button size="lg" onClick={() => setShowJoinMenu(true)} disabled={!isNetworkReady}>
               Join Game
             </Button>
 
-            <Button 
-              size="lg"
-              variant="light"
-              onClick={() => setActiveTab('settings')} 
-            >
+            <Button size="lg" variant="light" onClick={() => setActiveTab('settings')}>
               Settings
             </Button>
 
-            <Button 
-              size="lg"
-              variant="light"
-              onClick={() => setActiveTab('credits')} 
-            >
+            <Button size="lg" variant="light" onClick={() => setActiveTab('credits')}>
               Credits
             </Button>
           </Stack>
@@ -320,25 +295,24 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
   return (
     <div className={styles.menuContainer}>
-      <Paper 
-        h="100%" 
-        w={400} 
-        p="xl" 
-        radius={0} 
-        withBorder 
-        style={{ 
-          display: 'flex', 
+      <Paper
+        h="100%"
+        w={400}
+        p="xl"
+        radius={0}
+        withBorder
+        style={{
+          display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          pointerEvents: 'auto'
+          pointerEvents: 'auto',
         }}
       >
         <Stack align="stretch" gap="xl" styles={{ root: { width: '100%' } }}>
-          
           {renderContent()}
-          
+
           {!isNetworkReady && (
             <Text c="dimmed" size="sm" ta="center">
               {statusMessage}
@@ -346,7 +320,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
           )}
         </Stack>
       </Paper>
-      
+
       {/* Top Right Name Display */}
       <div className={styles.topRightNameDisplay}>
         <Group gap="xs">

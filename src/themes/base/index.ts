@@ -4,7 +4,7 @@ import Button from './components/Button/Button';
 export const theme = createTheme({
   fontFamily: 'Sour Gummy, monospace',
   headings: {
-    fontFamily: 'Sour Gummy, monospace'
+    fontFamily: 'Sour Gummy, monospace',
   },
   primaryColor: 'cyan',
   radius: {
@@ -15,6 +15,6 @@ export const theme = createTheme({
     xl: '92px',
   },
   components: {
-    Button
-  }
+    Button,
+  },
 });

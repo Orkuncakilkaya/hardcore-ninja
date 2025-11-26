@@ -8,23 +8,23 @@ const SKILLS = [
   {
     type: SkillType.TELEPORT,
     icon: 'fluent-emoji:cyclone',
-    key: 'Q'
+    key: 'Q',
   },
   {
     type: SkillType.HOMING_MISSILE,
     icon: 'fluent-emoji:comet',
-    key: 'W'
+    key: 'W',
   },
   {
     type: SkillType.LASER_BEAM,
     icon: 'fluent-emoji:water-pistol',
-    key: 'E'
+    key: 'E',
   },
   {
     type: SkillType.INVINCIBILITY,
     icon: 'fluent-emoji:shield',
-    key: 'R'
-  }
+    key: 'R',
+  },
 ] as const;
 
 const getCooldownId = (skillType: SkillType): string => {
@@ -45,7 +45,7 @@ const getCooldownId = (skillType: SkillType): string => {
 function Skills() {
   return (
     <div id="skills" className={styles.skills}>
-      {SKILLS.map((skill) => (
+      {SKILLS.map(skill => (
         <Button
           key={skill.type}
           className={styles.skillSlot}
@@ -53,7 +53,7 @@ function Skills() {
           variant="unstyled"
           size="compact"
           classNames={{
-            label: styles.skillLabel
+            label: styles.skillLabel,
           }}
         >
           <div className={styles.cooldownOverlay} id={getCooldownId(skill.type)} />
@@ -67,4 +67,3 @@ function Skills() {
 }
 
 export default memo(Skills);
-
