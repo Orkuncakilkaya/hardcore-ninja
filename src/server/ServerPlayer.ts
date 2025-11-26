@@ -133,8 +133,8 @@ export class ServerPlayer {
         let collision = false;
 
         // Check collision with obstacles
-        for (const obstacleBox of obstacles) {
-          if (playerBox.intersectsBox(obstacleBox)) {
+        for (const obstacle of obstacles) {
+          if (playerBox.intersectsBox(obstacle)) {
             collision = true;
             break;
           }
@@ -144,11 +144,11 @@ export class ServerPlayer {
         if (!collision) {
           for (const otherPlayer of otherPlayers) {
             if (otherPlayer.id !== this.id) {
-              const otherPlayerBox = new THREE.Box3().setFromCenterAndSize(
+              const otherPlayerCollider = new THREE.Box3().setFromCenterAndSize(
                 otherPlayer.position.clone().add(new THREE.Vector3(0, 1, 0)),
                 new THREE.Vector3(1, 2, 1)
               );
-              if (playerBox.intersectsBox(otherPlayerBox)) {
+              if (playerBox.intersectsBox(otherPlayerCollider)) {
                 collision = true;
                 break;
               }
@@ -194,44 +194,44 @@ export class ServerPlayer {
     targetPos.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.x));
     targetPos.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.z));
 
-    // Combine obstacles and other players into a single list of collidables
-    const collidables: THREE.Box3[] = [...obstacles];
+    // Combine obstacles and other players into a single list of colliders
+    const allColliders: THREE.Box3[] = [...obstacles];
 
     for (const player of otherPlayers) {
       if (player.id !== this.id && !player.isDead) {
-        const playerBox = new THREE.Box3().setFromCenterAndSize(
+        const playerCollider = new THREE.Box3().setFromCenterAndSize(
           new THREE.Vector3(player.position.x, player.position.y + 1, player.position.z),
           new THREE.Vector3(1, 2, 1)
         );
-        collidables.push(playerBox);
+        allColliders.push(playerCollider);
       }
     }
 
-    // Check if destination is inside a collidable
-    const playerBox = new THREE.Box3().setFromCenterAndSize(
+    // Check if destination is inside a collider
+    const playerCollider = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(targetPos.x, targetPos.y + 1, targetPos.z),
       new THREE.Vector3(1, 2, 1)
     );
 
     let finalTarget = targetPos.clone();
-    let isInsideObstacle = false;
-    let intersectingObstacle: THREE.Box3 | null = null;
+    let isInsideCollider = false;
+    let intersectingCollider: THREE.Box3 | null = null;
 
-    for (const obstacleBox of collidables) {
-      if (playerBox.intersectsBox(obstacleBox)) {
-        isInsideObstacle = true;
-        intersectingObstacle = obstacleBox;
+    for (const collider of allColliders) {
+      if (playerCollider.intersectsBox(collider)) {
+        isInsideCollider = true;
+        intersectingCollider = collider;
         break;
       }
     }
 
-    // If inside obstacle, find the closest valid point outside
-    if (isInsideObstacle && intersectingObstacle) {
-      const obstacleCenter = new THREE.Vector3();
-      intersectingObstacle.getCenter(obstacleCenter);
-      const obstacleSize = new THREE.Vector3();
-      intersectingObstacle.getSize(obstacleSize);
-      const halfExtents = obstacleSize.clone().multiplyScalar(0.5);
+    // If inside collider, find the closest valid point outside
+    if (isInsideCollider && intersectingCollider) {
+      const colliderCenter = new THREE.Vector3();
+      intersectingCollider.getCenter(colliderCenter);
+      const colliderSize = new THREE.Vector3();
+      intersectingCollider.getSize(colliderSize);
+      const halfExtents = colliderSize.clone().multiplyScalar(0.5);
 
       // Candidate exit points (center of each face projected from target)
       // We want the point on the boundary closest to the TARGET, not current pos.
@@ -255,10 +255,10 @@ export class ServerPlayer {
         // Project target onto the face plane
         if (Math.abs(dir.x) > 0.5) {
           // East/West face: set X to face X
-          exitPoint.x = obstacleCenter.x + dir.x * (halfExtents.x + 0.6); // 0.6 margin
+          exitPoint.x = colliderCenter.x + dir.x * (halfExtents.x + 0.6); // 0.6 margin
         } else {
           // North/South face: set Z to face Z
-          exitPoint.z = obstacleCenter.z + dir.z * (halfExtents.z + 0.6); // 0.6 margin
+          exitPoint.z = colliderCenter.z + dir.z * (halfExtents.z + 0.6); // 0.6 margin
         }
 
         // Let's check if this exit point is valid
@@ -268,8 +268,8 @@ export class ServerPlayer {
         );
 
         let isValidExit = true;
-        for (const otherObstacle of collidables) {
-          if (otherObstacle !== intersectingObstacle && exitBox.intersectsBox(otherObstacle)) {
+        for (const otherCollider of allColliders) {
+          if (otherCollider !== intersectingCollider && exitBox.intersectsBox(otherCollider)) {
             isValidExit = false;
             break;
           }
@@ -390,9 +390,9 @@ export class ServerPlayer {
     let minDistance = config.range;
 
     // Check intersection with each obstacle
-    for (const obstacleBox of obstacles) {
+    for (const obstacle of obstacles) {
       const intersection = new THREE.Vector3();
-      if (raycaster.ray.intersectBox(obstacleBox, intersection)) {
+      if (raycaster.ray.intersectBox(obstacle, intersection)) {
         const dist = startPos.distanceTo(intersection);
         if (dist < minDistance) {
           minDistance = dist;
