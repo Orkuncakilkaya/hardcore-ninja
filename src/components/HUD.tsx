@@ -1,11 +1,14 @@
+import { memo } from 'react';
 import Skills from './Skills';
 import styles from './HUD.module.css';
 
-export default function HUD() {
+function HUD() {
   return (
     <div id="hud" className={styles.hud}>
       <Skills />
     </div>
   );
 }
+
+export default memo(HUD);
 

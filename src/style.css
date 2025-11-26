@@ -28,3 +28,7 @@ body {
 canvas {
   display: block;
 }
+
+* {
+  corner-shape: squircle;
+}

@@ -6,6 +6,7 @@ import { ClientEntityManager } from './ClientEntityManager';
 import { UIManager } from '../core/UIManager';
 import { AudioManager } from './AudioManager';
 import type { NetworkMessage } from '../common/messages';
+import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
 
 export class GameClient {
@@ -20,10 +21,41 @@ export class GameClient {
     private clock: THREE.Clock;
     private localPlayerId: string | null = null;
     private isLeftMouseDown: boolean = false;
+    private currentGameState: GameState | null = null;
+
+    // Callbacks for React components
+    private onSettingsToggle?: () => void;
+    private onScoreboardToggle?: () => void;
+    private onScoreboardClose?: () => void;
 
     // Getter for audioManager
     public getAudioManager(): AudioManager {
         return this.audioManager;
+    }
+
+    // Getter for localPlayerId
+    public getLocalPlayerId(): string | null {
+        return this.localPlayerId;
+    }
+
+    // Getter for currentGameState
+    public getCurrentGameState(): GameState | null {
+        return this.currentGameState;
+    }
+
+    // Setter for settings toggle callback
+    public setOnSettingsToggle(callback: () => void) {
+        this.onSettingsToggle = callback;
+    }
+
+    // Setter for scoreboard toggle callback
+    public setOnScoreboardToggle(callback: () => void) {
+        this.onScoreboardToggle = callback;
+    }
+
+    // Setter for scoreboard close callback
+    public setOnScoreboardClose(callback: () => void) {
+        this.onScoreboardClose = callback;
     }
 
     // Network throttling
@@ -321,8 +353,6 @@ export class GameClient {
 
         // Play invincibility sound locally
         this.audioManager.playLocalSkillSound(SkillType.INVINCIBILITY);
-
-        this.uiManager.clearSkillBorder(SkillType.INVINCIBILITY);
     }
 
     private async handleMessage(message: NetworkMessage) {
@@ -352,6 +382,7 @@ export class GameClient {
                 break;
             case 'GAME_STATE_UPDATE':
                 if (this.localPlayerId) {
+                    this.currentGameState = message.state;
                     this.entityManager.updateState(message.state, this.localPlayerId);
                     this.uiManager.update(message.state, this.localPlayerId, this.networkManager.isHost);
                 }
@@ -360,15 +391,29 @@ export class GameClient {
     }
 
     private toggleTabMenu() {
-        this.uiManager.showTabMenu();
+        if (this.onScoreboardToggle) {
+            this.onScoreboardToggle();
+        } else {
+            // Fallback to old DOM-based method
+            this.uiManager.showTabMenu();
+        }
     }
 
     private hideTabMenu() {
-        this.uiManager.hideTabMenu();
+        if (this.onScoreboardClose) {
+            this.onScoreboardClose();
+        } else {
+            this.uiManager.hideTabMenu();
+        }
     }
 
     private toggleSettingsMenu() {
-        this.uiManager.toggleSettingsMenu();
+        if (this.onSettingsToggle) {
+            this.onSettingsToggle();
+        } else {
+            // Fallback to old DOM-based method
+            this.uiManager.toggleSettingsMenu();
+        }
     }
 
     private setupHostActionButtons() {

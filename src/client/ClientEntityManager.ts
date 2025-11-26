@@ -24,9 +24,10 @@ interface ClientPlayer {
     bodyMesh: THREE.Mesh; // Reference to the body mesh for easier access
     bodyGroup: THREE.Group; // Group containing body and eyes (for rotation)
     nameLabel: THREE.Sprite | null; // Reference to the player name label
-    leftShoe: THREE.Group; // Reference to left shoe for animation
-    rightShoe: THREE.Group; // Reference to right shoe for animation
+    leftLeg: THREE.Group; // Reference to left leg for animation
+    rightLeg: THREE.Group; // Reference to right leg for animation
     katana: THREE.Group; // Reference to katana for animation
+    bandanaTails: THREE.Group; // Reference to bandana tails for animation
     health: number; // Current health value
     maxHealth: number; // Maximum health value
     isTeleporting: boolean; // Whether player is currently teleporting
@@ -235,7 +236,7 @@ export class ClientEntityManager {
             let clientPlayer = this.players.get(playerState.id);
 
             if (!clientPlayer) {
-                const { group, body, bodyGroup, nameLabel, leftShoe, rightShoe, katana } = this.createPlayerMesh(playerState.id === myPeerId, playerState.color);
+                const { group, body, bodyGroup, nameLabel, leftLeg, rightLeg, katana, bandanaTails } = this.createPlayerMesh(playerState.id === myPeerId, playerState.color);
                 group.position.set(playerState.position.x, playerState.position.y, playerState.position.z); // Set initial position
                 this.scene.add(group);
                 const initialPos = new THREE.Vector3(playerState.position.x, playerState.position.y, playerState.position.z);
@@ -244,9 +245,10 @@ export class ClientEntityManager {
                     bodyMesh: body,
                     bodyGroup: bodyGroup,
                     nameLabel: nameLabel,
-                    leftShoe: leftShoe,
-                    rightShoe: rightShoe,
+                    leftLeg: leftLeg,
+                    rightLeg: rightLeg,
                     katana: katana,
+                    bandanaTails: bandanaTails,
                     health: playerState.health,
                     maxHealth: playerState.maxHealth,
                     targetPosition: initialPos.clone(),
@@ -493,7 +495,8 @@ export class ClientEntityManager {
                 // Check if player should be moving (velocity or distance to target)
                 const distanceToTarget = player.mesh.position.distanceTo(player.targetPosition);
                 const hasVelocity = player.velocity.length() > 0.01;
-                const isMoving = distanceToTarget > 0.01 || hasVelocity;
+                // Increased threshold to 0.05 to stop animations sooner when close to target
+                const isMoving = distanceToTarget > 0.05 || hasVelocity;
 
                 // If not moving and no velocity, snap to position immediately
                 if (!isMoving && !player.isTeleporting) {
@@ -516,7 +519,8 @@ export class ClientEntityManager {
                     const distance = player.mesh.position.distanceTo(targetPos);
 
                     // Adaptive interpolation speed based on distance
-                    const interpolationSpeed = Math.min(20, Math.max(5, distance * 5));
+                    // Increased min speed to 10 to catch up faster
+                    const interpolationSpeed = Math.min(25, Math.max(10, distance * 10));
                     player.mesh.position.lerp(targetPos, interpolationSpeed * delta);
                 }
 
@@ -541,28 +545,32 @@ export class ClientEntityManager {
                     }
                 }
 
-                // Animate shoes when walking
+                // Animate legs when walking
                 if (isMoving && !player.isDead) {
-                    player.walkAnimationTime += delta * 8; // Walking speed multiplier
+                    player.walkAnimationTime += delta * 10; // Faster walking speed
 
-                    // Animate shoes up and down (alternating)
-                    // Minimum y position is 0.1 to ensure shoes are always above damageAreaEffect (y=0.05)
-                    const leftShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime)) * 0.15;
-                    const rightShoeLift = 0.1 + Math.abs(Math.sin(player.walkAnimationTime + Math.PI)) * 0.15;
+                    // Leg swing (rotation around X axis)
+                    const swingAmplitude = 0.6;
+                    const leftLegAngle = Math.sin(player.walkAnimationTime) * swingAmplitude;
+                    const rightLegAngle = Math.sin(player.walkAnimationTime + Math.PI) * swingAmplitude;
 
-                    // Rotate shoes slightly for walking effect
-                    const leftShoeRotation = Math.sin(player.walkAnimationTime) * 0.3;
-                    const rightShoeRotation = Math.sin(player.walkAnimationTime + Math.PI) * 0.3;
-
-                    if (player.leftShoe) {
-                        player.leftShoe.position.y = leftShoeLift;
-                        player.leftShoe.rotation.x = leftShoeRotation;
+                    if (player.leftLeg) {
+                        player.leftLeg.rotation.x = leftLegAngle;
                     }
 
-                    if (player.rightShoe) {
-                        player.rightShoe.position.y = rightShoeLift;
-                        player.rightShoe.rotation.x = rightShoeRotation;
+                    if (player.rightLeg) {
+                        player.rightLeg.rotation.x = rightLegAngle;
                     }
+
+                    // Body bobbing (up and down)
+                    const bobAmplitude = 0.05;
+                    // Cos(2t) is 1 at t=0 (legs together) and -1 at t=PI/2 (legs spread)
+                    // We want it to oscillate between 0 and -2*amp (or similar), or just offset around 1.0
+                    // Let's make it bounce up from 1.0-amp to 1.0+amp
+                    const bobOffset = Math.cos(player.walkAnimationTime * 2) * bobAmplitude;
+                    
+                    // Base Y is 1.0, add bobbing
+                    player.bodyMesh.position.y = 1.0 + bobOffset;
 
                     // Animate Katana (sway while running)
                     if (player.katana) {
@@ -570,20 +578,39 @@ export class ClientEntityManager {
                         player.katana.rotation.z = -Math.PI / 8 + katanaSway;
                         player.katana.rotation.x = Math.PI / 4 + Math.abs(katanaSway) * 0.5;
                     }
+
+                    // Animate Bandana (sway in wind/movement)
+                    if (player.bandanaTails) {
+                        const windSway = Math.sin(player.walkAnimationTime * 1.5) * 0.3;
+                        const runLift = 0.4; // Lift up when running
+                        player.bandanaTails.rotation.x = runLift + Math.abs(windSway) * 0.2;
+                        player.bandanaTails.rotation.y = windSway;
+                    }
                 } else {
-                    // Reset shoes to ground when not moving (but keep above damageAreaEffect)
-                    if (player.leftShoe) {
-                        player.leftShoe.position.y = 0.1; // Keep above damageAreaEffect
-                        player.leftShoe.rotation.x = 0;
+                    // Reset animation time to ensure consistent stop state
+                    player.walkAnimationTime = 0;
+
+                    // Reset legs to standing position
+                    if (player.leftLeg) {
+                        player.leftLeg.rotation.x = 0;
                     }
-                    if (player.rightShoe) {
-                        player.rightShoe.position.y = 0.1; // Keep above damageAreaEffect
-                        player.rightShoe.rotation.x = 0;
+                    if (player.rightLeg) {
+                        player.rightLeg.rotation.x = 0;
                     }
+                    
+                    // Reset body height
+                    player.bodyMesh.position.y = 1.0;
+
                     // Reset Katana
                     if (player.katana) {
                         player.katana.rotation.z = -Math.PI / 8;
                         player.katana.rotation.x = Math.PI / 4;
+                    }
+
+                    // Reset Bandana
+                    if (player.bandanaTails) {
+                        player.bandanaTails.rotation.x = 0;
+                        player.bandanaTails.rotation.y = 0;
                     }
                 }
 
@@ -647,7 +674,7 @@ export class ClientEntityManager {
         return this.players.get(id);
     }
 
-    private createPlayerMesh(isLocal: boolean, color?: number): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftShoe: THREE.Group, rightShoe: THREE.Group, katana: THREE.Group } {
+    private createPlayerMesh(isLocal: boolean, color?: number): { group: THREE.Group, body: THREE.Mesh, bodyGroup: THREE.Group, nameLabel: THREE.Sprite, leftLeg: THREE.Group, rightLeg: THREE.Group, katana: THREE.Group, bandanaTails: THREE.Group } {
         return PlayerModel.createPlayerMesh(
             isLocal,
             (name) => this.createPlayerNameLabel(name),

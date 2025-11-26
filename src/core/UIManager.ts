@@ -12,7 +12,6 @@ export class UIManager {
     private laserBeamSkillIcon: HTMLElement | null = null;
     private startButton: HTMLElement | null = null;
     private restartButton: HTMLElement | null = null;
-    private gameModeDisplay: HTMLElement | null = null;
     private tabMenu: HTMLElement | null = null;
     private leaderboard: HTMLElement | null = null;
     private loadingOverlay: HTMLElement | null = null;
@@ -29,21 +28,20 @@ export class UIManager {
     constructor() {
         this.initializeElements();
         this.createLoadingOverlay();
-        this.createSettingsMenu();
     }
 
     private initializeElements() {
         if (this.initialized) return;
 
         this.hud = document.getElementById('hud');
-        // Q skill = Teleport (cd-missile)
-        this.teleportCdOverlay = document.getElementById('cd-missile');
-        // W skill = Homing Missile (cd-basic)
-        this.homingMissileCdOverlay = document.getElementById('cd-basic');
-        // E skill = Laser Beam (cd-slash)
-        this.laserBeamCdOverlay = document.getElementById('cd-slash');
-        // R skill = Invincibility (cd-tank)
-        this.invincibilityCdOverlay = document.getElementById('cd-tank');
+        // Q skill = Teleport
+        this.teleportCdOverlay = document.getElementById('cd-teleport');
+        // W skill = Homing Missile
+        this.homingMissileCdOverlay = document.getElementById('cd-homing-missile');
+        // E skill = Laser Beam
+        this.laserBeamCdOverlay = document.getElementById('cd-laser-beam');
+        // R skill = Invincibility
+        this.invincibilityCdOverlay = document.getElementById('cd-invincibility');
 
         // Get skill icons (parent elements of the cooldown overlays)
         // Check if elements exist before accessing parentElement
@@ -66,9 +64,7 @@ export class UIManager {
             }
         });
 
-        // Create game mode display and tab menu (these don't depend on React elements)
-        this.createGameModeDisplay();
-        this.createTabMenu();
+        // Game mode display is now handled by React component
 
         // Only mark as initialized if critical elements are found
         if (this.hud && this.teleportCdOverlay && this.homingMissileCdOverlay && 
@@ -148,236 +144,13 @@ export class UIManager {
     }
 
     // Clear border for a skill
-    public clearSkillBorder(skillType: SkillType) {
-        let skillIcon = null;
 
-        switch (skillType) {
-            case SkillType.TELEPORT:
-                skillIcon = this.teleportSkillIcon;
-                break;
-            case SkillType.HOMING_MISSILE:
-                skillIcon = this.homingMissileSkillIcon;
-                break;
-            case SkillType.LASER_BEAM:
-                skillIcon = this.laserBeamSkillIcon;
-                break;
-        }
-
-        if (skillIcon) {
-            skillIcon.removeAttribute('data-ready');
-        }
-    }
-
-    private createGameModeDisplay() {
-        this.gameModeDisplay = document.createElement('div');
-        this.gameModeDisplay.id = 'game-mode-display';
-        this.gameModeDisplay.style.position = 'absolute';
-        this.gameModeDisplay.style.top = '10px';
-        this.gameModeDisplay.style.left = '50%';
-        this.gameModeDisplay.style.transform = 'translateX(-50%)';
-        this.gameModeDisplay.style.color = 'white';
-        this.gameModeDisplay.style.fontSize = '24px';
-        this.gameModeDisplay.style.fontWeight = 'bold';
-        this.gameModeDisplay.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
-        this.gameModeDisplay.style.display = 'none'; // Hidden by default
-        this.gameModeDisplay.textContent = 'Warmup';
-        document.body.appendChild(this.gameModeDisplay);
-    }
-
-    private createSettingsMenu() {
-        // Create settings menu container
-        this.settingsMenu = document.createElement('div');
-        this.settingsMenu.id = 'settings-menu';
-        this.settingsMenu.style.position = 'absolute';
-        this.settingsMenu.style.top = '50%';
-        this.settingsMenu.style.left = '50%';
-        this.settingsMenu.style.transform = 'translate(-50%, -50%)';
-        this.settingsMenu.style.width = '400px';
-        this.settingsMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        this.settingsMenu.style.border = '2px solid #444';
-        this.settingsMenu.style.borderRadius = '5px';
-        this.settingsMenu.style.padding = '20px';
-        this.settingsMenu.style.display = 'none';
-        this.settingsMenu.style.color = 'white';
-        this.settingsMenu.style.fontFamily = 'Arial, sans-serif';
-        this.settingsMenu.style.zIndex = '1000';
-
-        // Create title
-        const title = document.createElement('h2');
-        title.textContent = 'Settings';
-        title.style.textAlign = 'center';
-        title.style.marginBottom = '20px';
-        title.style.color = 'white';
-        this.settingsMenu.appendChild(title);
-
-        // Create audio settings section
-        const audioSection = document.createElement('div');
-        audioSection.style.marginBottom = '20px';
-
-        const audioTitle = document.createElement('h3');
-        audioTitle.textContent = 'Audio';
-        audioTitle.style.marginBottom = '10px';
-        audioTitle.style.borderBottom = '1px solid #444';
-        audioTitle.style.paddingBottom = '5px';
-        audioSection.appendChild(audioTitle);
-
-        // BGM Volume slider
-        const bgmContainer = document.createElement('div');
-        bgmContainer.style.display = 'flex';
-        bgmContainer.style.alignItems = 'center';
-        bgmContainer.style.marginBottom = '10px';
-
-        const bgmLabel = document.createElement('label');
-        bgmLabel.textContent = 'Music Volume:';
-        bgmLabel.style.width = '120px';
-        bgmContainer.appendChild(bgmLabel);
-
-        this.bgmVolumeSlider = document.createElement('input');
-        this.bgmVolumeSlider.type = 'range';
-        this.bgmVolumeSlider.min = '0';
-        this.bgmVolumeSlider.max = '100';
-        this.bgmVolumeSlider.value = '10'; // Default 10%
-        this.bgmVolumeSlider.style.flex = '1';
-        bgmContainer.appendChild(this.bgmVolumeSlider);
-
-        const bgmValueDisplay = document.createElement('span');
-        bgmValueDisplay.textContent = '10%';
-        bgmValueDisplay.style.width = '40px';
-        bgmValueDisplay.style.textAlign = 'right';
-        bgmContainer.appendChild(bgmValueDisplay);
-
-        // Update value display when slider changes
-        this.bgmVolumeSlider.addEventListener('input', () => {
-            const value = this.bgmVolumeSlider?.value || '0';
-            bgmValueDisplay.textContent = `${value}%`;
-        });
-
-        audioSection.appendChild(bgmContainer);
-
-        // SFX Volume slider
-        const sfxContainer = document.createElement('div');
-        sfxContainer.style.display = 'flex';
-        sfxContainer.style.alignItems = 'center';
-        sfxContainer.style.marginBottom = '10px';
-
-        const sfxLabel = document.createElement('label');
-        sfxLabel.textContent = 'SFX Volume:';
-        sfxLabel.style.width = '120px';
-        sfxContainer.appendChild(sfxLabel);
-
-        this.sfxVolumeSlider = document.createElement('input');
-        this.sfxVolumeSlider.type = 'range';
-        this.sfxVolumeSlider.min = '0';
-        this.sfxVolumeSlider.max = '100';
-        this.sfxVolumeSlider.value = '50'; // Default 50%
-        this.sfxVolumeSlider.style.flex = '1';
-        sfxContainer.appendChild(this.sfxVolumeSlider);
-
-        const sfxValueDisplay = document.createElement('span');
-        sfxValueDisplay.textContent = '50%';
-        sfxValueDisplay.style.width = '40px';
-        sfxValueDisplay.style.textAlign = 'right';
-        sfxContainer.appendChild(sfxValueDisplay);
-
-        // Update value display when slider changes
-        this.sfxVolumeSlider.addEventListener('input', () => {
-            const value = this.sfxVolumeSlider?.value || '0';
-            sfxValueDisplay.textContent = `${value}%`;
-        });
-
-        audioSection.appendChild(sfxContainer);
-        this.settingsMenu.appendChild(audioSection);
-
-        // Close button
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'Close';
-        closeButton.style.padding = '10px 20px';
-        closeButton.style.fontSize = '16px';
-        closeButton.style.backgroundColor = '#4CAF50';
-        closeButton.style.color = 'white';
-        closeButton.style.border = 'none';
-        closeButton.style.borderRadius = '5px';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.display = 'block';
-        closeButton.style.margin = '0 auto';
-        closeButton.style.marginTop = '20px';
-
-        closeButton.addEventListener('click', () => {
-            this.hideSettingsMenu();
-        });
-
-        this.settingsMenu.appendChild(closeButton);
-
-        // Add to document
-        document.body.appendChild(this.settingsMenu);
-    }
-
-    private createTabMenu() {
-        // Create tab menu container
-        this.tabMenu = document.createElement('div');
-        this.tabMenu.id = 'tab-menu';
-        this.tabMenu.style.position = 'absolute';
-        this.tabMenu.style.top = '50%';
-        this.tabMenu.style.left = '50%';
-        this.tabMenu.style.transform = 'translate(-50%, -50%)';
-        this.tabMenu.style.width = '600px';
-        this.tabMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        this.tabMenu.style.border = '2px solid #444';
-        this.tabMenu.style.borderRadius = '5px';
-        this.tabMenu.style.padding = '20px';
-        this.tabMenu.style.display = 'none';
-
-        // Create leaderboard
-        this.leaderboard = document.createElement('div');
-        this.leaderboard.id = 'leaderboard';
-        this.leaderboard.style.width = '100%';
-        this.leaderboard.style.marginBottom = '20px';
-        this.tabMenu.appendChild(this.leaderboard);
-
-        // Create host actions container
-        const hostActions = document.createElement('div');
-        hostActions.id = 'host-actions';
-        hostActions.style.display = 'flex';
-        hostActions.style.justifyContent = 'space-between';
-
-        // Create start button
-        this.startButton = document.createElement('button');
-        this.startButton.id = 'btn-start-game';
-        this.startButton.textContent = 'Start Game';
-        this.startButton.style.padding = '10px 20px';
-        this.startButton.style.fontSize = '16px';
-        this.startButton.style.backgroundColor = '#4CAF50';
-        this.startButton.style.color = 'white';
-        this.startButton.style.border = 'none';
-        this.startButton.style.borderRadius = '5px';
-        this.startButton.style.cursor = 'pointer';
-        hostActions.appendChild(this.startButton);
-
-        // Create restart button
-        this.restartButton = document.createElement('button');
-        this.restartButton.id = 'btn-restart-game';
-        this.restartButton.textContent = 'Restart Game';
-        this.restartButton.style.padding = '10px 20px';
-        this.restartButton.style.fontSize = '16px';
-        this.restartButton.style.backgroundColor = '#f44336';
-        this.restartButton.style.color = 'white';
-        this.restartButton.style.border = 'none';
-        this.restartButton.style.borderRadius = '5px';
-        this.restartButton.style.cursor = 'pointer';
-        hostActions.appendChild(this.restartButton);
-
-        this.tabMenu.appendChild(hostActions);
-        document.body.appendChild(this.tabMenu);
-    }
 
     public showHUD() {
         if (this.hud) {
             this.hud.style.display = 'block';
         }
-        // Show game mode display when HUD is shown
-        if (this.gameModeDisplay) {
-            this.gameModeDisplay.style.display = 'block';
-        }
+        // Game mode display is now handled by React component
     }
 
     public showTabMenu() {
@@ -464,62 +237,7 @@ export class UIManager {
         }
     }
 
-    public updateGameMode(gameState: GameState) {
-        if (!this.gameModeDisplay) return;
-
-        let modeText = '';
-
-        switch (gameState.gameMode) {
-            case GameMode.WARMUP:
-                modeText = 'Warmup';
-                break;
-            case GameMode.FREEZE_TIME:
-                // Calculate remaining seconds in freeze time
-                if (gameState.freezeTimeEnd) {
-                    const now = Date.now();
-                    const remainingMs = Math.max(0, gameState.freezeTimeEnd - now);
-                    const remainingSeconds = Math.ceil(remainingMs / 1000);
-                    modeText = `Round ${gameState.currentRound}/${gameState.totalRounds} - Freeze Time (${remainingSeconds}s)`;
-                } else {
-                    modeText = `Round ${gameState.currentRound}/${gameState.totalRounds} - Freeze Time`;
-                }
-                break;
-            case GameMode.ROUND:
-                modeText = `Round ${gameState.currentRound}/${gameState.totalRounds}`;
-                break;
-            case GameMode.ROUND_END:
-                // Show who won the round
-                if (gameState.roundWinnerId) {
-                    const winner = gameState.players.find(p => p.id === gameState.roundWinnerId);
-                    if (winner) {
-                        // Calculate remaining seconds in round end
-                        if (gameState.freezeTimeEnd) {
-                            const now = Date.now();
-                            const remainingMs = Math.max(0, gameState.freezeTimeEnd - now);
-                            const remainingSeconds = Math.ceil(remainingMs / 1000);
-                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.username || winner.id.substring(0, 4)} Wins! (${remainingSeconds}s)`;
-                        } else {
-                            modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Player ${winner.username || winner.id.substring(0, 4)} Wins!`;
-                        }
-                    } else {
-                        modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Round End`;
-                    }
-                } else {
-                    modeText = `Round ${gameState.currentRound-1}/${gameState.totalRounds} - Round End`;
-                }
-                break;
-            case GameMode.GAME_OVER:
-                if (gameState.winnerId) {
-                    const winner = gameState.players.find(p => p.id === gameState.winnerId);
-                    modeText = winner ? `Game Over - Player ${winner.username || winner.id.substring(0, 4)} Wins!` : 'Game Over';
-                } else {
-                    modeText = 'Game Over';
-                }
-                break;
-        }
-
-        this.gameModeDisplay.textContent = modeText;
-    }
+    // Game mode display is now handled by React component
 
     public updateLeaderboard(gameState: GameState, localPlayerId: string, isHost: boolean) {
         if (!this.leaderboard) return;
@@ -631,7 +349,7 @@ export class UIManager {
                     cooldownText.textContent = remainingSeconds.toString();
                     skillSlot?.setAttribute('data-cooldown-active', 'true');
                 }
-                this.clearSkillBorder(SkillType.TELEPORT); // Skill on cooldown, hide border
+                skillSlot?.removeAttribute('data-ready'); // Skill on cooldown, hide border
             } else {
                 this.teleportCdOverlay.style.height = '0%';
                 if (cooldownText) {
@@ -659,7 +377,7 @@ export class UIManager {
                     cooldownText.textContent = remainingSeconds.toString();
                     skillSlot?.setAttribute('data-cooldown-active', 'true');
                 }
-                this.clearSkillBorder(SkillType.HOMING_MISSILE); // Skill on cooldown, hide border
+                skillSlot?.removeAttribute('data-ready'); // Skill on cooldown, hide border
             } else {
                 this.homingMissileCdOverlay.style.height = '0%';
                 if (cooldownText) {
@@ -687,7 +405,7 @@ export class UIManager {
                     cooldownText.textContent = remainingSeconds.toString();
                     skillSlot?.setAttribute('data-cooldown-active', 'true');
                 }
-                this.clearSkillBorder(SkillType.LASER_BEAM); // Skill on cooldown, hide border
+                skillSlot?.removeAttribute('data-ready'); // Skill on cooldown, hide border
             } else {
                 this.laserBeamCdOverlay.style.height = '0%';
                 if (cooldownText) {
@@ -728,7 +446,7 @@ export class UIManager {
         }
 
         // Update game mode display
-        this.updateGameMode(state);
+        // Game mode display is now handled by React component
 
         // Update leaderboard if tab menu is visible
         if (this.tabMenu && this.tabMenu.style.display === 'block') {
