@@ -9,6 +9,15 @@ import type { NetworkMessage, JoinRequestMessage } from '../common/messages';
 import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
 
+// Declare custom event types
+declare global {
+  interface WindowEventMap {
+    'network-data': CustomEvent<{ from: string; data: NetworkMessage }>;
+    'game-started': CustomEvent<void>;
+    'player-disconnected': CustomEvent<string>;
+  }
+}
+
 export class GameClient {
   private renderer: Renderer;
   private inputManager: InputManager;

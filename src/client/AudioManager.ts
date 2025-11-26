@@ -61,7 +61,7 @@ export class AudioManager {
       this.loadBackgroundMusic('/resources/bgm/bgm0001.mp3'),
     ];
 
-    return Promise.all(soundPromises);
+    return Promise.all(soundPromises).then(() => {});
   }
 
   /**

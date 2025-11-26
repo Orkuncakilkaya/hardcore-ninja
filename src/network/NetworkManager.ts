@@ -90,10 +90,12 @@ export class NetworkManager {
       window.dispatchEvent(new CustomEvent('connected', { detail: conn.peer }));
     });
 
-    conn.on('data', (data: NetworkMessage) => {
+    conn.on('data', (data: unknown) => {
       // Dispatch event for Game to handle
       window.dispatchEvent(
-        new CustomEvent('network-data', { detail: { from: conn.peer, data: data } })
+        new CustomEvent('network-data', {
+          detail: { from: conn.peer, data: data as NetworkMessage },
+        })
       );
     });
 

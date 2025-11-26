@@ -9,6 +9,13 @@ import GameModeDisplay from './components/GameModeDisplay';
 import type { GameState } from './common/types';
 import styles from './App.module.css';
 
+// Extend Window interface to include networkManager property
+declare global {
+  interface Window {
+    networkManager?: NetworkManager;
+  }
+}
+
 function App() {
   const [networkManager] = useState(() => new NetworkManager());
   const [gameClient, setGameClient] = useState<GameClient | null>(null);
@@ -21,7 +28,7 @@ function App() {
 
   useEffect(() => {
     // Make networkManager available globally for components that need it
-    (window as Window & { networkManager: NetworkManager }).networkManager = networkManager;
+    window.networkManager = networkManager;
 
     // Initialize GameClient after React has rendered the DOM elements
     // Use a small delay to ensure DOM is ready

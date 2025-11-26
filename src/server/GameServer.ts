@@ -145,7 +145,16 @@ export class GameServer {
       }
 
       case 'STATE_REQUEST': {
-        const state = this.entityManager.getState();
+        const baseState = this.entityManager.getState();
+        const state = {
+          ...baseState,
+          gameMode: this.gameMode,
+          currentRound: this.currentRound,
+          totalRounds: this.totalRounds,
+          freezeTimeEnd: this.freezeTimeEnd > 0 ? this.freezeTimeEnd : undefined,
+          winnerId: this.winnerId,
+          roundWinnerId: this.roundWinnerId,
+        };
         this.networkManager.sendToClient(playerId, {
           type: 'GAME_STATE_UPDATE',
           state: state,

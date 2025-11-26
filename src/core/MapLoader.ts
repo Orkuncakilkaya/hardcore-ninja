@@ -12,7 +12,8 @@ interface SpawnPoint {
 interface MapObject {
   id: string;
   position: Vector3;
-  dimensions: Vector3;
+  dimensions: { width: number; height: number; depth: number };
+  color: number;
 }
 
 export class MapLoader {
