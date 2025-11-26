@@ -65,7 +65,21 @@ jobs:
         run: |
           # Deploy to Cloudflare Pages with a unique preview URL based on PR number
           # Using --branch parameter ensures this deploys to a preview URL instead of production
-          DEPLOYMENT_URL=$(npx wrangler pages deploy dist --project-name=hardcore-ninja --branch="pr-${{ github.event.pull_request.number }}" --commit-hash=${{ github.sha }} | grep -o 'https://[^ ]*')
+          WRANGLER_OUTPUT=$(npx wrangler pages deploy dist --project-name=hardcore-ninja --branch="pr-${{ github.event.pull_request.number }}" --commit-hash=${{ github.sha }} --commit-dirty=true)
+          echo "Wrangler output: $WRANGLER_OUTPUT"
+
+          # Extract the deployment alias URL from the output
+          # The output contains a line like: "✨ Deployment alias URL: https://pr-14.hardcore-ninja.pages.dev"
+          DEPLOYMENT_URL=$(echo "$WRANGLER_OUTPUT" | grep "Deployment alias URL:" | grep -o "https://pr-[0-9]*\.hardcore-ninja\.pages\.dev" || echo "")
+
+          # Verify we got a valid URL
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            echo "Failed to extract deployment URL from wrangler output"
+            echo "Raw output: $WRANGLER_OUTPUT"
+            exit 1
+          fi
+
+          echo "Extracted deployment URL: $DEPLOYMENT_URL"
           echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
