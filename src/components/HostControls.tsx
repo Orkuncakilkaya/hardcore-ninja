@@ -10,7 +10,12 @@ interface HostControlsProps {
   networkManager: NetworkManager;
 }
 
-export default function HostControls({ hostId, onHost, onJoin, networkManager }: HostControlsProps) {
+export default function HostControls({
+  hostId,
+  onHost,
+  onJoin,
+  networkManager,
+}: HostControlsProps) {
   const [inputHostId, setInputHostId] = useState('');
   const [playerName, setPlayerName] = useState(() => {
     // Check both networkManager and localStorage for initial value
@@ -74,11 +79,7 @@ export default function HostControls({ hostId, onHost, onJoin, networkManager }:
         onClick={handleCopyHostId}
         className={styles.hostIdInput}
       />
-      <button 
-        onClick={handleHost} 
-        className={styles.hostButton}
-        disabled={!hasPlayerName}
-      >
+      <button onClick={handleHost} className={styles.hostButton} disabled={!hasPlayerName}>
         Host Game
       </button>
       <div className={styles.divider}>OR</div>
@@ -89,8 +90,8 @@ export default function HostControls({ hostId, onHost, onJoin, networkManager }:
         placeholder="Enter Host ID"
         className={styles.joinInput}
       />
-      <button 
-        onClick={handleJoin} 
+      <button
+        onClick={handleJoin}
         className={styles.joinButton}
         disabled={!hasPlayerName || !inputHostId.trim()}
       >
@@ -99,4 +100,3 @@ export default function HostControls({ hostId, onHost, onJoin, networkManager }:
     </div>
   );
 }
-

@@ -11,4 +11,3 @@ function HUD() {
 }
 
 export default memo(HUD);
-

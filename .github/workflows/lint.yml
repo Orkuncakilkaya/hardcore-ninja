@@ -1,0 +1,58 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        id: pnpm-install
+        with:
+          run_install: false
+
+      - name: Get pnpm version
+        id: pnpm-version
+        run: |
+          PNPM_VERSION=$(node -e "console.log(require('./package.json').packageManager.split('@')[1])")
+          echo "PNPM_VERSION=$PNPM_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install pnpm
+        run: npm i -g pnpm@${{ steps.pnpm-version.outputs.PNPM_VERSION }}
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install || pnpm install --no-frozen-lockfile
+        # First try with frozen-lockfile (default in CI), if that fails, update the lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Check formatting with Prettier
+        run: npx prettier --check "src/**/*.{js,jsx,ts,tsx,json,css}"

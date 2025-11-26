@@ -25,11 +25,10 @@
 }
 
 .localPlayerRow {
-  color: #4CAF50;
+  color: #4caf50;
   font-weight: bold;
 }
 
 .actionButton {
   flex: 1;
 }
-

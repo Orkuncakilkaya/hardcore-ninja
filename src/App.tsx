@@ -9,6 +9,13 @@ import GameModeDisplay from './components/GameModeDisplay';
 import type { GameState } from './common/types';
 import styles from './App.module.css';
 
+// Extend Window interface to include networkManager property
+declare global {
+  interface Window {
+    networkManager?: NetworkManager;
+  }
+}
+
 function App() {
   const [networkManager] = useState(() => new NetworkManager());
   const [gameClient, setGameClient] = useState<GameClient | null>(null);
@@ -21,14 +28,14 @@ function App() {
 
   useEffect(() => {
     // Make networkManager available globally for components that need it
-    (window as any).networkManager = networkManager;
+    window.networkManager = networkManager;
 
     // Initialize GameClient after React has rendered the DOM elements
     // Use a small delay to ensure DOM is ready
     if (!gameClientInitialized.current) {
       const timer = setTimeout(() => {
         const client = new GameClient(networkManager);
-        
+
         // Set up callbacks for settings and scoreboard
         client.setOnSettingsToggle(() => {
           setSettingsOpened(prev => !prev);
@@ -39,7 +46,7 @@ function App() {
         client.setOnScoreboardClose(() => {
           setScoreboardOpened(false);
         });
-        
+
         setGameClient(client);
         gameClientInitialized.current = true;
       }, 100);
@@ -81,7 +88,7 @@ function App() {
   const handleStartGame = () => {
     if (gameClient && networkManager.isHost) {
       networkManager.sendToHost({
-        type: 'START_GAME'
+        type: 'START_GAME',
       });
     }
   };
@@ -89,7 +96,7 @@ function App() {
   const handleRestartGame = () => {
     if (gameClient && networkManager.isHost) {
       networkManager.sendToHost({
-        type: 'RESTART_GAME'
+        type: 'RESTART_GAME',
       });
     }
   };
@@ -102,15 +109,10 @@ function App() {
         </div>
       )}
       <HUD />
-      {gameStarted && (
-        <GameModeDisplay 
-          gameState={gameState}
-          visible={gameStarted}
-        />
-      )}
+      {gameStarted && <GameModeDisplay gameState={gameState} visible={gameStarted} />}
       {gameClient && (
         <>
-          <Settings 
+          <Settings
             opened={settingsOpened}
             onClose={() => setSettingsOpened(false)}
             audioManager={gameClient.getAudioManager()}
@@ -133,4 +135,3 @@ function App() {
 }
 
 export default App;
-

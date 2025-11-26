@@ -12,10 +12,14 @@ export default function LobbyControls({ hostId }: LobbyControlsProps) {
         <ThemeIcon size={60} radius="md" variant="light">
           <Icon icon="tabler:server" style={{ width: rem(32), height: rem(32) }} />
         </ThemeIcon>
-        
+
         <Stack gap="xs" align="center">
-          <Text size="sm" c="dimmed">Hosting on ID</Text>
-          <Text size="xl" fw={700} ff="monospace">{hostId}</Text>
+          <Text size="sm" c="dimmed">
+            Hosting on ID
+          </Text>
+          <Text size="xl" fw={700} ff="monospace">
+            {hostId}
+          </Text>
         </Stack>
 
         <Group gap="xs">
@@ -26,4 +30,3 @@ export default function LobbyControls({ hostId }: LobbyControlsProps) {
     </Paper>
   );
 }
-

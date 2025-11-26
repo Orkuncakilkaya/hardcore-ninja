@@ -6,7 +6,9 @@
   background: rgba(0, 0, 0, 0.6);
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
 .skillSlot {
@@ -51,7 +53,7 @@
 .skillSlot:hover {
   transform: translateY(-2px);
   border-color: #888;
-  box-shadow: 
+  box-shadow:
     0 6px 12px rgba(0, 0, 0, 0.5),
     0 0 20px rgba(100, 150, 255, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
@@ -64,7 +66,7 @@
 
 .skillSlot:active {
   transform: translateY(0);
-  box-shadow: 
+  box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.4),
     inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -131,7 +133,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(255, 255, 255, 0.9),
     0 2px 6px rgba(0, 0, 0, 1),
     0 0 20px rgba(255, 255, 255, 0.5);
@@ -141,22 +143,22 @@
   pointer-events: none;
 }
 
-.skillSlot[data-cooldown-active="true"] .cooldownText {
+.skillSlot[data-cooldown-active='true'] .cooldownText {
   opacity: 1;
 }
 
-.skillSlot[data-cooldown-active="true"] .skillIcon {
+.skillSlot[data-cooldown-active='true'] .skillIcon {
   opacity: 0.4;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) grayscale(0.5);
 }
 
-.skillSlot[data-cooldown-active="true"] .skillKey {
+.skillSlot[data-cooldown-active='true'] .skillKey {
   opacity: 0.4;
 }
 
-.skillSlot[data-ready="true"] {
+.skillSlot[data-ready='true'] {
   border-color: #4a9eff;
-  box-shadow: 
+  box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.4),
     0 0 15px rgba(74, 158, 255, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -164,9 +166,9 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.skillSlot[data-ready="true"]:hover {
+.skillSlot[data-ready='true']:hover {
   border-color: #6bb0ff;
-  box-shadow: 
+  box-shadow:
     0 6px 12px rgba(0, 0, 0, 0.5),
     0 0 25px rgba(74, 158, 255, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
@@ -174,19 +176,19 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 
+  0%,
+  100% {
+    box-shadow:
       0 4px 8px rgba(0, 0, 0, 0.4),
       0 0 15px rgba(74, 158, 255, 0.4),
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
       inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 4px 8px rgba(0, 0, 0, 0.4),
       0 0 20px rgba(74, 158, 255, 0.6),
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
       inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   }
 }
-
