@@ -124,19 +124,19 @@ export class ServerPlayer {
         const moveVector = this.velocity.clone().multiplyScalar(moveDistance);
 
         // Try moving along X axis
-        let potentialPosition = this.position.clone();
-        potentialPosition.x += moveVector.x;
+        const potentialXPosition = this.position.clone();
+        potentialXPosition.x += moveVector.x;
 
-        if (!this.checkCollision(potentialPosition, obstacles, otherPlayers)) {
-          this.position.x = potentialPosition.x;
+        if (!this.checkCollision(potentialXPosition, obstacles, otherPlayers)) {
+          this.position.x = potentialXPosition.x;
         }
 
         // Try moving along Z axis (from the potentially new X position)
-        potentialPosition = this.position.clone();
-        potentialPosition.z += moveVector.z;
+        const potentialZPosition = this.position.clone();
+        potentialZPosition.z += moveVector.z;
 
-        if (!this.checkCollision(potentialPosition, obstacles, otherPlayers)) {
-          this.position.z = potentialPosition.z;
+        if (!this.checkCollision(potentialZPosition, obstacles, otherPlayers)) {
+          this.position.z = potentialZPosition.z;
         }
 
         // If we reached destination (approx), stop
