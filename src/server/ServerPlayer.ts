@@ -169,7 +169,7 @@ export class ServerPlayer {
     }
   }
 
-  public attemptTeleport(target: Vector3, obstacles: THREE.Box3[]): boolean {
+  public attemptTeleport(target: Vector3, obstacles: THREE.Box3[], otherPlayers: ServerPlayer[]): boolean {
     if (this.isDead) return false;
     const now = Date.now();
     if (now < this.teleportCooldown) {
@@ -186,19 +186,26 @@ export class ServerPlayer {
       return false;
     }
 
-    // Validate bounds (map limits)
-    if (
-      target.x < -this.mapLimit ||
-      target.x > this.mapLimit ||
-      target.z < -this.mapLimit ||
-      target.z > this.mapLimit
-    ) {
-      return false;
+    // Validate bounds (map limits) - Clamp to map edges
+    targetPos.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.x));
+    targetPos.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.z));
+
+    // Combine obstacles and other players into a single list of collidables
+    const collidables: THREE.Box3[] = [...obstacles];
+
+    for (const player of otherPlayers) {
+      if (player.id !== this.id && !player.isDead) {
+        const playerBox = new THREE.Box3().setFromCenterAndSize(
+          new THREE.Vector3(player.position.x, player.position.y + 1, player.position.z),
+          new THREE.Vector3(1, 2, 1)
+        );
+        collidables.push(playerBox);
+      }
     }
 
-    // Check if destination is inside an obstacle
+    // Check if destination is inside a collidable
     const playerBox = new THREE.Box3().setFromCenterAndSize(
-      new THREE.Vector3(target.x, target.y + 1, target.z),
+      new THREE.Vector3(targetPos.x, targetPos.y + 1, targetPos.z),
       new THREE.Vector3(1, 2, 1)
     );
 
@@ -206,7 +213,7 @@ export class ServerPlayer {
     let isInsideObstacle = false;
     let intersectingObstacle: THREE.Box3 | null = null;
 
-    for (const obstacleBox of obstacles) {
+    for (const obstacleBox of collidables) {
       if (playerBox.intersectsBox(obstacleBox)) {
         isInsideObstacle = true;
         intersectingObstacle = obstacleBox;
@@ -214,78 +221,72 @@ export class ServerPlayer {
       }
     }
 
-    // If inside obstacle, push player outside in the direction of movement
+    // If inside obstacle, find the closest valid point outside
     if (isInsideObstacle && intersectingObstacle) {
-      const direction = new THREE.Vector3().subVectors(targetPos, currentPos);
-      direction.y = 0;
+      const obstacleCenter = new THREE.Vector3();
+      intersectingObstacle.getCenter(obstacleCenter);
+      const obstacleSize = new THREE.Vector3();
+      intersectingObstacle.getSize(obstacleSize);
+      const halfExtents = obstacleSize.clone().multiplyScalar(0.5);
 
-      if (direction.length() > 0.01) {
-        direction.normalize();
+      // Candidate exit points (center of each face projected from target)
+      // We want the point on the boundary closest to the TARGET, not current pos.
+      // Actually, we can just project the target point onto the 4 faces.
 
-        // Find the closest point on the obstacle's surface in the movement direction
-        const obstacleCenter = new THREE.Vector3();
-        intersectingObstacle.getCenter(obstacleCenter);
-        const obstacleSize = new THREE.Vector3();
-        intersectingObstacle.getSize(obstacleSize);
+      let bestExitPoint = currentPos.clone(); // Default to staying put if all else fails
+      let minDistanceToTarget = Infinity;
+      let foundValidExit = false;
 
-        // Calculate the half-extents
-        const halfExtents = obstacleSize.clone().multiplyScalar(0.5);
+      const directions = [
+        new THREE.Vector3(0, 0, 1), // North face
+        new THREE.Vector3(0, 0, -1), // South face
+        new THREE.Vector3(1, 0, 0), // East face
+        new THREE.Vector3(-1, 0, 0), // West face
+      ];
 
-        // Find the face of the obstacle closest to the movement direction
-        let bestExitPoint = obstacleCenter.clone();
-        let maxDistance = -Infinity;
+      for (const dir of directions) {
+        // Calculate point on this face
+        const exitPoint = targetPos.clone();
 
-        // Check all 4 directions (north, south, east, west)
-        const directions = [
-          new THREE.Vector3(0, 0, 1), // North
-          new THREE.Vector3(0, 0, -1), // South
-          new THREE.Vector3(1, 0, 0), // East
-          new THREE.Vector3(-1, 0, 0), // West
-        ];
+        // Project target onto the face plane
+        if (Math.abs(dir.x) > 0.5) {
+          // East/West face: set X to face X
+          exitPoint.x = obstacleCenter.x + dir.x * (halfExtents.x + 0.6); // 0.6 margin
+        } else {
+          // North/South face: set Z to face Z
+          exitPoint.z = obstacleCenter.z + dir.z * (halfExtents.z + 0.6); // 0.6 margin
+        }
 
-        for (const dir of directions) {
-          // Check if this direction aligns with movement direction
-          const dot = direction.dot(dir);
-          if (dot > 0) {
-            // Calculate exit point on this face
-            const exitPoint = obstacleCenter.clone();
-            exitPoint.x += dir.x * (halfExtents.x + 0.6); // 0.6 is half player width + margin
-            exitPoint.z += dir.z * (halfExtents.z + 0.6);
-            exitPoint.y = target.y;
+        // Let's check if this exit point is valid
+        const exitBox = new THREE.Box3().setFromCenterAndSize(
+          new THREE.Vector3(exitPoint.x, exitPoint.y + 1, exitPoint.z),
+          new THREE.Vector3(1, 2, 1)
+        );
 
-            // Check if this exit point is valid (not inside another obstacle)
-            const exitBox = new THREE.Box3().setFromCenterAndSize(
-              new THREE.Vector3(exitPoint.x, exitPoint.y + 1, exitPoint.z),
-              new THREE.Vector3(1, 2, 1)
-            );
-
-            let isValidExit = true;
-            for (const otherObstacle of obstacles) {
-              if (otherObstacle !== intersectingObstacle && exitBox.intersectsBox(otherObstacle)) {
-                isValidExit = false;
-                break;
-              }
-            }
-
-            if (isValidExit) {
-              const distanceToCurrent = exitPoint.distanceTo(currentPos);
-              if (distanceToCurrent > maxDistance) {
-                maxDistance = distanceToCurrent;
-                bestExitPoint = exitPoint;
-              }
-            }
+        let isValidExit = true;
+        for (const otherObstacle of collidables) {
+          if (otherObstacle !== intersectingObstacle && exitBox.intersectsBox(otherObstacle)) {
+            isValidExit = false;
+            break;
           }
         }
 
-        // If we found a valid exit point, use it
-        if (maxDistance > -Infinity) {
-          finalTarget = bestExitPoint;
-        } else {
-          // Fallback: push in movement direction
-          finalTarget = obstacleCenter.clone();
-          finalTarget.add(direction.multiplyScalar(halfExtents.length() + 1));
-          finalTarget.y = target.y;
+        if (isValidExit) {
+          const dist = exitPoint.distanceTo(targetPos);
+          if (dist < minDistanceToTarget) {
+            minDistanceToTarget = dist;
+            bestExitPoint = exitPoint;
+            foundValidExit = true;
+          }
         }
+      }
+
+      if (foundValidExit) {
+        finalTarget = bestExitPoint;
+      } else {
+        // If no valid exit found (e.g. surrounded), stay at current pos or try to go back
+        // For now, let's just cancel the teleport effectively by setting target to current
+        finalTarget = currentPos.clone();
       }
     }
 

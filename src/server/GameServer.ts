@@ -127,7 +127,8 @@ export class GameServer {
           if (message.skillType === 'TELEPORT' && message.target) {
             sp.attemptTeleport(
               new THREE.Vector3(message.target.x, message.target.y, message.target.z),
-              this.entityManager.getObstacles()
+              this.entityManager.getObstacles(),
+              this.entityManager.getPlayers()
             );
           } else if (message.skillType === 'HOMING_MISSILE' && message.target) {
             sp.attemptHomingMissile(
