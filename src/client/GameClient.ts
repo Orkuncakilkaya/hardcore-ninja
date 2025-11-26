@@ -5,7 +5,7 @@ import { NetworkManager } from '../network/NetworkManager';
 import { ClientEntityManager } from './ClientEntityManager';
 import { UIManager } from '../core/UIManager';
 import { AudioManager } from './AudioManager';
-import type { NetworkMessage } from '../common/messages';
+import type { NetworkMessage, JoinRequestMessage } from '../common/messages';
 import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
 
@@ -77,7 +77,7 @@ export class GameClient {
     }
 
     private setupNetworkHandlers() {
-        window.addEventListener('network-data', (e: any) => {
+        window.addEventListener('network-data', (e: CustomEvent<{ from: string; data: NetworkMessage }>) => {
             const { data } = e.detail;
             this.handleMessage(data);
         });
@@ -220,7 +220,6 @@ export class GameClient {
         // Check cooldown
         const now = Date.now();
         if (now < myPlayer.teleportCooldown) {
-            console.log('Teleport on cooldown');
             return;
         }
 
@@ -277,7 +276,6 @@ export class GameClient {
         // Check cooldown
         const now = Date.now();
         if (now < myPlayer.homingMissileCooldown) {
-            console.log('Homing Missile on cooldown');
             return;
         }
 
@@ -305,7 +303,6 @@ export class GameClient {
         // Check cooldown
         const now = Date.now();
         if (now < myPlayer.laserBeamCooldown) {
-            console.log('Laser Beam on cooldown');
             return;
         }
 
@@ -341,7 +338,6 @@ export class GameClient {
 
         const now = Date.now();
         if (now < myPlayer.invincibilityCooldown) {
-            console.log('Invincibility on cooldown');
             return;
         }
 
@@ -442,7 +438,7 @@ export class GameClient {
     }
 
     public joinGame(_hostId: string) {
-        const joinRequest: any = { 
+        const joinRequest: JoinRequestMessage = { 
             type: 'JOIN_REQUEST', 
             playerId: this.networkManager.peerId 
         };
@@ -467,7 +463,6 @@ export class GameClient {
         // Initialize audio system
         try {
             await this.audioManager.init(this.renderer.camera);
-            console.log('Audio system initialized');
 
             // Start playing background music
             this.audioManager.playBackgroundMusic();

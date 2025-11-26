@@ -9,7 +9,7 @@ import type {ServerPlayer} from "./ServerPlayer.ts";
 export class GameServer {
     private entityManager: ServerEntityManager;
     private networkManager: NetworkManager;
-    private intervalId: any = null;
+    private intervalId: number | null = null;
     private mapConfig: MapConfig;
 
     // Game state
@@ -24,7 +24,7 @@ export class GameServer {
     constructor(networkManager: NetworkManager, mapConfig: MapConfig) {
         this.networkManager = networkManager;
         this.mapConfig = mapConfig;
-        
+
         this.entityManager = new ServerEntityManager();
         this.entityManager.loadMap(this.mapConfig);
 
@@ -40,14 +40,14 @@ export class GameServer {
         // This is browser-specific. The server logic should ideally be environment agnostic but we are running in browser (Host).
         // So we can listen to the same events, but we need to distinguish "Server" handling from "Client" handling.
 
-        window.addEventListener('network-data', (e: any) => {
+        window.addEventListener('network-data', (e: CustomEvent<{ from: string; data: NetworkMessage }>) => {
             if (!this.networkManager.isHost) return; // Only Host runs the server
 
             const { from, data } = e.detail;
             this.handleMessage(from, data);
         });
 
-        window.addEventListener('player-disconnected', (e: any) => {
+        window.addEventListener('player-disconnected', (e: CustomEvent<string>) => {
             if (!this.networkManager.isHost) return;
             this.entityManager.removePlayer(e.detail);
             this.networkManager.broadcast({ type: 'PLAYER_DIED', id: e.detail }); // Or PLAYER_LEFT
@@ -56,7 +56,7 @@ export class GameServer {
 
     private handleMessage(playerId: string, message: NetworkMessage) {
         switch (message.type) {
-            case 'JOIN_REQUEST':
+            case 'JOIN_REQUEST': {
                 // Handle join (actually PeerJS handles connection, this might be application level handshake)
                 // For now, we assume connection = join.
                 // But if we have a specific JOIN_REQUEST message:
@@ -83,6 +83,7 @@ export class GameServer {
                     spawnPosition: player.position
                 });
                 break;
+            }
 
             case 'START_GAME':
                 if (this.networkManager.isHost && playerId === this.networkManager.peerId) {
@@ -96,7 +97,7 @@ export class GameServer {
                 }
                 break;
 
-            case 'PLAYER_INPUT':
+            case 'PLAYER_INPUT': {
                 const p = this.entityManager.getPlayer(playerId);
                 if (p) {
                     // Don't process input if player is dead or frozen
@@ -105,18 +106,17 @@ export class GameServer {
                     }
 
                     if (message.stopMovement) {
-                        console.log(`Stopping movement for ${playerId}`);
                         p.stopMovement();
                     } else if (message.destination) {
-                        console.log(`Processing Move for ${playerId} to`, message.destination);
                         p.setDestination(new THREE.Vector3(message.destination.x, message.destination.y, message.destination.z));
                     }
                 } else {
                     console.warn(`Player ${playerId} not found for input`);
                 }
                 break;
+            }
 
-            case 'SKILL_REQUEST':
+            case 'SKILL_REQUEST': {
                 const sp = this.entityManager.getPlayer(playerId);
                 if (sp) {
                     if (message.skillType === 'TELEPORT' && message.target) {
@@ -131,8 +131,9 @@ export class GameServer {
                     // Handle other skills
                 }
                 break;
+            }
 
-            case 'STATE_REQUEST':
+            case 'STATE_REQUEST': {
                 const state = this.entityManager.getState();
                 this.networkManager.sendToClient(playerId, {
                     type: 'GAME_STATE_UPDATE',
@@ -140,12 +141,12 @@ export class GameServer {
                     timestamp: Date.now()
                 });
                 break;
+            }
         }
     }
 
     public start() {
         if (this.intervalId) return;
-        console.log('Game Server Started');
 
         // Add Host Player
         this.entityManager.addPlayer(this.networkManager.peerId);
@@ -261,7 +262,6 @@ export class GameServer {
                 if (spawnPos) {
                     // Set position to spawn point
                     player.position.set(spawnPos.x, 0, spawnPos.y);
-                    console.log(`Player ${player.id} respawned at spawn point ${spawnIndex} for new round`);
                 }
             }
         });
@@ -308,7 +308,6 @@ export class GameServer {
                 // Set position to spawn point
                 player.position.set(spawnPos.x, 0, spawnPos.y);
                 player.respawnTime = 0;
-                console.log(`Player ${player.id} respawned at spawn point ${spawnIndex}`);
             }
         }
     }

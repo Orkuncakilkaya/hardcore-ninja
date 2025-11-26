@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 
+// Extend Window interface to include groundGridDebug property
+declare global {
+    interface Window {
+        groundGridDebug?: number;
+    }
+}
+
 export class Renderer {
     public scene: THREE.Scene;
     public camera: THREE.PerspectiveCamera;
@@ -38,18 +45,18 @@ export class Renderer {
         this.directionalLight = new THREE.DirectionalLight(0xffffff, 1);
         this.directionalLight.position.set(10, 20, 10);
         this.directionalLight.castShadow = true;
-        
+
         // Configure shadow camera to cover the entire map area
         // Initial map size is 70x70, shadow camera will be updated when map loads
         this.updateShadowCamera(70);
-        
+
         // Increase shadow map resolution for better quality
         this.directionalLight.shadow.mapSize.width = 2048;
         this.directionalLight.shadow.mapSize.height = 2048;
-        
+
         // Shadow bias to prevent shadow acne
         this.directionalLight.shadow.bias = -0.0001;
-        
+
         this.scene.add(this.directionalLight);
 
         // Grid Helper (will be updated with actual map size)
@@ -82,7 +89,7 @@ export class Renderer {
     }
 
     private updateGridVisibility() {
-        const shouldShow = (window as any).groundGridDebug === 1;
+        const shouldShow = window.groundGridDebug === 1;
         if (this.gridHelper) {
             this.gridHelper.visible = shouldShow;
         }
@@ -100,7 +107,7 @@ export class Renderer {
         // Set visibility based on window.groundGridDebug value
         this.updateGridVisibility();
         this.scene.add(this.gridHelper);
-        
+
         // Update shadow camera to match map size
         this.updateShadowCamera(size);
     }
@@ -110,7 +117,7 @@ export class Renderer {
      */
     private updateShadowCamera(mapSize: number) {
         if (!this.directionalLight) return;
-        
+
         // Shadow camera frustum should cover the entire map with extra margin
         const shadowSize = mapSize * 1.5; // Add extra margin for safety
         this.directionalLight.shadow.camera.left = -shadowSize;
@@ -119,7 +126,7 @@ export class Renderer {
         this.directionalLight.shadow.camera.bottom = -shadowSize;
         this.directionalLight.shadow.camera.near = 0.5;
         this.directionalLight.shadow.camera.far = 100;
-        
+
         // Update projection matrix
         this.directionalLight.shadow.camera.updateProjectionMatrix();
     }

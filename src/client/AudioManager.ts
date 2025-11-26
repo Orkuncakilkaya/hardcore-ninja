@@ -43,7 +43,6 @@ export class AudioManager {
 
         return this.loadSounds().then(() => {
             this.initialized = true;
-            console.log('AudioManager initialized');
         });
     }
 
@@ -62,9 +61,7 @@ export class AudioManager {
             this.loadBackgroundMusic('/resources/bgm/bgm0001.mp3')
         ];
 
-        return Promise.all(soundPromises).then(() => {
-            console.log('All sounds loaded');
-        });
+        return Promise.all(soundPromises);
     }
 
     /**

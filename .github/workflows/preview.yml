@@ -1,0 +1,83 @@
+name: Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        id: pnpm-install
+        with:
+          run_install: false
+
+      - name: Get pnpm version
+        id: pnpm-version
+        run: |
+          PNPM_VERSION=$(node -e "console.log(require('./package.json').packageManager.split('@')[1])")
+          echo "PNPM_VERSION=$PNPM_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install pnpm
+        run: npm i -g pnpm@${{ steps.pnpm-version.outputs.PNPM_VERSION }}
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Wrangler
+        run: pnpm add -g wrangler
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Deploy to Cloudflare Pages with a unique preview URL based on PR number
+          # Using --branch parameter ensures this deploys to a preview URL instead of production
+          DEPLOYMENT_URL=$(npx wrangler pages deploy dist --project-name=hardcore-ninja --branch="pr-${{ github.event.pull_request.number }}" --commit-hash=${{ github.sha }} | grep -o 'https://[^ ]*')
+          echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const deploymentUrl = '${{ steps.deploy.outputs.DEPLOYMENT_URL }}';
+            const issue_number = context.issue.number;
+
+            github.rest.issues.createComment({
+              issue_number: issue_number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Preview environment deployed to: [${deploymentUrl}](${deploymentUrl})`
+            });

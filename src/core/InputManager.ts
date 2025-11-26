@@ -1,5 +1,15 @@
 import * as THREE from 'three';
 
+// Define a type for the input data
+type InputData = {
+    keys: { [key: string]: boolean };
+    mouse: THREE.Vector2;
+    isLeftMouseDown?: boolean;
+};
+
+// Define a type for the callback function
+type InputCallback = (data: InputData) => void;
+
 export class InputManager {
     public keys: { [key: string]: boolean } = {};
     public mouse: THREE.Vector2 = new THREE.Vector2();
@@ -41,18 +51,18 @@ export class InputManager {
         }
     }
 
-    private listeners: { [key: string]: Function[] } = {};
+    private listeners: { [key: string]: InputCallback[] } = {};
 
-    public on(event: string, callback: Function) {
+    public on(event: string, callback: InputCallback) {
         if (!this.listeners[event]) {
             this.listeners[event] = [];
         }
         this.listeners[event].push(callback);
     }
 
-    public emit(event: string, data?: any) {
+    public emit(event: string, data?: InputData) {
         if (this.listeners[event]) {
-            this.listeners[event].forEach(callback => callback(data));
+            this.listeners[event].forEach(callback => callback(data || { keys: this.keys, mouse: this.mouse }));
         }
     }
 

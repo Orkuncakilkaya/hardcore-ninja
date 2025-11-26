@@ -41,7 +41,6 @@ export class ServerEntityManager {
         // Spawn Points
         // Map JSON (x, y) to World (x, z)
         this.spawnPositions = config.spawnPoints.map(sp => new THREE.Vector2(sp.x, sp.y));
-        console.log('Loaded Spawn Points:', this.spawnPositions);
 
         // Shuffle spawn points
         for (let i = this.spawnPositions.length - 1; i > 0; i--) {
@@ -52,7 +51,7 @@ export class ServerEntityManager {
 
     public addPlayer(id: string): ServerPlayer {
         // Find spawn point
-        let spawnPos = new THREE.Vector3(0, 0, 0);
+        const spawnPos = new THREE.Vector3(0, 0, 0);
         const claimedIndices = new Set(this.claimedSpawnPoints.values());
 
         let found = false;
@@ -61,7 +60,6 @@ export class ServerEntityManager {
                 this.claimedSpawnPoints.set(id, i);
                 spawnPos.set(this.spawnPositions[i].x, 0, this.spawnPositions[i].y);
                 found = true;
-                console.log(`Assigned spawn point ${i} to ${id}:`, spawnPos);
                 break;
             }
         }
@@ -114,7 +112,6 @@ export class ServerEntityManager {
                 if (beam.checkCollision(player.position, player.id)) {
                     const config = SKILL_CONFIG[SkillType.LASER_BEAM];
                     player.takeDamage(config.damage);
-                    console.log(`Player ${player.id} hit by laser beam for ${config.damage} damage`);
                 }
             });
         }

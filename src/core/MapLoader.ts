@@ -3,6 +3,18 @@ import type { MapConfig, Vector3, Vector2 } from '../common/types';
 
 export type { MapConfig };
 
+// Define types for map validation
+interface SpawnPoint {
+    x: number;
+    y: number;
+}
+
+interface MapObject {
+    id: string;
+    position: Vector3;
+    dimensions: Vector3;
+}
+
 export class MapLoader {
     /**
      * Load a map configuration from a JSON file
@@ -31,7 +43,7 @@ export class MapLoader {
      * Validate map configuration structure
      * @param data Map data to validate
      */
-    private static validateMapConfig(data: any): void {
+    private static validateMapConfig(data: Partial<MapConfig>): void {
         if (!data.name || typeof data.name !== 'string') {
             throw new Error('Map must have a valid name');
         }
@@ -53,21 +65,21 @@ export class MapLoader {
         }
 
         // Validate spawn points
-        data.spawnPoints.forEach((sp: any, index: number) => {
+        data.spawnPoints.forEach((sp: Partial<SpawnPoint>, index: number) => {
             if (typeof sp.x !== 'number' || typeof sp.y !== 'number') {
                 throw new Error(`Spawn point ${index} must have x and y coordinates`);
             }
         });
 
         // Validate walls
-        data.walls.forEach((wall: any, index: number) => {
+        data.walls.forEach((wall: Partial<MapObject>, index: number) => {
             if (!wall.id || !wall.position || !wall.dimensions) {
                 throw new Error(`Wall ${index} is missing required properties`);
             }
         });
 
         // Validate boxes
-        data.boxes.forEach((box: any, index: number) => {
+        data.boxes.forEach((box: Partial<MapObject>, index: number) => {
             if (!box.id || !box.position || !box.dimensions) {
                 throw new Error(`Box ${index} is missing required properties`);
             }

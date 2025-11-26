@@ -187,7 +187,6 @@ export class ServerPlayer {
 
         // Validate bounds (map limits)
         if (target.x < -this.mapLimit || target.x > this.mapLimit || target.z < -this.mapLimit || target.z > this.mapLimit) {
-            console.log('Teleport rejected: out of bounds');
             return false;
         }
 
@@ -412,7 +411,6 @@ export class ServerPlayer {
             this.isDead = true;
             this.deaths++;
             this.aliveStartTime = 0; // Stop tracking alive time
-            console.log(`Player ${this.id} took ${amount} damage. Health: ${this.health}. Player is dead.`);
         }
     }
 

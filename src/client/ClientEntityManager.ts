@@ -508,7 +508,7 @@ export class ClientEntityManager {
                     const interpolationTime = Math.max(0, timeSinceUpdate - interpolationDelay);
 
                     // Use velocity-based prediction if we have velocity data
-                    let targetPos = player.targetPosition.clone();
+                    const targetPos = player.targetPosition.clone();
                     if (hasVelocity && !player.isTeleporting) {
                         // Predict position based on velocity
                         const prediction = player.velocity.clone().multiplyScalar(interpolationTime / 1000);

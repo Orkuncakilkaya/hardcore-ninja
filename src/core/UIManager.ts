@@ -1,5 +1,6 @@
 import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, GameMode } from '../common/constants';
+import { AudioManager } from '../client/AudioManager';
 
 export class UIManager {
     private hud: HTMLElement | null = null;
@@ -200,7 +201,7 @@ export class UIManager {
      * Set the audio manager for the settings menu
      * @param audioManager The audio manager
      */
-    public setAudioManager(audioManager: any) {
+    public setAudioManager(audioManager: AudioManager) {
         // Update sliders with current values
         if (this.bgmVolumeSlider && audioManager) {
             const bgmVolume = Math.round(audioManager.getBgmVolume() * 100);

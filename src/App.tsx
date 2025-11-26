@@ -21,14 +21,14 @@ function App() {
 
   useEffect(() => {
     // Make networkManager available globally for components that need it
-    (window as any).networkManager = networkManager;
+    (window as Window & { networkManager: NetworkManager }).networkManager = networkManager;
 
     // Initialize GameClient after React has rendered the DOM elements
     // Use a small delay to ensure DOM is ready
     if (!gameClientInitialized.current) {
       const timer = setTimeout(() => {
         const client = new GameClient(networkManager);
-        
+
         // Set up callbacks for settings and scoreboard
         client.setOnSettingsToggle(() => {
           setSettingsOpened(prev => !prev);
@@ -39,7 +39,7 @@ function App() {
         client.setOnScoreboardClose(() => {
           setScoreboardOpened(false);
         });
-        
+
         setGameClient(client);
         gameClientInitialized.current = true;
       }, 100);
@@ -133,4 +133,3 @@ function App() {
 }
 
 export default App;
-
