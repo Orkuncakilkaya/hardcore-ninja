@@ -122,44 +122,26 @@ export class ServerPlayer {
         this.stopMovement();
       } else {
         const moveVector = this.velocity.clone().multiplyScalar(moveDistance);
-        const potentialPosition = this.position.clone().add(moveVector);
 
-        // Collision Detection
-        const playerBox = new THREE.Box3().setFromCenterAndSize(
-          potentialPosition.clone().add(new THREE.Vector3(0, 1, 0)),
-          new THREE.Vector3(1, 2, 1)
-        );
+        // Try moving along X axis
+        let potentialPosition = this.position.clone();
+        potentialPosition.x += moveVector.x;
 
-        let collision = false;
-
-        // Check collision with obstacles
-        for (const obstacle of obstacles) {
-          if (playerBox.intersectsBox(obstacle)) {
-            collision = true;
-            break;
-          }
+        if (!this.checkCollision(potentialPosition, obstacles, otherPlayers)) {
+          this.position.x = potentialPosition.x;
         }
 
-        // Check collision with other players
-        if (!collision) {
-          for (const otherPlayer of otherPlayers) {
-            if (otherPlayer.id !== this.id) {
-              const otherPlayerCollider = new THREE.Box3().setFromCenterAndSize(
-                otherPlayer.position.clone().add(new THREE.Vector3(0, 1, 0)),
-                new THREE.Vector3(1, 2, 1)
-              );
-              if (playerBox.intersectsBox(otherPlayerCollider)) {
-                collision = true;
-                break;
-              }
-            }
-          }
+        // Try moving along Z axis (from the potentially new X position)
+        potentialPosition = this.position.clone();
+        potentialPosition.z += moveVector.z;
+
+        if (!this.checkCollision(potentialPosition, obstacles, otherPlayers)) {
+          this.position.z = potentialPosition.z;
         }
 
-        if (collision) {
+        // If we reached destination (approx), stop
+        if (this.position.distanceTo(this.destination) < moveDistance) {
           this.stopMovement();
-        } else {
-          this.position.add(moveVector);
         }
       }
 
@@ -167,6 +149,39 @@ export class ServerPlayer {
       this.position.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.x));
       this.position.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.z));
     }
+  }
+
+  private checkCollision(
+    position: THREE.Vector3,
+    obstacles: THREE.Box3[],
+    otherPlayers: ServerPlayer[]
+  ): boolean {
+    const playerBox = new THREE.Box3().setFromCenterAndSize(
+      position.clone().add(new THREE.Vector3(0, 1, 0)),
+      new THREE.Vector3(1, 2, 1)
+    );
+
+    // Check collision with obstacles
+    for (const obstacle of obstacles) {
+      if (playerBox.intersectsBox(obstacle)) {
+        return true;
+      }
+    }
+
+    // Check collision with other players
+    for (const otherPlayer of otherPlayers) {
+      if (otherPlayer.id !== this.id) {
+        const otherPlayerCollider = new THREE.Box3().setFromCenterAndSize(
+          otherPlayer.position.clone().add(new THREE.Vector3(0, 1, 0)),
+          new THREE.Vector3(1, 2, 1)
+        );
+        if (playerBox.intersectsBox(otherPlayerCollider)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   public attemptTeleport(
