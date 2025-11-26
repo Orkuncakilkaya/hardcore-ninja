@@ -169,7 +169,11 @@ export class ServerPlayer {
     }
   }
 
-  public attemptTeleport(target: Vector3, obstacles: THREE.Box3[], otherPlayers: ServerPlayer[]): boolean {
+  public attemptTeleport(
+    target: Vector3,
+    obstacles: THREE.Box3[],
+    otherPlayers: ServerPlayer[]
+  ): boolean {
     if (this.isDead) return false;
     const now = Date.now();
     if (now < this.teleportCooldown) {
