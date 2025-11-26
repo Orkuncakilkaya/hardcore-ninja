@@ -1,7 +1,7 @@
 # Hardcore Ninja
 
 [![Play Now](https://img.shields.io/badge/Play%20Now-ninja.orkun.io-brightgreen?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik04IDVWMTlMMTkgMTJMOCA1WiIvPjwvc3ZnPg==)](https://ninja.orkun.io)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-0.181-blue?style=for-the-badge&logo=three.js)](https://threejs.org/)
@@ -71,7 +71,7 @@ This project is automatically deployed to Cloudflare Pages. Each pull request ge
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0) - see the LICENSE file for details.
 
 ## Acknowledgements
 
