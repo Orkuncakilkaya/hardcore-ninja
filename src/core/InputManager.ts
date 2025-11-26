@@ -40,6 +40,9 @@ export class InputManager {
   }
 
   private onMouseMove(event: MouseEvent) {
+    // Ignore events not on the canvas (e.g. UI overlays)
+    if (!(event.target instanceof HTMLCanvasElement)) return;
+
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.emit('input', {
@@ -50,6 +53,9 @@ export class InputManager {
   }
 
   private onMouseDown(event: MouseEvent) {
+    // Ignore events not on the canvas (e.g. UI overlays)
+    if (!(event.target instanceof HTMLCanvasElement)) return;
+
     if (event.button === 0) {
       // Left mouse button
       this.isLeftMouseButtonDown = true;
@@ -58,6 +64,9 @@ export class InputManager {
   }
 
   private onMouseUp(event: MouseEvent) {
+    // Ignore events not on the canvas (e.g. UI overlays)
+    if (!(event.target instanceof HTMLCanvasElement)) return;
+
     if (event.button === 0) {
       // Left mouse button
       this.isLeftMouseButtonDown = false;
