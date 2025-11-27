@@ -44,48 +44,51 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [isJoining, setIsJoining] = useState(false);
   const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleJoinGame = useCallback((input: string) => {
-    let hostIdToJoin = input.trim();
-    
-    // Check if input is a URL with game param
-    if (input.includes('?game=')) {
-      try {
-        const url = new URL(input);
-        const gameId = url.searchParams.get('game');
-        if (gameId) {
-          hostIdToJoin = gameId;
-        }
-      } catch (e) {
-        // Fallback for partial URLs or invalid URLs
-        const match = input.match(/[?&]game=([^&]+)/);
-        if (match && match[1]) {
-          hostIdToJoin = match[1];
+  const handleJoinGame = useCallback(
+    (input: string) => {
+      let hostIdToJoin = input.trim();
+
+      // Check if input is a URL with game param
+      if (input.includes('?game=')) {
+        try {
+          const url = new URL(input);
+          const gameId = url.searchParams.get('game');
+          if (gameId) {
+            hostIdToJoin = gameId;
+          }
+        } catch (e) {
+          // Fallback for partial URLs or invalid URLs
+          const match = input.match(/[?&]game=([^&]+)/);
+          if (match && match[1]) {
+            hostIdToJoin = match[1];
+          }
         }
       }
-    }
 
-    setInputHostId(hostIdToJoin);
-    setIsJoining(true);
-    setStatusMessage('Connecting...');
-    
-    // Update URL with game ID
-    const newUrl = `${window.location.pathname}?game=${hostIdToJoin}`;
-    window.history.pushState({ path: newUrl }, '', newUrl);
+      setInputHostId(hostIdToJoin);
+      setIsJoining(true);
+      setStatusMessage('Connecting...');
 
-    networkManager.joinGame(hostIdToJoin);
+      // Update URL with game ID
+      const newUrl = `${window.location.pathname}?game=${hostIdToJoin}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
 
-    // Set 15s timeout
-    if (joinTimeoutRef.current) clearTimeout(joinTimeoutRef.current);
-    joinTimeoutRef.current = setTimeout(() => {
-      setIsJoining(false);
-      setStatusMessage('Connection timed out');
-      notifications.show({
-        title: 'Connection Failed',
-        message: 'Could not connect to the game within 15 seconds.',
-        color: 'red',
-      });
-    }, 15000);
-  }, [networkManager]);
+      networkManager.joinGame(hostIdToJoin);
+
+      // Set 15s timeout
+      if (joinTimeoutRef.current) clearTimeout(joinTimeoutRef.current);
+      joinTimeoutRef.current = setTimeout(() => {
+        setIsJoining(false);
+        setStatusMessage('Connection timed out');
+        notifications.show({
+          title: 'Connection Failed',
+          message: 'Could not connect to the game within 15 seconds.',
+          color: 'red',
+        });
+      }, 15000);
+    },
+    [networkManager]
+  );
 
   useEffect(() => {
     const handleNetworkReady = (_e: CustomEvent) => {
@@ -96,7 +99,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       // Check for game ID in URL
       const params = new URLSearchParams(window.location.search);
       const gameIdFromUrl = params.get('game');
-      
+
       if (gameIdFromUrl) {
         handleJoinGame(gameIdFromUrl);
       }
@@ -149,7 +152,7 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       window.removeEventListener('connected', handleConnected as EventListener);
       window.removeEventListener('connection-error', handleConnectionError as EventListener);
       window.removeEventListener('game-started', handleGameStarted as EventListener);
-      
+
       if (joinTimeoutRef.current) {
         clearTimeout(joinTimeoutRef.current);
       }
@@ -193,8 +196,6 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
       setStatusMessage('Error starting server');
     }
   };
-
-
 
   const handleEditName = () => {
     setTempName(playerName);
@@ -265,7 +266,10 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
 
         <Group>
           <TextInput value={hostId} readOnly style={{ flex: 1 }} />
-          <CopyButton value={`${window.location.origin}${window.location.pathname}?game=${hostId}`} timeout={2000}>
+          <CopyButton
+            value={`${window.location.origin}${window.location.pathname}?game=${hostId}`}
+            timeout={2000}
+          >
             {({ copied, copy }) => (
               <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="right">
                 <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
@@ -313,7 +317,11 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
           <Button variant="default" onClick={() => setShowJoinMenu(false)}>
             Cancel
           </Button>
-          <Button onClick={() => handleJoinGame(inputHostId)} disabled={!inputHostId.trim()} loading={isJoining}>
+          <Button
+            onClick={() => handleJoinGame(inputHostId)}
+            disabled={!inputHostId.trim()}
+            loading={isJoining}
+          >
             Join Game
           </Button>
         </Group>
