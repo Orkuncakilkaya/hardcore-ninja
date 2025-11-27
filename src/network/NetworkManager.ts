@@ -69,6 +69,11 @@ export class NetworkManager {
       }
     });
 
+    this.peer.on('error', err => {
+      console.error('PeerJS error:', err);
+      window.dispatchEvent(new CustomEvent('connection-error', { detail: err }));
+    });
+
     this.peer.on('connection', conn => {
       this.handleConnection(conn);
     });
