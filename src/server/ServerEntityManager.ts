@@ -3,6 +3,8 @@ import { ServerPlayer } from './ServerPlayer';
 import { ServerMissile } from './ServerMissile';
 import { ServerLaserBeam } from './ServerLaserBeam';
 import type { MapConfig } from '../common/types';
+import type { DynamicMapConfig } from '../common/types/MapTypes';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 
 export class ServerEntityManager {
@@ -16,9 +18,66 @@ export class ServerEntityManager {
 
   constructor() {}
 
-  public loadMap(config: MapConfig) {
+  public loadMap(config: MapConfig | DynamicMapConfig) {
     this.obstacles = [];
 
+    // Check if this is a dynamic map config
+    if ('meshes' in config && 'transforms' in config) {
+      this.loadDynamicMap(config as DynamicMapConfig);
+    } else {
+      // Legacy map format
+      this.loadLegacyMap(config as MapConfig);
+    }
+
+    // Shuffle spawn points
+    for (let i = this.spawnPositions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.spawnPositions[i], this.spawnPositions[j]] = [
+        this.spawnPositions[j],
+        this.spawnPositions[i],
+      ];
+    }
+  }
+
+  /**
+   * Load a map using the new dynamic format
+   * @param config Dynamic map configuration
+   */
+  private loadDynamicMap(config: DynamicMapConfig) {
+    // Find the playable area transform and get its size
+    const playableAreaSize = DynamicMapLoader.getPlayableAreaSize(config);
+
+    // Store map limit from playableAreaSize (half size because it's centered at 0,0)
+    this.mapLimit = playableAreaSize / 2;
+
+    // Process all transforms to create collision boxes and spawn points
+    for (const transform of config.transforms) {
+      // Handle spawn points
+      if (transform.entity === 'spawn') {
+        // Map JSON (x, y, z) to World (x, z)
+        this.spawnPositions.push(new THREE.Vector2(transform.position.x, transform.position.z));
+        continue;
+      }
+
+      // Handle mesh objects with collision
+      if (transform.mesh) {
+        const meshDef = config.meshes[transform.mesh];
+        if (meshDef && meshDef.collision) {
+          // Create collision box
+          const collisionBox = DynamicMapLoader.createCollisionBox(transform, meshDef);
+          if (collisionBox) {
+            this.obstacles.push(collisionBox);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Load a map using the legacy format
+   * @param config Legacy map configuration
+   */
+  private loadLegacyMap(config: MapConfig) {
     // Store map limit from playableArea.size (half size because it's centered at 0,0)
     this.mapLimit = config.playableArea.size / 2;
 
@@ -49,15 +108,6 @@ export class ServerEntityManager {
     // Spawn Points
     // Map JSON (x, y) to World (x, z)
     this.spawnPositions = config.spawnPoints.map(sp => new THREE.Vector2(sp.x, sp.y));
-
-    // Shuffle spawn points
-    for (let i = this.spawnPositions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this.spawnPositions[i], this.spawnPositions[j]] = [
-        this.spawnPositions[j],
-        this.spawnPositions[i],
-      ];
-    }
   }
 
   public addPlayer(id: string): ServerPlayer {

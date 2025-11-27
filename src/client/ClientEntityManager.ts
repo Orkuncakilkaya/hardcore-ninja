@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Box } from '../entities/Box';
 import type { GameState, MapConfig } from '../common/types';
+import { type DynamicMapConfig } from '../common/types/MapTypes';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 import { TeleportEffect } from './effects/TeleportEffect';
 import { MissileEffect } from './effects/MissileEffect';
@@ -105,9 +107,163 @@ export class ClientEntityManager {
     }
   }
 
-  public async loadMap(config: MapConfig, onProgress?: (progress: number) => void): Promise<void> {
-    // Load textures first and wait for them
-    await this.createGroundPlane(config.playableArea.size, onProgress);
+  public async loadMap(
+    config: MapConfig | DynamicMapConfig,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    // Check if this is a dynamic map config
+    if ('meshes' in config && 'transforms' in config) {
+      await this.loadDynamicMap(config as DynamicMapConfig, onProgress);
+    } else {
+      // Legacy map format
+      await this.loadLegacyMap(config as MapConfig, onProgress);
+    }
+  }
+
+  /**
+   * Load a map using the new dynamic format
+   * @param config Dynamic map configuration
+   * @param onProgress Optional progress callback
+   */
+  private async loadDynamicMap(
+    config: DynamicMapConfig,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    // Load all 3D models and textures
+    await DynamicMapLoader.loadAssets(config, onProgress);
+
+    // Process all transforms
+    for (const transform of config.transforms) {
+      // Skip spawn points (they don't have visual representation)
+      if (transform.entity === 'spawn') {
+        continue;
+      }
+
+      // Get the mesh definition
+      const meshDef = transform.mesh ? config.meshes[transform.mesh] : null;
+      if (!meshDef) {
+        console.warn(`No mesh definition found for transform ${transform.id}`);
+        continue;
+      }
+
+      // Create the 3D object
+      const object = DynamicMapLoader.createObject(transform);
+      if (object) {
+        // Add to scene
+        this.scene.add(object);
+
+        // Store in appropriate collection based on ID
+        if (transform.id.includes('wall')) {
+          // Create a Box wrapper for backward compatibility
+          const box = new Box(
+            transform.id,
+            object.position,
+            meshDef.collision?.dimensions?.width || 1,
+            meshDef.collision?.dimensions?.height || 1,
+            meshDef.collision?.dimensions?.depth || 1,
+            meshDef.material?.color || 0x888888
+          );
+          // Replace the mesh with our loaded model
+          box.mesh = object as THREE.Mesh;
+          this.walls.push(box);
+        } else {
+          // Create a Box wrapper for backward compatibility
+          const box = new Box(
+            transform.id,
+            object.position,
+            meshDef.collision?.dimensions?.width || 1,
+            meshDef.collision?.dimensions?.height || 1,
+            meshDef.collision?.dimensions?.depth || 1,
+            meshDef.material?.color || 0x888888
+          );
+          // Replace the mesh with our loaded model
+          box.mesh = object as THREE.Mesh;
+          this.boxes.push(box);
+        }
+      }
+    }
+
+    // Apply environment settings if defined
+    if (config.environment) {
+      this.applyEnvironmentSettings(config.environment);
+    }
+  }
+
+  /**
+   * Apply environment settings from the map config
+   * @param environment Environment settings
+   */
+  private applyEnvironmentSettings(environment: DynamicMapConfig['environment']): void {
+    if (!environment) return;
+
+    // Apply skybox if defined
+    if (environment.skybox) {
+      if (environment.skybox.type === 'color') {
+        this.scene.background = new THREE.Color(environment.skybox.value as number);
+      }
+      // TODO: Implement cubemap and HDRI skyboxes
+    }
+
+    // Apply fog if defined
+    if (environment.fog) {
+      this.scene.fog = new THREE.Fog(
+        environment.fog.color,
+        environment.fog.near,
+        environment.fog.far
+      );
+    }
+
+    // Apply lighting if defined
+    if (environment.lighting) {
+      // Ambient light
+      if (environment.lighting.ambient) {
+        const ambientLight = new THREE.AmbientLight(
+          environment.lighting.ambient.color,
+          environment.lighting.ambient.intensity
+        );
+        this.scene.add(ambientLight);
+      }
+
+      // Directional lights
+      if (environment.lighting.directional) {
+        for (const light of environment.lighting.directional) {
+          const directionalLight = new THREE.DirectionalLight(light.color, light.intensity);
+          directionalLight.position.set(light.position.x, light.position.y, light.position.z);
+          directionalLight.castShadow = light.castShadow;
+          this.scene.add(directionalLight);
+        }
+      }
+
+      // Point lights
+      if (environment.lighting.point) {
+        for (const light of environment.lighting.point) {
+          const pointLight = new THREE.PointLight(
+            light.color,
+            light.intensity,
+            light.distance,
+            light.decay
+          );
+          pointLight.position.set(light.position.x, light.position.y, light.position.z);
+          pointLight.castShadow = light.castShadow;
+          this.scene.add(pointLight);
+        }
+      }
+    }
+  }
+
+  /**
+   * Load a map using the legacy format
+   * @param config Legacy map configuration
+   * @param onProgress Optional progress callback
+   */
+  private async loadLegacyMap(
+    config: MapConfig,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    // Report progress if callback provided
+    if (onProgress) {
+      onProgress(0.1); // Start with 10% progress
+    }
 
     // Create walls and boxes
     config.walls.forEach(wall => {
@@ -134,110 +290,6 @@ export class ClientEntityManager {
       );
       this.boxes.push(b);
       this.scene.add(b.mesh);
-    });
-  }
-
-  private createGroundPlane(size: number, onProgress?: (progress: number) => void): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const textureLoader = new THREE.TextureLoader();
-      let loadedCount = 0;
-      const totalTextures = 4;
-      const textures: THREE.Texture[] = [];
-
-      const updateProgress = () => {
-        loadedCount++;
-        const progress = loadedCount / totalTextures;
-        if (onProgress) {
-          onProgress(progress);
-        }
-        if (loadedCount === totalTextures) {
-          const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
-
-          // Configure texture wrapping and repeating
-          const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
-          [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(repeat, repeat);
-          });
-
-          // Create ground plane geometry
-          const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
-
-          // Create material with PBR textures
-          const groundMaterial = new THREE.MeshStandardMaterial({
-            map: colorTexture,
-            normalMap: normalTexture,
-            roughnessMap: roughnessTexture,
-            displacementMap: displacementTexture,
-            displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
-            roughness: 0.8,
-            metalness: 0.1,
-          });
-
-          // Create mesh
-          const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-          groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-          groundMesh.position.y = 0;
-          groundMesh.receiveShadow = true; // Enable shadow receiving
-
-          this.scene.add(groundMesh);
-          resolve();
-        }
-      };
-
-      // Load texture maps with callbacks
-      const colorTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg',
-        () => {
-          textures[0] = colorTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading color texture:', error);
-          reject(error);
-        }
-      );
-
-      const normalTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
-        () => {
-          textures[1] = normalTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading normal texture:', error);
-          reject(error);
-        }
-      );
-
-      const roughnessTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
-        () => {
-          textures[2] = roughnessTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading roughness texture:', error);
-          reject(error);
-        }
-      );
-
-      const displacementTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
-        () => {
-          textures[3] = displacementTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading displacement texture:', error);
-          reject(error);
-        }
-      );
     });
   }
 

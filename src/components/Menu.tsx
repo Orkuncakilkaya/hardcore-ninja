@@ -3,6 +3,7 @@ import { NetworkManager } from '../network/NetworkManager';
 import { GameClient } from '../client/GameClient';
 import { GameServer } from '../server/GameServer';
 import { MapLoader } from '../core/MapLoader';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
 import Settings from './Settings';
@@ -185,12 +186,26 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     window.history.pushState({ path: newUrl }, '', newUrl);
 
     try {
-      const mapConfig = await MapLoader.loadMap('/maps/default_map.json');
-      const server = new GameServer(networkManager, mapConfig);
-      server.start();
+      // Try to load the dynamic map first
+      try {
+        const dynamicMapConfig = await DynamicMapLoader.loadMap('/maps/dynamic_default_map.json');
+        const mapConfig = DynamicMapLoader.convertToOldFormat(dynamicMapConfig);
+        const server = new GameServer(networkManager, mapConfig);
+        server.start();
 
-      // Join as client
-      gameClient.joinGame(networkManager.peerId);
+        // Join as client
+        gameClient.joinGame(networkManager.peerId);
+      } catch (dynamicMapError) {
+        console.warn('Failed to load dynamic map, falling back to legacy map:', dynamicMapError);
+
+        // Fall back to legacy map if dynamic map fails
+        const mapConfig = await MapLoader.loadMap('/maps/default_map.json');
+        const server = new GameServer(networkManager, mapConfig);
+        server.start();
+
+        // Join as client
+        gameClient.joinGame(networkManager.peerId);
+      }
     } catch (e) {
       console.error('Failed to start server:', e);
       setStatusMessage('Error starting server');
