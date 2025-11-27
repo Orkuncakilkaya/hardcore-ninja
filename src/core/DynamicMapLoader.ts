@@ -8,7 +8,6 @@ import {
   toVector3,
   toEuler,
 } from '../common/types/MapTypes';
-import { type MapConfig } from '../common/types';
 
 // Class to handle loading and parsing dynamic map files
 export class DynamicMapLoader {
@@ -69,6 +68,10 @@ export class DynamicMapLoader {
    * @param data Map data to validate
    */
   private static validateMapConfig(data: Partial<DynamicMapConfig>): void {
+    // Note: For more robust validation, consider using a JSON schema validation library like Ajv
+    // The schema is defined in public/maps/map-schema.json
+
+    // Basic validation checks
     if (!data.name || typeof data.name !== 'string') {
       throw new Error('Map must have a valid name');
     }
@@ -117,12 +120,32 @@ export class DynamicMapLoader {
 
     // Validate meshes
     Object.entries(data.meshes).forEach(([key, mesh]: [string, Partial<MeshDefinition>]) => {
-      if (!mesh.format || !['gltf', 'obj'].includes(mesh.format)) {
-        throw new Error(`Mesh ${key} must have a valid format (gltf or obj)`);
+      if (!mesh.format || !['gltf', 'obj', 'primitive'].includes(mesh.format)) {
+        throw new Error(`Mesh ${key} must have a valid format (gltf, obj, or primitive)`);
       }
 
-      if (!mesh.meshFile || typeof mesh.meshFile !== 'string') {
-        throw new Error(`Mesh ${key} must have a valid meshFile path`);
+      if (mesh.format === 'primitive') {
+        // For primitive shapes, validate primitiveType
+        if (
+          !mesh.primitiveType ||
+          !['plane', 'box', 'sphere', 'cylinder', 'cone', 'torus'].includes(mesh.primitiveType)
+        ) {
+          throw new Error(
+            `Primitive mesh ${key} must have a valid primitiveType (plane, box, sphere, cylinder, cone, or torus)`
+          );
+        }
+
+        // Validate primitiveParams based on primitiveType
+        if (!mesh.primitiveParams) {
+          throw new Error(`Primitive mesh ${key} must have primitiveParams`);
+        }
+
+        // Specific validation for each primitive type could be added here
+      } else {
+        // For gltf and obj formats, validate meshFile
+        if (!mesh.meshFile || typeof mesh.meshFile !== 'string') {
+          throw new Error(`Mesh ${key} must have a valid meshFile path`);
+        }
       }
     });
   }
@@ -185,9 +208,13 @@ export class DynamicMapLoader {
    */
   private static loadModel(meshDef: MeshDefinition): Promise<THREE.Group> {
     return new Promise((resolve, reject) => {
-      const loadPath = meshDef.meshFile;
-
       if (meshDef.format === 'gltf') {
+        const loadPath = meshDef.meshFile;
+        if (!loadPath) {
+          reject(new Error('GLTF model requires a meshFile path'));
+          return;
+        }
+
         this.gltfLoader.load(
           loadPath,
           gltf => {
@@ -215,6 +242,12 @@ export class DynamicMapLoader {
           }
         );
       } else if (meshDef.format === 'obj') {
+        const loadPath = meshDef.meshFile;
+        if (!loadPath) {
+          reject(new Error('OBJ model requires a meshFile path'));
+          return;
+        }
+
         this.objLoader.load(
           loadPath,
           obj => {
@@ -249,9 +282,218 @@ export class DynamicMapLoader {
             reject(error);
           }
         );
+      } else if (meshDef.format === 'primitive') {
+        // Create a primitive shape based on primitiveType
+        if (!meshDef.primitiveType || !meshDef.primitiveParams) {
+          reject(new Error('Primitive shape requires primitiveType and primitiveParams'));
+          return;
+        }
+
+        let geometry: THREE.BufferGeometry;
+        const params = meshDef.primitiveParams;
+
+        // Create geometry based on primitiveType
+        try {
+          switch (meshDef.primitiveType) {
+            case 'plane':
+              geometry = new THREE.PlaneGeometry(
+                params.width || 1,
+                params.height || 1,
+                params.widthSegments || 1,
+                params.heightSegments || 1
+              );
+              break;
+            case 'box':
+              geometry = new THREE.BoxGeometry(
+                params.width || 1,
+                params.height || 1,
+                params.depth || 1,
+                params.widthSegments || 1,
+                params.heightSegments || 1,
+                params.depthSegments || 1
+              );
+              break;
+            case 'sphere':
+              geometry = new THREE.SphereGeometry(
+                params.radius || 1,
+                params.widthSegments || 32,
+                params.heightSegments || 16
+              );
+              break;
+            case 'cylinder':
+              geometry = new THREE.CylinderGeometry(
+                params.radiusTop || 1,
+                params.radiusBottom || 1,
+                params.height || 1,
+                params.radialSegments || 32,
+                params.heightSegments || 1,
+                params.openEnded || false
+              );
+              break;
+            case 'cone':
+              geometry = new THREE.ConeGeometry(
+                params.radius || 1,
+                params.height || 1,
+                params.radialSegments || 32,
+                params.heightSegments || 1,
+                params.openEnded || false
+              );
+              break;
+            case 'torus':
+              geometry = new THREE.TorusGeometry(
+                params.radius || 1,
+                params.tube || 0.4,
+                params.radialSegments || 16,
+                params.tubularSegments || 100
+              );
+              break;
+            default:
+              reject(new Error(`Unsupported primitive type: ${meshDef.primitiveType}`));
+              return;
+          }
+        } catch (error) {
+          console.error('Error creating primitive geometry:', error);
+          reject(error);
+          return;
+        }
+
+        // Handle textures and material creation
+        const createMaterialAndFinish = (textures: Record<string, THREE.Texture> = {}) => {
+          try {
+            let material: THREE.Material;
+
+            // If textures were loaded, create a material with textures
+            if (Object.keys(textures).length > 0 && textures.color) {
+              // Create material with texture
+              material = new THREE.MeshStandardMaterial({
+                map: textures.color,
+                roughness: meshDef.material?.roughness || 0.5,
+                metalness: meshDef.material?.metalness || 0.0,
+              });
+
+              // Apply other textures if available
+              if (textures.normal) {
+                (material as THREE.MeshStandardMaterial).normalMap = textures.normal;
+              }
+
+              if (textures.roughness) {
+                (material as THREE.MeshStandardMaterial).roughnessMap = textures.roughness;
+              }
+
+              if (textures.metalness) {
+                (material as THREE.MeshStandardMaterial).metalnessMap = textures.metalness;
+              }
+
+              if (textures.displacement) {
+                (material as THREE.MeshStandardMaterial).displacementMap = textures.displacement;
+              }
+            } else if (meshDef.material) {
+              // Create material with color and properties
+              material = new THREE.MeshStandardMaterial({
+                color: meshDef.material.color || 0x888888,
+                roughness: meshDef.material.roughness || 0.5,
+                metalness: meshDef.material.metalness || 0.0,
+              });
+            } else {
+              // Default material
+              material = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            }
+
+            // Create mesh
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            // Create a group to hold the mesh (for consistency with other formats)
+            const group = new THREE.Group();
+            group.add(mesh);
+
+            // Apply scale if defined
+            if (meshDef.scale) {
+              group.scale.set(meshDef.scale.x, meshDef.scale.y, meshDef.scale.z);
+            }
+
+            resolve(group);
+          } catch (error) {
+            console.error('Error creating primitive material or mesh:', error);
+            reject(error);
+          }
+        };
+
+        // If textures are defined, load them first
+        if (meshDef.textures && Object.keys(meshDef.textures).length > 0) {
+          const texturePromises: Promise<[string, THREE.Texture]>[] = [];
+          const textureKeys = [
+            'color',
+            'normal',
+            'roughness',
+            'metalness',
+            'displacement',
+            'ambient',
+          ];
+
+          // Create promises for each texture type
+          textureKeys.forEach(key => {
+            const texturePath = meshDef.textures?.[key as keyof typeof meshDef.textures];
+            if (texturePath) {
+              // Check if texture is already loaded
+              const loadedTexture = this.loadedTextures.get(texturePath);
+              if (loadedTexture) {
+                texturePromises.push(Promise.resolve([key, loadedTexture]));
+              } else {
+                // Load the texture
+                texturePromises.push(
+                  this.loadTextureSync(texturePath).then(texture => [key, texture])
+                );
+              }
+            }
+          });
+
+          // Wait for all textures to load
+          Promise.all(texturePromises)
+            .then(loadedTextures => {
+              // Convert array of [key, texture] to object
+              const textureMap: Record<string, THREE.Texture> = {};
+              loadedTextures.forEach(([key, texture]) => {
+                textureMap[key] = texture;
+              });
+
+              createMaterialAndFinish(textureMap);
+            })
+            .catch(error => {
+              console.error('Error loading textures for primitive:', error);
+              // Continue with material creation without textures
+              createMaterialAndFinish();
+            });
+        } else {
+          // No textures to load, create material directly
+          createMaterialAndFinish();
+        }
       } else {
         reject(new Error(`Unsupported model format: ${meshDef.format}`));
       }
+    });
+  }
+
+  /**
+   * Load a texture synchronously
+   * @param path The path to the texture
+   * @returns The loaded texture
+   */
+  private static loadTextureSync(path: string): Promise<THREE.Texture> {
+    return new Promise((resolve, reject) => {
+      this.textureLoader.load(
+        path,
+        texture => {
+          this.loadedTextures.set(path, texture);
+          resolve(texture);
+        },
+        undefined,
+        error => {
+          console.error(`Error loading texture ${path}:`, error);
+          reject(error);
+        }
+      );
     });
   }
 
@@ -353,25 +595,50 @@ export class DynamicMapLoader {
     transform: EntityTransform,
     meshDef: MeshDefinition
   ): THREE.Box3 | null {
+    if (transform.isPlayableArea) {
+      return null;
+    }
     if (!meshDef.collision) {
       return null;
     }
 
-    const position = toVector3(transform.position);
-
     if (meshDef.collision.type === 'box' && meshDef.collision.dimensions) {
-      const size = new THREE.Vector3(
+      // Create a temporary Object3D to apply rotation
+      const tempObject = new THREE.Object3D();
+
+      // Set position
+      tempObject.position.copy(toVector3(transform.position));
+
+      // Apply rotation if defined
+      if (transform.rotation) {
+        tempObject.rotation.copy(toEuler(transform.rotation));
+      }
+
+      // Create a box geometry with the collision dimensions
+      const boxGeometry = new THREE.BoxGeometry(
         meshDef.collision.dimensions.width,
         meshDef.collision.dimensions.height,
         meshDef.collision.dimensions.depth
       );
 
+      // Create a mesh with the box geometry
+      const boxMesh = new THREE.Mesh(boxGeometry);
+
       // Apply offset if defined
       if (meshDef.collision.offset) {
-        position.add(toVector3(meshDef.collision.offset));
+        boxMesh.position.copy(toVector3(meshDef.collision.offset));
       }
 
-      return new THREE.Box3().setFromCenterAndSize(position, size);
+      // Add the box mesh to the temporary object
+      tempObject.add(boxMesh);
+
+      // Update the world matrix to apply transformations
+      tempObject.updateMatrixWorld(true);
+
+      // Calculate the bounding box of the rotated object
+      const boundingBox = new THREE.Box3().setFromObject(tempObject);
+
+      return boundingBox;
     }
 
     // For now, we only support box collisions
@@ -404,28 +671,16 @@ export class DynamicMapLoader {
       return Math.max(meshDef.collision.dimensions.width, meshDef.collision.dimensions.depth);
     }
 
-    // If no collision dimensions, try to calculate from wall positions
-    // Find walls at the edges of the map
-    const walls = config.transforms.filter(
-      t => t.mesh && t.id.includes('wall') && config.meshes[t.mesh]
-    );
-
-    if (walls.length > 0) {
-      // Calculate the maximum distance from the center to any wall
-      let maxDistance = 0;
-      walls.forEach(wall => {
-        const distance = Math.sqrt(
-          wall.position.x * wall.position.x + wall.position.z * wall.position.z
-        );
-        maxDistance = Math.max(maxDistance, distance);
-      });
-
-      // The playable area size is twice the maximum distance
-      return maxDistance * 2;
+    // If the mesh has primitive parameters for a plane, use them
+    if (meshDef && meshDef.primitiveType === 'plane' && meshDef.primitiveParams) {
+      const params = meshDef.primitiveParams;
+      if (params.width && params.height) {
+        return Math.max(params.width, params.height);
+      }
     }
 
-    // If we can't calculate from walls, use a default value
-    console.warn('Could not calculate playable area size, using default value of 70');
+    // If we can't calculate from the mesh, use a default value
+    console.warn('Could not calculate playable area size from mesh, using default value of 70');
     return 70; // Default value
   }
 
@@ -448,70 +703,5 @@ export class DynamicMapLoader {
 
     // If no mesh is defined, we can't calculate the size
     throw new Error('Playable area transform must reference a valid mesh');
-  }
-
-  /**
-   * Convert a dynamic map config to the old format for backward compatibility
-   * @param dynamicConfig The dynamic map configuration
-   * @returns The old format map configuration
-   */
-  public static convertToOldFormat(dynamicConfig: DynamicMapConfig): MapConfig {
-    const playableAreaSize = this.getPlayableAreaSize(dynamicConfig);
-
-    const oldConfig: MapConfig = {
-      name: dynamicConfig.name,
-      version: dynamicConfig.version,
-      playableArea: {
-        size: playableAreaSize,
-      },
-      spawnPoints: [],
-      walls: [],
-      boxes: [],
-    };
-
-    // Extract spawn points
-    const spawnPoints = dynamicConfig.transforms
-      .filter(t => t.entity === 'spawn')
-      .map(t => ({ x: t.position.x, y: t.position.y, z: t.position.z })); // Create Vector3 objects
-
-    oldConfig.spawnPoints = spawnPoints;
-
-    // Extract walls and boxes
-    dynamicConfig.transforms
-      .filter(t => t.mesh && !t.entity)
-      .forEach(t => {
-        const meshDef = dynamicConfig.meshes[t.mesh!];
-
-        // Skip if no collision info
-        if (!meshDef.collision || !meshDef.collision.dimensions) {
-          return;
-        }
-
-        const dimensions = meshDef.collision.dimensions;
-        const isWall = t.id.includes('wall');
-
-        const object = {
-          id: t.id,
-          position: {
-            x: t.position.x,
-            y: t.position.y,
-            z: t.position.z,
-          },
-          dimensions: {
-            width: dimensions.width,
-            height: dimensions.height,
-            depth: dimensions.depth,
-          },
-          color: meshDef.material?.color || 0x888888,
-        };
-
-        if (isWall) {
-          oldConfig.walls.push(object);
-        } else {
-          oldConfig.boxes.push(object);
-        }
-      });
-
-    return oldConfig;
   }
 }

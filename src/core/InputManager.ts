@@ -97,15 +97,23 @@ export class InputManager {
 
   public getMouseGroundIntersection(
     camera: THREE.Camera,
-    groundPlane: THREE.Plane
+    playableAreaMeshes?: THREE.Object3D[]
   ): THREE.Vector3 | null {
     this.mouseRaycaster.setFromCamera(this.mouse, camera);
-    const target = new THREE.Vector3();
-    const intersection = this.mouseRaycaster.ray.intersectPlane(groundPlane, target);
-    if (intersection) {
-      this.mouseWorldPosition = intersection.clone();
+
+    // If playable area meshes are provided, use them for ground detection
+    if (playableAreaMeshes && playableAreaMeshes.length > 0) {
+      // Get intersections with playable area meshes
+      const intersects = this.mouseRaycaster.intersectObjects(playableAreaMeshes, true);
+
+      // If there's an intersection, return the point
+      if (intersects.length > 0) {
+        this.mouseWorldPosition = intersects[0].point.clone();
+        return this.mouseWorldPosition;
+      }
     }
-    return intersection;
+
+    return null;
   }
 
   public getMouseWorldPosition(): THREE.Vector3 | null {

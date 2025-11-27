@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { Box } from '../entities/Box';
-import type { GameState, MapConfig } from '../common/types';
+import type { GameState } from '../common/types';
 import { type DynamicMapConfig } from '../common/types/MapTypes';
 import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
@@ -48,13 +47,12 @@ interface ClientPlayer {
 export class ClientEntityManager {
   public scene: THREE.Scene;
   public players: Map<string, ClientPlayer> = new Map();
-  public boxes: Box[] = [];
-  public walls: Box[] = [];
   public missiles: Map<string, THREE.Group> = new Map();
   public laserBeams: Map<string, THREE.Group> = new Map();
   private laserPreviewLine?: THREE.Line; // For Laser Beam preview
   private localPlayerId: string | null = null;
   private audioManager: AudioManager | null = null;
+  private playableAreaMeshes: THREE.Object3D[] = []; // Store meshes marked as playable areas
 
   // Skill effect managers
   private teleportEffect: TeleportEffect;
@@ -108,16 +106,10 @@ export class ClientEntityManager {
   }
 
   public async loadMap(
-    config: MapConfig | DynamicMapConfig,
+    config: DynamicMapConfig,
     onProgress?: (progress: number) => void
   ): Promise<void> {
-    // Check if this is a dynamic map config
-    if ('meshes' in config && 'transforms' in config) {
-      await this.loadDynamicMap(config as DynamicMapConfig, onProgress);
-    } else {
-      // Legacy map format
-      await this.loadLegacyMap(config as MapConfig, onProgress);
-    }
+    await this.loadDynamicMap(config, onProgress);
   }
 
   /**
@@ -152,33 +144,9 @@ export class ClientEntityManager {
         // Add to scene
         this.scene.add(object);
 
-        // Store in appropriate collection based on ID
-        if (transform.id.includes('wall')) {
-          // Create a Box wrapper for backward compatibility
-          const box = new Box(
-            transform.id,
-            object.position,
-            meshDef.collision?.dimensions?.width || 1,
-            meshDef.collision?.dimensions?.height || 1,
-            meshDef.collision?.dimensions?.depth || 1,
-            meshDef.material?.color || 0x888888
-          );
-          // Replace the mesh with our loaded model
-          box.mesh = object as THREE.Mesh;
-          this.walls.push(box);
-        } else {
-          // Create a Box wrapper for backward compatibility
-          const box = new Box(
-            transform.id,
-            object.position,
-            meshDef.collision?.dimensions?.width || 1,
-            meshDef.collision?.dimensions?.height || 1,
-            meshDef.collision?.dimensions?.depth || 1,
-            meshDef.material?.color || 0x888888
-          );
-          // Replace the mesh with our loaded model
-          box.mesh = object as THREE.Mesh;
-          this.boxes.push(box);
+        // If this is a playable area, store it in the playableAreaMeshes array
+        if (transform.isPlayableArea) {
+          this.playableAreaMeshes.push(object);
         }
       }
     }
@@ -249,48 +217,6 @@ export class ClientEntityManager {
         }
       }
     }
-  }
-
-  /**
-   * Load a map using the legacy format
-   * @param config Legacy map configuration
-   * @param onProgress Optional progress callback
-   */
-  private async loadLegacyMap(
-    config: MapConfig,
-    onProgress?: (progress: number) => void
-  ): Promise<void> {
-    // Report progress if callback provided
-    if (onProgress) {
-      onProgress(0.1); // Start with 10% progress
-    }
-
-    // Create walls and boxes
-    config.walls.forEach(wall => {
-      const box = new Box(
-        wall.id,
-        new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z),
-        wall.dimensions.width,
-        wall.dimensions.height,
-        wall.dimensions.depth,
-        wall.color
-      );
-      this.walls.push(box);
-      this.scene.add(box.mesh);
-    });
-
-    config.boxes.forEach(box => {
-      const b = new Box(
-        box.id,
-        new THREE.Vector3(box.position.x, box.position.y, box.position.z),
-        box.dimensions.width,
-        box.dimensions.height,
-        box.dimensions.depth,
-        box.color
-      );
-      this.boxes.push(b);
-      this.scene.add(b.mesh);
-    });
   }
 
   public updateState(gameState: GameState, myPeerId: string) {
@@ -798,6 +724,14 @@ export class ClientEntityManager {
 
   public getPlayer(id: string): ClientPlayer | undefined {
     return this.players.get(id);
+  }
+
+  /**
+   * Get the meshes marked as playable areas
+   * @returns Array of playable area meshes
+   */
+  public getPlayableAreaMeshes(): THREE.Object3D[] {
+    return this.playableAreaMeshes;
   }
 
   private createPlayerMesh(

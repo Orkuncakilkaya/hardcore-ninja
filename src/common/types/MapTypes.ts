@@ -1,9 +1,44 @@
 import * as THREE from 'three';
 
+// Common parameter interfaces to avoid duplication
+export interface SegmentParameters {
+  widthSegments?: number; // Number of width segments
+  heightSegments?: number; // Number of height segments
+}
+
+export interface DimensionParameters {
+  width?: number; // Width
+  height?: number; // Height
+}
+
+export interface RadialParameters {
+  radialSegments?: number; // Number of radial segments
+}
+
 // Define the structure for mesh definitions
 export interface MeshDefinition {
-  format: 'gltf' | 'obj'; // Support for different 3D model formats
-  meshFile: string; // Path to the mesh file
+  format: 'gltf' | 'obj' | 'primitive'; // Support for different 3D model formats and primitives
+  meshFile?: string; // Path to the mesh file (for gltf/obj)
+  primitiveType?: 'plane' | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus'; // Type of primitive shape
+  primitiveParams?: SegmentParameters &
+    DimensionParameters &
+    RadialParameters & {
+      // Box specific
+      depth?: number; // Depth of box
+      depthSegments?: number; // Depth segments of box
+
+      // Sphere/Cylinder/Cone/Torus specific
+      radius?: number; // Radius
+
+      // Cylinder specific
+      radiusTop?: number; // Radius of top of cylinder
+      radiusBottom?: number; // Radius of bottom of cylinder
+      openEnded?: boolean; // Whether cylinder/cone is open ended
+
+      // Torus specific
+      tube?: number; // Tube radius of torus
+      tubularSegments?: number; // Tubular segments of torus
+    };
   textures?: {
     color?: string; // Path to color/diffuse texture
     normal?: string; // Path to normal map
@@ -52,7 +87,7 @@ export interface EntityTransform {
     y: number;
     z: number;
   };
-  properties?: Record<string, any>; // Additional entity-specific properties
+  properties?: Record<string, unknown>; // Additional entity-specific properties
   isPlayableArea?: boolean; // Flag to mark this transform as the playable area
   // playableAreaSize is now calculated from the mesh dimensions
 }

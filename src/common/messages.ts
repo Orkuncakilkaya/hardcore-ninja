@@ -1,5 +1,6 @@
-import type { InputState, GameState, Vector3, MapConfig } from './types';
+import type { InputState, GameState, Vector3 } from './types';
 import { SkillType } from './constants';
+import { type DynamicMapConfig } from './types/MapTypes';
 
 export type MessageType =
   | 'JOIN_REQUEST'
@@ -29,7 +30,8 @@ export interface JoinRequestMessage extends BaseMessage {
 export interface JoinResponseMessage extends BaseMessage {
   type: 'JOIN_RESPONSE';
   success: boolean;
-  mapConfig?: MapConfig;
+  mapConfig?: DynamicMapConfig;
+  mapPath?: string;
   playerId: string;
   spawnPosition: Vector3;
 }

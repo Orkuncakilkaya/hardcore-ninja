@@ -9,6 +9,7 @@ The dynamic map system allows level designers to create custom maps using extern
 ## Key Features
 
 - Support for GLTF and OBJ 3D models
+- Support for primitive shapes (plane, box, sphere, cylinder, cone, torus)
 - PBR textures (color, normal, roughness, etc.)
 - Customizable transforms (position, rotation, scale)
 - Collision detection for physics
@@ -25,7 +26,10 @@ The following files were created or modified to implement the dynamic map system
 1. `src/common/types/MapTypes.ts` - Defines the types for the dynamic map format
 2. `src/core/DynamicMapLoader.ts` - Handles loading and parsing dynamic map files
 3. `public/maps/dynamic_default_map.json` - Sample map using the new format
-4. `docs/map_assets.md` - Documentation for required 3D models and textures
+4. `public/maps/primitive_shapes_demo.json` - Sample map demonstrating primitive shapes
+5. `public/maps/map-schema.json` - JSON Schema for validating map files
+6. `docs/map_assets.md` - Documentation for required 3D models and textures
+7. `docs/primitive_shapes.md` - Documentation for using primitive shapes in maps
 
 ### Modified Files
 
@@ -99,6 +103,43 @@ Example:
 }
 ```
 
+## JSON Schema
+
+A JSON schema is provided to validate map files against the expected structure. The schema is located at `public/maps/map-schema.json` and follows the JSON Schema Draft-07 specification.
+
+### Using the Schema
+
+1. **For Visual Studio Code users:**
+   - Add the following line at the top of your map JSON file:
+   ```json
+   {
+     "$schema": "../maps/map-schema.json",
+     "name": "My Custom Map",
+     ...
+   }
+   ```
+   - This will provide auto-completion and validation as you edit the file.
+
+2. **For programmatic validation:**
+   - You can use a JSON schema validation library like Ajv to validate map files against the schema.
+   - Example (if you add Ajv to the project):
+   ```typescript
+   import Ajv from 'ajv';
+   import mapSchema from '../public/maps/map-schema.json';
+
+   const ajv = new Ajv();
+   const validate = ajv.compile(mapSchema);
+   const isValid = validate(mapData);
+
+   if (!isValid) {
+     console.error('Map validation errors:', validate.errors);
+   }
+   ```
+
+3. **Current implementation:**
+   - The `DynamicMapLoader.validateMapConfig` method performs basic validation.
+   - For more robust validation, consider adding a JSON schema validation library.
+
 ## Required Assets
 
 See `docs/map_assets.md` for a detailed list of required 3D models and textures.
@@ -107,9 +148,12 @@ See `docs/map_assets.md` for a detailed list of required 3D models and textures.
 
 Potential future improvements to the dynamic map system:
 
-1. Support for more complex collision shapes (sphere, mesh)
-2. Support for animated models
-3. Support for particle effects
-4. Support for audio sources in the map
-5. A visual map editor for easier creation
-6. Support for more environment features (water, weather, etc.)
+1. Implement full JSON schema validation using a library like Ajv
+2. Support for more complex collision shapes (mesh)
+3. Support for animated models
+4. Support for particle effects
+5. Support for audio sources in the map
+6. A visual map editor for easier creation
+7. Support for more environment features (water, weather, etc.)
+8. Support for more advanced material properties (emission, transparency, etc.)
+9. Support for instanced rendering of repeated primitive shapes for better performance
