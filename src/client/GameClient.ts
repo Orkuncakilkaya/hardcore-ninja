@@ -8,6 +8,7 @@ import { AudioManager } from './AudioManager';
 import type { NetworkMessage, JoinRequestMessage } from '../common/messages';
 import type { GameState } from '../common/types';
 import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
+import { DynamicMapLoader } from '../core/DynamicMapLoader.ts';
 
 // Declare custom event types
 declare global {
@@ -25,7 +26,6 @@ export class GameClient {
   private entityManager: ClientEntityManager;
   private uiManager: UIManager;
   public audioManager: AudioManager;
-  private groundPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private isRunning: boolean = false;
   private clock: THREE.Clock;
   private localPlayerId: string | null = null;
@@ -103,7 +103,7 @@ export class GameClient {
       // Normal movement
       const target = this.inputManager.getMouseGroundIntersection(
         this.renderer.camera,
-        this.groundPlane
+        this.entityManager.getPlayableAreaMeshes()
       );
       if (target) {
         this.pendingMovementTarget = target.clone();
@@ -134,7 +134,7 @@ export class GameClient {
       if (this.isLeftMouseDown) {
         const target = this.inputManager.getMouseGroundIntersection(
           this.renderer.camera,
-          this.groundPlane
+          this.entityManager.getPlayableAreaMeshes()
         );
         if (target) {
           this.pendingMovementTarget = target.clone();
@@ -244,7 +244,7 @@ export class GameClient {
     // Get current mouse position
     const target = this.inputManager.getMouseGroundIntersection(
       this.renderer.camera,
-      this.groundPlane
+      this.entityManager.getPlayableAreaMeshes()
     );
     if (!target) return;
 
@@ -303,7 +303,7 @@ export class GameClient {
     // Get current mouse position
     const target = this.inputManager.getMouseGroundIntersection(
       this.renderer.camera,
-      this.groundPlane
+      this.entityManager.getPlayableAreaMeshes()
     );
     if (!target) return;
 
@@ -333,7 +333,7 @@ export class GameClient {
     // Get current mouse position
     const target = this.inputManager.getMouseGroundIntersection(
       this.renderer.camera,
-      this.groundPlane
+      this.entityManager.getPlayableAreaMeshes()
     );
     if (!target) return;
 
@@ -386,10 +386,34 @@ export class GameClient {
           // Show loading overlay
           this.uiManager.showLoading('Loading Resources...');
 
-          // Load map and wait for textures to load
-          await this.entityManager.loadMap(message.mapConfig, progress => {
-            this.uiManager.updateLoadingProgress(progress);
-          });
+          // If mapPath is provided, load the map from that path
+          if (message.mapPath) {
+            try {
+              // Load dynamic map
+              const dynamicMapConfig = await DynamicMapLoader.loadMap(message.mapPath, progress => {
+                this.uiManager.updateLoadingProgress(progress * 0.5); // First 50% for loading map
+              });
+
+              // Load assets
+              await DynamicMapLoader.loadAssets(dynamicMapConfig, progress => {
+                this.uiManager.updateLoadingProgress(0.5 + progress * 0.5); // Last 50% for loading assets
+              });
+
+              // Use the map config from the server
+              await this.entityManager.loadMap(message.mapConfig);
+            } catch (error) {
+              console.error('Error loading map from path:', error);
+              // Fallback to using the provided mapConfig directly
+              await this.entityManager.loadMap(message.mapConfig, progress => {
+                this.uiManager.updateLoadingProgress(progress);
+              });
+            }
+          } else {
+            // No mapPath provided, use the mapConfig directly
+            await this.entityManager.loadMap(message.mapConfig, progress => {
+              this.uiManager.updateLoadingProgress(progress);
+            });
+          }
 
           // Hide loading overlay
           this.uiManager.hideLoading();

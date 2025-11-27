@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { ServerPlayer } from './ServerPlayer';
 import { ServerMissile } from './ServerMissile';
 import { ServerLaserBeam } from './ServerLaserBeam';
-import type { MapConfig } from '../common/types';
+import type { DynamicMapConfig } from '../common/types/MapTypes';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 
 export class ServerEntityManager {
@@ -12,43 +13,13 @@ export class ServerEntityManager {
   public obstacles: THREE.Box3[] = [];
   public spawnPositions: THREE.Vector2[] = [];
   private claimedSpawnPoints: Map<string, number> = new Map();
-  private mapLimit: number = 35; // Default value, will be set from JSON
 
   constructor() {}
 
-  public loadMap(config: MapConfig) {
+  public loadMap(config: DynamicMapConfig) {
     this.obstacles = [];
 
-    // Store map limit from playableArea.size (half size because it's centered at 0,0)
-    this.mapLimit = config.playableArea.size / 2;
-
-    // Walls
-    config.walls.forEach(wall => {
-      const pos = new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z);
-      const size = new THREE.Vector3(
-        wall.dimensions.width,
-        wall.dimensions.height,
-        wall.dimensions.depth
-      );
-      const box = new THREE.Box3().setFromCenterAndSize(pos, size);
-      this.obstacles.push(box);
-    });
-
-    // Boxes
-    config.boxes.forEach(box => {
-      const pos = new THREE.Vector3(box.position.x, box.position.y, box.position.z);
-      const size = new THREE.Vector3(
-        box.dimensions.width,
-        box.dimensions.height,
-        box.dimensions.depth
-      );
-      const box3 = new THREE.Box3().setFromCenterAndSize(pos, size);
-      this.obstacles.push(box3);
-    });
-
-    // Spawn Points
-    // Map JSON (x, y) to World (x, z)
-    this.spawnPositions = config.spawnPoints.map(sp => new THREE.Vector2(sp.x, sp.y));
+    this.loadDynamicMap(config);
 
     // Shuffle spawn points
     for (let i = this.spawnPositions.length - 1; i > 0; i--) {
@@ -57,6 +28,36 @@ export class ServerEntityManager {
         this.spawnPositions[j],
         this.spawnPositions[i],
       ];
+    }
+  }
+
+  /**
+   * Load a map using the new dynamic format
+   * @param config Dynamic map configuration
+   */
+  private loadDynamicMap(config: DynamicMapConfig) {
+    // Process all transforms to create collision boxes and spawn points
+    for (const transform of config.transforms) {
+      // Handle spawn points
+      if (transform.entity === 'spawn') {
+        // Map JSON (x, y, z) to World (x, z)
+        this.spawnPositions.push(new THREE.Vector2(transform.position.x, transform.position.z));
+        continue;
+      }
+
+      // Handle mesh objects with collision
+      if (transform.mesh) {
+        const meshDef = config.meshes[transform.mesh];
+        if (meshDef && meshDef.collision) {
+          // Create collision box
+          const collisionBox = DynamicMapLoader.createCollisionBox(transform, meshDef);
+
+          // Only add to obstacles if it's not a playable area
+          if (collisionBox && transform.isPlayableArea !== true) {
+            this.obstacles.push(collisionBox);
+          }
+        }
+      }
     }
   }
 
@@ -79,11 +80,7 @@ export class ServerEntityManager {
       console.warn(`No free spawn points for ${id}, spawning at 0,0,0`);
     }
 
-    const player = new ServerPlayer(
-      id,
-      { x: spawnPos.x, y: spawnPos.y, z: spawnPos.z },
-      this.mapLimit
-    );
+    const player = new ServerPlayer(id, { x: spawnPos.x, y: spawnPos.y, z: spawnPos.z });
     this.players.set(id, player);
     return player;
   }

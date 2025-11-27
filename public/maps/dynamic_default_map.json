@@ -1,0 +1,397 @@
+{
+  "name": "Default Map (Dynamic)",
+  "version": "1.0",
+  "meshes": {
+    "ground_plane": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/ground_plane.gltf",
+      "textures": {
+        "color": "/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg",
+        "normal": "/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg",
+        "roughness": "/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg",
+        "displacement": "/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg"
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 70,
+          "height": 0.1,
+          "depth": 70
+        }
+      }
+    },
+    "wall": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/wall.gltf",
+      "textures": {
+        "color": "/resources/textures/brick/brick_color.jpg",
+        "normal": "/resources/textures/brick/brick_normal.jpg",
+        "roughness": "/resources/textures/brick/brick_roughness.jpg"
+      },
+      "material": {
+        "color": 4539972,
+        "roughness": 0.9,
+        "metalness": 0.1
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 2,
+          "height": 1,
+          "depth": 2
+        }
+      }
+    },
+    "wall_long": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/wall_long.gltf",
+      "textures": {
+        "color": "/resources/textures/brick/brick_color.jpg",
+        "normal": "/resources/textures/brick/brick_normal.jpg",
+        "roughness": "/resources/textures/brick/brick_roughness.jpg"
+      },
+      "material": {
+        "color": 4539972,
+        "roughness": 0.9,
+        "metalness": 0.1
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 74,
+          "height": 1,
+          "depth": 2
+        }
+      }
+    },
+    "box_small": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/box_small.gltf",
+      "textures": {
+        "color": "/resources/textures/crate/crate_color.jpg",
+        "normal": "/resources/textures/crate/crate_normal.jpg",
+        "roughness": "/resources/textures/crate/crate_roughness.jpg"
+      },
+      "material": {
+        "color": 9127187,
+        "roughness": 0.7,
+        "metalness": 0.2
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 3,
+          "height": 3,
+          "depth": 3
+        }
+      }
+    },
+    "box_large": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/box_large.gltf",
+      "textures": {
+        "color": "/resources/textures/crate/crate_color.jpg",
+        "normal": "/resources/textures/crate/crate_normal.jpg",
+        "roughness": "/resources/textures/crate/crate_roughness.jpg"
+      },
+      "material": {
+        "color": 3100463,
+        "roughness": 0.7,
+        "metalness": 0.2
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 6,
+          "height": 3,
+          "depth": 3
+        }
+      }
+    },
+    "ventilation_box": {
+      "format": "gltf",
+      "meshFile": "/resources/meshes/ventilation_box.gltf",
+      "textures": {
+        "color": "/resources/textures/ventilation/ventilation_color.jpg",
+        "normal": "/resources/textures/ventilation/ventilation_normal.jpg",
+        "roughness": "/resources/textures/ventilation/ventilation_roughness.jpg"
+      },
+      "material": {
+        "color": 7039851,
+        "roughness": 0.8,
+        "metalness": 0.6
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 2,
+          "height": 2,
+          "depth": 2
+        }
+      }
+    }
+  },
+  "transforms": [
+    {
+      "id": "ground_plane",
+      "mesh": "ground_plane",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -90,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "isPlayableArea": true
+    },
+    {
+      "id": "wall_north",
+      "mesh": "wall_long",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 37
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_south",
+      "mesh": "wall_long",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": -37
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_east",
+      "mesh": "wall_long",
+      "position": {
+        "x": 37,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_west",
+      "mesh": "wall_long",
+      "position": {
+        "x": -37,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "id": "box_corner_ne",
+      "mesh": "box_small",
+      "position": {
+        "x": 23.5,
+        "y": 1.5,
+        "z": 23.5
+      }
+    },
+    {
+      "id": "box_corner_nw",
+      "mesh": "box_small",
+      "position": {
+        "x": -23.5,
+        "y": 1.5,
+        "z": 23.5
+      }
+    },
+    {
+      "id": "box_corner_se",
+      "mesh": "box_small",
+      "position": {
+        "x": 23.5,
+        "y": 1.5,
+        "z": -23.5
+      }
+    },
+    {
+      "id": "box_corner_sw",
+      "mesh": "box_small",
+      "position": {
+        "x": -23.5,
+        "y": 1.5,
+        "z": -23.5
+      }
+    },
+    {
+      "id": "box_center",
+      "mesh": "box_large",
+      "position": {
+        "x": 0,
+        "y": 1.5,
+        "z": 0
+      }
+    },
+    {
+      "id": "ventilation_1",
+      "mesh": "ventilation_box",
+      "position": {
+        "x": 10,
+        "y": 1,
+        "z": 10
+      },
+      "rotation": {
+        "x": 0,
+        "y": 45,
+        "z": 0
+      }
+    },
+    {
+      "id": "ventilation_2",
+      "mesh": "ventilation_box",
+      "position": {
+        "x": -10,
+        "y": 1,
+        "z": 10
+      },
+      "rotation": {
+        "x": 0,
+        "y": -45,
+        "z": 0
+      }
+    },
+    {
+      "id": "ventilation_3",
+      "mesh": "ventilation_box",
+      "position": {
+        "x": 10,
+        "y": 1,
+        "z": -10
+      },
+      "rotation": {
+        "x": 0,
+        "y": 135,
+        "z": 0
+      }
+    },
+    {
+      "id": "ventilation_4",
+      "mesh": "ventilation_box",
+      "position": {
+        "x": -10,
+        "y": 1,
+        "z": -10
+      },
+      "rotation": {
+        "x": 0,
+        "y": -135,
+        "z": 0
+      }
+    },
+    {
+      "id": "spawn_1",
+      "entity": "spawn",
+      "position": {
+        "x": -19,
+        "y": 0,
+        "z": 19
+      }
+    },
+    {
+      "id": "spawn_2",
+      "entity": "spawn",
+      "position": {
+        "x": 19,
+        "y": 0,
+        "z": 19
+      }
+    },
+    {
+      "id": "spawn_3",
+      "entity": "spawn",
+      "position": {
+        "x": -19,
+        "y": 0,
+        "z": -19
+      }
+    },
+    {
+      "id": "spawn_4",
+      "entity": "spawn",
+      "position": {
+        "x": 19,
+        "y": 0,
+        "z": -19
+      }
+    }
+  ],
+  "environment": {
+    "skybox": {
+      "type": "color",
+      "value": 8900331
+    },
+    "fog": {
+      "color": 8900331,
+      "near": 50,
+      "far": 100
+    },
+    "lighting": {
+      "ambient": {
+        "color": 16777215,
+        "intensity": 0.4
+      },
+      "directional": [
+        {
+          "color": 16777215,
+          "intensity": 0.8,
+          "position": {
+            "x": 10,
+            "y": 20,
+            "z": 10
+          },
+          "castShadow": true
+        }
+      ],
+      "point": [
+        {
+          "color": 16750848,
+          "intensity": 1.0,
+          "position": {
+            "x": 0,
+            "y": 5,
+            "z": 0
+          },
+          "distance": 25,
+          "decay": 2,
+          "castShadow": false
+        }
+      ]
+    }
+  }
+}
