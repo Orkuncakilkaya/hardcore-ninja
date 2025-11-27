@@ -3,9 +3,11 @@ import { NetworkManager } from './network/NetworkManager';
 import { GameClient } from './client/GameClient';
 import Menu from './components/Menu';
 import HUD from './components/HUD';
+import GameLogs from './components/GameLogs';
 import Settings from './components/Settings';
 import Scoreboard from './components/Scoreboard';
 import GameModeDisplay from './components/GameModeDisplay';
+import { HostDisconnectedModal } from './components/HostDisconnectedModal';
 import type { GameState } from './common/types';
 import styles from './App.module.css';
 
@@ -24,6 +26,8 @@ function App() {
   const [scoreboardOpened, setScoreboardOpened] = useState(false);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [localPlayerId, setLocalPlayerId] = useState<string | null>(null);
+  const [hostDisconnected, setHostDisconnected] = useState(false);
+  const [gameLogs, setGameLogs] = useState<{ id: number; message: string }[]>([]);
   const gameClientInitialized = useRef(false);
 
   useEffect(() => {
@@ -45,6 +49,18 @@ function App() {
         });
         client.setOnScoreboardClose(() => {
           setScoreboardOpened(false);
+        });
+        client.setOnHostDisconnected(() => {
+          setHostDisconnected(true);
+        });
+        client.setOnGameLog((message: string) => {
+          const id = Date.now() + Math.random();
+          setGameLogs(prev => [...prev, { id, message }]);
+
+          // Remove log after 5 seconds (matching CSS animation)
+          setTimeout(() => {
+            setGameLogs(prev => prev.filter(log => log.id !== id));
+          }, 5000);
         });
 
         setGameClient(client);
@@ -111,6 +127,7 @@ function App() {
     setSettingsOpened(false);
     setGameState(null);
     setLocalPlayerId(null);
+    setGameLogs([]);
 
     // Clear query string from URL
     const newUrl = window.location.pathname;
@@ -129,6 +146,7 @@ function App() {
         </div>
       )}
       <HUD />
+      {gameStarted && <GameLogs logs={gameLogs} />}
       {gameStarted && <GameModeDisplay gameState={gameState} visible={gameStarted} />}
       {gameClient && (
         <>
@@ -150,6 +168,7 @@ function App() {
           />
         </>
       )}
+      <HostDisconnectedModal opened={hostDisconnected} onExit={handleExitGame} />
       <div id="game-container"></div>
     </div>
   );
