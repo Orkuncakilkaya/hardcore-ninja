@@ -444,8 +444,8 @@ export class ServerPlayer {
       this.deaths++;
       this.aliveStartTime = 0; // Stop tracking alive time
 
-      // Increment attacker's kill count if attackerId is provided
-      if (attackerId && entityManager) {
+      // Increment attacker's kill count if attackerId is provided and it's not a self-kill
+      if (attackerId && entityManager && attackerId !== this.id) {
         const attacker = entityManager.getPlayer(attackerId);
         if (attacker) {
           attacker.kills++;
