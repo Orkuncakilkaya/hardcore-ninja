@@ -126,7 +126,15 @@ export class ServerEntityManager {
       this.players.forEach(player => {
         if (beam.checkCollision(player.position, player.id)) {
           const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-          player.takeDamage(config.damage);
+          const killedPlayerId = player.takeDamage(config.damage, beam.ownerId);
+
+          // Increment kill count for the attacker if player died
+          if (killedPlayerId) {
+            const attacker = this.getPlayer(beam.ownerId);
+            if (attacker) {
+              attacker.kills++;
+            }
+          }
         }
       });
     }
