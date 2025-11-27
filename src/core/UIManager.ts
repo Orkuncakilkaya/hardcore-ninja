@@ -158,6 +158,12 @@ export class UIManager {
     // Game mode display is now handled by React component
   }
 
+  public hideHUD() {
+    if (this.hud) {
+      this.hud.style.display = 'none';
+    }
+  }
+
   public showTabMenu() {
     if (this.tabMenu) {
       this.tabMenu.style.display = 'block';

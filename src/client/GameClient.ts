@@ -502,6 +502,16 @@ export class GameClient {
     this.animate();
   }
 
+  public stop() {
+    this.isRunning = false;
+    this.uiManager.hideHUD();
+
+    // Stop and dispose audio resources
+    if (this.audioManager) {
+      this.audioManager.dispose();
+    }
+  }
+
   private animate = () => {
     if (!this.isRunning) return;
     requestAnimationFrame(this.animate);

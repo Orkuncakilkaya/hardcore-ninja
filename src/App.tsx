@@ -101,6 +101,26 @@ function App() {
     }
   };
 
+  const handleExitGame = () => {
+    // Stop game client and dispose audio resources
+    if (gameClient) {
+      gameClient.stop();
+    }
+
+    setGameStarted(false);
+    setSettingsOpened(false);
+    setGameState(null);
+    setLocalPlayerId(null);
+
+    // Clear query string from URL
+    const newUrl = window.location.pathname;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 0);
+  };
+
   return (
     <div className={styles.app}>
       {!gameStarted && (
@@ -117,6 +137,7 @@ function App() {
             onClose={() => setSettingsOpened(false)}
             audioManager={gameClient.getAudioManager()}
             variant="modal"
+            onExitGame={handleExitGame}
           />
           <Scoreboard
             opened={scoreboardOpened}

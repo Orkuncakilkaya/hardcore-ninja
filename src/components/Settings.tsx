@@ -8,6 +8,7 @@ interface SettingsProps {
   onClose: () => void;
   audioManager: AudioManager | null;
   variant?: 'modal' | 'inline';
+  onExitGame?: () => void;
 }
 
 export default function Settings({
@@ -15,6 +16,7 @@ export default function Settings({
   onClose,
   audioManager,
   variant = 'modal',
+  onExitGame,
 }: SettingsProps) {
   const [bgmVolume, setBgmVolume] = useState(() =>
     audioManager ? Math.round(audioManager.getBgmVolume() * 100) : 100
@@ -90,9 +92,16 @@ export default function Settings({
       </Paper>
 
       {variant === 'modal' && (
-        <Button variant="light" onClick={onClose} fullWidth>
-          Close
-        </Button>
+        <Stack gap="sm">
+          {onExitGame && (
+            <Button variant="filled" color="red" onClick={onExitGame} fullWidth>
+              Exit Game
+            </Button>
+          )}
+          <Button variant="light" onClick={onClose} fullWidth>
+            Close
+          </Button>
+        </Stack>
       )}
       {variant === 'inline' && (
         <Button variant="light" onClick={onClose} fullWidth>
