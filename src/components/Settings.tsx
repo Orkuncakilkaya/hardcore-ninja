@@ -16,8 +16,12 @@ export default function Settings({
   audioManager,
   variant = 'modal',
 }: SettingsProps) {
-  const [bgmVolume, setBgmVolume] = useState(10);
-  const [sfxVolume, setSfxVolume] = useState(50);
+  const [bgmVolume, setBgmVolume] = useState(() =>
+    audioManager ? Math.round(audioManager.getBgmVolume() * 100) : 100
+  );
+  const [sfxVolume, setSfxVolume] = useState(() =>
+    audioManager ? Math.round(audioManager.getSfxVolume() * 100) : 100
+  );
 
   // Load current volume settings from audioManager
   useEffect(() => {
@@ -57,8 +61,11 @@ export default function Settings({
                 max={100}
                 label={null}
                 className={styles.slider}
+                style={{ flex: 1 }}
               />
-              <Text className={styles.volumeText}>{bgmVolume}%</Text>
+              <Text className={styles.volumeText} w={40} ta="right">
+                {bgmVolume}%
+              </Text>
             </Group>
           </Stack>
 
@@ -72,8 +79,11 @@ export default function Settings({
                 max={100}
                 label={null}
                 className={styles.slider}
+                style={{ flex: 1 }}
               />
-              <Text className={styles.volumeText}>{sfxVolume}%</Text>
+              <Text className={styles.volumeText} w={40} ta="right">
+                {sfxVolume}%
+              </Text>
             </Group>
           </Stack>
         </Stack>
