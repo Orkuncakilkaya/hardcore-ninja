@@ -2,10 +2,14 @@ import * as THREE from 'three';
 import { SkillType } from '../common/constants';
 
 // Default audio settings
-const DEFAULT_SFX_VOLUME = 0.5; // 50%
-const DEFAULT_BGM_VOLUME = 0.1; // 10%
+const DEFAULT_SFX_VOLUME = 1.0; // 100%
+const DEFAULT_BGM_VOLUME = 1.0; // 100%
+const SFX_MASTER_GAIN = 0.1; // 10% scaling factor, takes 10% of the actual sound
+const BGM_MASTER_GAIN = 0.05; // 5% scaling factor, takes 5% of the actual sound
 const STORAGE_KEY_SFX_VOLUME = 'sfx_volume';
 const STORAGE_KEY_BGM_VOLUME = 'bgm_volume';
+const STORAGE_KEY_SFX_MUTED = 'sfx_muted';
+const STORAGE_KEY_BGM_MUTED = 'bgm_muted';
 
 /**
  * AudioManager handles 3D audio sources and listeners for the game
@@ -25,12 +29,15 @@ export class AudioManager {
   // Volume settings
   private sfxVolume: number = DEFAULT_SFX_VOLUME;
   private bgmVolume: number = DEFAULT_BGM_VOLUME;
+  private sfxMuted: boolean = false;
+  private bgmMuted: boolean = false;
 
   constructor() {
     this.listener = new THREE.AudioListener();
     this.soundMap = new Map();
     this.skillSounds = new Map();
     this.audioLoader = new THREE.AudioLoader();
+    this.loadSettings();
   }
 
   /**
@@ -50,9 +57,6 @@ export class AudioManager {
    * Load all skill sound effects and background music
    */
   private loadSounds(): Promise<void> {
-    // Load settings from local storage
-    this.loadSettings();
-
     const soundPromises: Promise<void>[] = [
       this.loadSound(SkillType.TELEPORT, '/resources/sfx/teleport.mp3'),
       this.loadSound(SkillType.HOMING_MISSILE, '/resources/sfx/missile.mp3'),
@@ -70,6 +74,8 @@ export class AudioManager {
   private loadSettings(): void {
     const savedSfxVolume = localStorage.getItem(STORAGE_KEY_SFX_VOLUME);
     const savedBgmVolume = localStorage.getItem(STORAGE_KEY_BGM_VOLUME);
+    const savedSfxMuted = localStorage.getItem(STORAGE_KEY_SFX_MUTED);
+    const savedBgmMuted = localStorage.getItem(STORAGE_KEY_BGM_MUTED);
 
     if (savedSfxVolume !== null) {
       this.sfxVolume = parseFloat(savedSfxVolume);
@@ -77,6 +83,14 @@ export class AudioManager {
 
     if (savedBgmVolume !== null) {
       this.bgmVolume = parseFloat(savedBgmVolume);
+    }
+
+    if (savedSfxMuted !== null) {
+      this.sfxMuted = savedSfxMuted === 'true';
+    }
+
+    if (savedBgmMuted !== null) {
+      this.bgmMuted = savedBgmMuted === 'true';
     }
   }
 
@@ -86,6 +100,8 @@ export class AudioManager {
   private saveSettings(): void {
     localStorage.setItem(STORAGE_KEY_SFX_VOLUME, this.sfxVolume.toString());
     localStorage.setItem(STORAGE_KEY_BGM_VOLUME, this.bgmVolume.toString());
+    localStorage.setItem(STORAGE_KEY_SFX_MUTED, this.sfxMuted.toString());
+    localStorage.setItem(STORAGE_KEY_BGM_MUTED, this.bgmMuted.toString());
   }
 
   /**
@@ -151,12 +167,20 @@ export class AudioManager {
     const buffer = this.skillSounds.get(skillType);
     if (!buffer) return null;
 
+    // Calculate effective volume
+    const effectiveVolume = this.sfxMuted ? 0 : this.sfxVolume * SFX_MASTER_GAIN;
+
+    // If volume is effectively zero, don't play anything
+    if (effectiveVolume <= 0.0001) {
+      return null;
+    }
+
     // Create a positional audio source
     const sound = new THREE.PositionalAudio(this.listener);
     sound.setBuffer(buffer);
 
     // Apply SFX volume setting
-    sound.setVolume(volume * this.sfxVolume);
+    sound.setVolume(volume * effectiveVolume);
 
     sound.setRefDistance(5); // Distance at which the volume is reduced by half
     sound.setMaxDistance(100); // Max distance at which the sound can be heard
@@ -197,12 +221,20 @@ export class AudioManager {
     const buffer = this.skillSounds.get(skillType);
     if (!buffer) return null;
 
+    // Calculate effective volume
+    const effectiveVolume = this.sfxMuted ? 0 : this.sfxVolume * SFX_MASTER_GAIN;
+
+    // If volume is effectively zero, don't play anything
+    if (effectiveVolume <= 0.0001) {
+      return null;
+    }
+
     // Create a non-positional audio source (plays at full volume regardless of position)
     const sound = new THREE.Audio(this.listener);
     sound.setBuffer(buffer);
 
     // Apply SFX volume setting
-    sound.setVolume(volume * this.sfxVolume);
+    sound.setVolume(volume * effectiveVolume);
 
     sound.play();
 
@@ -225,7 +257,8 @@ export class AudioManager {
     // Create a non-positional audio source for BGM
     this.bgmSound = new THREE.Audio(this.listener);
     this.bgmSound.setBuffer(this.bgmBuffer);
-    this.bgmSound.setVolume(this.bgmVolume);
+    const effectiveVolume = this.bgmMuted ? 0 : this.bgmVolume * BGM_MASTER_GAIN;
+    this.bgmSound.setVolume(effectiveVolume);
     this.bgmSound.setLoop(true); // Loop the background music
     this.bgmSound.play();
 
@@ -260,7 +293,8 @@ export class AudioManager {
 
     // Update playing BGM volume if it exists
     if (this.bgmSound) {
-      this.bgmSound.setVolume(this.bgmVolume);
+      const effectiveVolume = this.bgmMuted ? 0 : this.bgmVolume * BGM_MASTER_GAIN;
+      this.bgmSound.setVolume(effectiveVolume);
     }
 
     this.saveSettings();
@@ -280,6 +314,31 @@ export class AudioManager {
    */
   public getBgmVolume(): number {
     return this.bgmVolume;
+  }
+
+  public isSfxMuted(): boolean {
+    return this.sfxMuted;
+  }
+
+  public isBgmMuted(): boolean {
+    return this.bgmMuted;
+  }
+
+  public setSfxMuted(muted: boolean): void {
+    this.sfxMuted = muted;
+    this.saveSettings();
+  }
+
+  public setBgmMuted(muted: boolean): void {
+    this.bgmMuted = muted;
+
+    // Update playing BGM immediately
+    if (this.bgmSound) {
+      const effectiveVolume = this.bgmMuted ? 0 : this.bgmVolume * BGM_MASTER_GAIN;
+      this.bgmSound.setVolume(effectiveVolume);
+    }
+
+    this.saveSettings();
   }
 
   /**
