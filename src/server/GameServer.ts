@@ -298,6 +298,14 @@ export class GameServer {
 
     this.currentRound = 1;
     this.playerRespawnEnabled = false; // Disable respawn in round mode
+
+    // Reset all player stats when round 1 starts
+    this.entityManager.getPlayers().forEach(player => {
+      player.kills = 0;
+      player.deaths = 0;
+      player.lastPlayerAlive = 0;
+    });
+
     this.startFreezeTime();
     return true;
   }

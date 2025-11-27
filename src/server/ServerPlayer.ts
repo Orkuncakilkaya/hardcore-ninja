@@ -430,7 +430,11 @@ export class ServerPlayer {
     return true;
   }
 
-  public takeDamage(amount: number) {
+  public takeDamage(
+    amount: number,
+    attackerId?: string,
+    entityManager?: ServerEntityManager
+  ): void {
     if (this.isDead) return;
     if (this.isInvulnerable) return;
     this.health = Math.max(0, this.health - amount);
@@ -439,6 +443,14 @@ export class ServerPlayer {
       this.isDead = true;
       this.deaths++;
       this.aliveStartTime = 0; // Stop tracking alive time
+
+      // Increment attacker's kill count if attackerId is provided and it's not a self-kill
+      if (attackerId && entityManager && attackerId !== this.id) {
+        const attacker = entityManager.getPlayer(attackerId);
+        if (attacker) {
+          attacker.kills++;
+        }
+      }
     }
   }
 

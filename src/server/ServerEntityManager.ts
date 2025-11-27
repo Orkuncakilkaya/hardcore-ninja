@@ -126,7 +126,7 @@ export class ServerEntityManager {
       this.players.forEach(player => {
         if (beam.checkCollision(player.position, player.id)) {
           const config = SKILL_CONFIG[SkillType.LASER_BEAM];
-          player.takeDamage(config.damage);
+          player.takeDamage(config.damage, beam.ownerId, this);
         }
       });
     }

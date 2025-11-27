@@ -124,7 +124,7 @@ export class ServerMissile {
 
       if (missileBox.intersectsBox(playerBox)) {
         // Hit player
-        player.takeDamage(this.damage);
+        player.takeDamage(this.damage, this.ownerId, entityManager);
         return true;
       }
     }
