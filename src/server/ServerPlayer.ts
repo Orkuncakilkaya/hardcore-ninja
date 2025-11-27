@@ -430,7 +430,11 @@ export class ServerPlayer {
     return true;
   }
 
-  public takeDamage(amount: number, attackerId?: string): string | undefined {
+  public takeDamage(
+    amount: number,
+    attackerId?: string,
+    entityManager?: ServerEntityManager
+  ): void {
     if (this.isDead) return;
     if (this.isInvulnerable) return;
     this.health = Math.max(0, this.health - amount);
@@ -440,10 +444,14 @@ export class ServerPlayer {
       this.deaths++;
       this.aliveStartTime = 0; // Stop tracking alive time
 
-      // Return attackerId to caller so they can increment kills
-      return attackerId;
+      // Increment attacker's kill count if attackerId is provided
+      if (attackerId && entityManager) {
+        const attacker = entityManager.getPlayer(attackerId);
+        if (attacker) {
+          attacker.kills++;
+        }
+      }
     }
-    return undefined;
   }
 
   public attemptInvincibility(): boolean {

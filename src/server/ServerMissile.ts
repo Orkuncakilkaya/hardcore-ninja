@@ -124,15 +124,7 @@ export class ServerMissile {
 
       if (missileBox.intersectsBox(playerBox)) {
         // Hit player
-        const killedPlayerId = player.takeDamage(this.damage, this.ownerId);
-
-        // Increment kill count for the attacker if player died
-        if (killedPlayerId) {
-          const attacker = entityManager.getPlayer(this.ownerId);
-          if (attacker) {
-            attacker.kills++;
-          }
-        }
+        player.takeDamage(this.damage, this.ownerId, entityManager);
         return true;
       }
     }
