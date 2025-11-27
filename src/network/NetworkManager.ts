@@ -8,9 +8,14 @@ export class NetworkManager {
   private _isHost: boolean = false;
   private _playerName: string = '';
   private _playerAvatar: string | null = null;
+  private _hostId: string | null = null; // Store host ID for clients
 
   public get isHost(): boolean {
     return this._isHost;
+  }
+
+  public get hostId(): string | null {
+    return this._hostId;
   }
 
   public get peerId(): string {
@@ -81,31 +86,44 @@ export class NetworkManager {
 
   public hostGame() {
     this._isHost = true;
+    this.startHeartbeat();
   }
 
   public joinGame(hostId: string) {
     this._isHost = false;
+    this._hostId = hostId;
     const conn = this.peer.connect(hostId);
     this.handleConnection(conn);
+    this.startClientHeartbeatCheck();
   }
 
   private handleConnection(conn: DataConnection) {
     conn.on('open', () => {
       this.connections.push(conn);
+      this.lastPongTimes.set(conn.peer, Date.now()); // Initialize timestamp
       window.dispatchEvent(new CustomEvent('connected', { detail: conn.peer }));
     });
 
     conn.on('data', (data: unknown) => {
+      const message = data as NetworkMessage;
+
+      // Handle internal heartbeat messages
+      if (message.type === 'PING' || message.type === 'PONG') {
+        this.handlePingPong(conn.peer, message);
+        return; // Don't dispatch PING/PONG to game
+      }
+
       // Dispatch event for Game to handle
       window.dispatchEvent(
         new CustomEvent('network-data', {
-          detail: { from: conn.peer, data: data as NetworkMessage },
+          detail: { from: conn.peer, data: message },
         })
       );
     });
 
     conn.on('close', () => {
       this.connections = this.connections.filter(c => c !== conn);
+      this.lastPongTimes.delete(conn.peer);
       window.dispatchEvent(new CustomEvent('player-disconnected', { detail: conn.peer }));
     });
   }
@@ -145,6 +163,95 @@ export class NetworkManager {
     const conn = this.connections.find(c => c.peer === peerId);
     if (conn) {
       conn.send(data);
+    }
+  }
+
+  // Heartbeat Mechanism
+  private heartbeatInterval: number | null = null;
+  private lastPongTimes: Map<string, number> = new Map();
+  private readonly PING_INTERVAL = 2000; // Send PING every 2 seconds
+  private readonly CONNECTION_TIMEOUT = 5000; // Disconnect if no PONG for 5 seconds
+
+  public startHeartbeat() {
+    if (this.heartbeatInterval) return;
+
+    this.heartbeatInterval = window.setInterval(() => {
+      const now = Date.now();
+
+      // Send PING to all connections
+      this.connections.forEach(conn => {
+        conn.send({ type: 'PING', timestamp: now });
+
+        // Check for timeout
+        const lastPong = this.lastPongTimes.get(conn.peer) || now; // Give grace period for new connections
+        if (now - lastPong > this.CONNECTION_TIMEOUT) {
+          console.warn(`Connection timed out for ${conn.peer}, forcing disconnect`);
+          conn.close();
+          // Force disconnect event since close event might not fire immediately
+          this.connections = this.connections.filter(c => c !== conn);
+          window.dispatchEvent(new CustomEvent('player-disconnected', { detail: conn.peer }));
+          this.lastPongTimes.delete(conn.peer);
+        }
+      });
+    }, this.PING_INTERVAL);
+  }
+
+  public stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    this.lastPongTimes.clear();
+    this.stopClientHeartbeatCheck();
+  }
+
+  public handlePingPong(peerId: string, message: NetworkMessage) {
+    if (message.type === 'PING') {
+      // Respond with PONG
+      if (this.isHost) {
+        // Host responding to client PING (if clients ping host, but currently only host pings clients)
+        // For now, clients respond to host PING
+      } else {
+        // Client responding to Host PING
+        this.lastHostPingTime = Date.now(); // Update last ping time from host
+        this.sendToHost({ type: 'PONG', timestamp: Date.now() });
+      }
+    } else if (message.type === 'PONG') {
+      // Update last PONG time
+      this.lastPongTimes.set(peerId, Date.now());
+    }
+  }
+
+  // Client-side Host Monitor
+  private clientHeartbeatInterval: number | null = null;
+  private lastHostPingTime: number = 0;
+
+  private startClientHeartbeatCheck() {
+    if (this.clientHeartbeatInterval) return;
+
+    this.lastHostPingTime = Date.now(); // Initialize
+
+    this.clientHeartbeatInterval = window.setInterval(() => {
+      const now = Date.now();
+      // If we haven't received a PING from the host in a while, assume they are gone
+      if (now - this.lastHostPingTime > this.CONNECTION_TIMEOUT) {
+        console.warn('Host connection timed out, triggering disconnect');
+
+        // Trigger disconnect event
+        if (this._hostId) {
+          window.dispatchEvent(new CustomEvent('player-disconnected', { detail: this._hostId }));
+        }
+
+        // Stop checking
+        this.stopClientHeartbeatCheck();
+      }
+    }, 1000); // Check every second
+  }
+
+  private stopClientHeartbeatCheck() {
+    if (this.clientHeartbeatInterval) {
+      clearInterval(this.clientHeartbeatInterval);
+      this.clientHeartbeatInterval = null;
     }
   }
 }

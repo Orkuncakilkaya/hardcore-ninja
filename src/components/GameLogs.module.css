@@ -1,0 +1,25 @@
+.gameLogs {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  pointer-events: none;
+  z-index: 100;
+  max-height: 200px;
+  overflow: hidden;
+}
+
+.logEntry {
+  animation: fadeOut 5s forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

@@ -67,6 +67,20 @@ export class GameClient {
     this.onScoreboardClose = callback;
   }
 
+  // Callback for host disconnection
+  private onHostDisconnected?: () => void;
+
+  public setOnHostDisconnected(callback: () => void) {
+    this.onHostDisconnected = callback;
+  }
+
+  // Callback for game logs
+  private onGameLog?: (message: string) => void;
+
+  public setOnGameLog(callback: (message: string) => void) {
+    this.onGameLog = callback;
+  }
+
   // Network throttling
   private lastMovementSendTime: number = 0;
   private movementSendInterval: number = TICK_INTERVAL * 1000; // Send at tick rate
@@ -93,6 +107,16 @@ export class GameClient {
         this.handleMessage(data);
       }
     );
+
+    window.addEventListener('player-disconnected', () => {
+      if (!this.networkManager.isHost) {
+        // If we are a client and receive a disconnect event, it means the host has disconnected
+        // (since clients only connect to the host)
+        if (this.onHostDisconnected) {
+          this.onHostDisconnected();
+        }
+      }
+    });
   }
 
   private setupInputHandlers() {
@@ -404,6 +428,34 @@ export class GameClient {
         break;
       case 'GAME_STATE_UPDATE':
         if (this.localPlayerId) {
+          // Detect joins and leaves
+          if (this.currentGameState) {
+            const prevPlayers = new Set(this.currentGameState.players.map(p => p.id));
+            const newPlayers = new Set(message.state.players.map(p => p.id));
+
+            // Check for joins
+            message.state.players.forEach(p => {
+              if (!prevPlayers.has(p.id)) {
+                // New player joined
+                const name = p.username || `Player ${p.id.substring(0, 4)}`;
+                if (this.onGameLog) {
+                  this.onGameLog(`${name} joined`);
+                }
+              }
+            });
+
+            // Check for leaves
+            this.currentGameState.players.forEach(p => {
+              if (!newPlayers.has(p.id)) {
+                // Player left
+                const name = p.username || `Player ${p.id.substring(0, 4)}`;
+                if (this.onGameLog) {
+                  this.onGameLog(`${name} left`);
+                }
+              }
+            });
+          }
+
           this.currentGameState = message.state;
           this.entityManager.updateState(message.state, this.localPlayerId);
           this.uiManager.update(message.state, this.localPlayerId, this.networkManager.isHost);
