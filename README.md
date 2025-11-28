@@ -8,6 +8,8 @@
 
 A multiplayer 3D ninja battle game where players can use various skills to defeat opponents in an arena.
 
+<img src="/public/meta/og.jpg" alt="Hardcore Ninja" width="512" height="auto" />
+
 ## Features
 
 - 🎮 Real-time multiplayer gameplay
@@ -36,17 +38,20 @@ A multiplayer 3D ninja battle game where players can use various skills to defea
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/Orkuncakilkaya/hardcore-ninja.git
    cd hardcore-ninja
    ```
 
 2. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 3. Start the development server:
+
    ```bash
    pnpm dev
    ```
