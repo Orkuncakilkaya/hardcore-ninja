@@ -19,6 +19,7 @@ import {
   CopyButton,
   Tooltip,
   rem,
+  Image,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Icon } from '@iconify/react';
@@ -404,11 +405,11 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
               Join Game
             </Button>
 
-            <Button size="lg" variant="light" onClick={() => setActiveTab('settings')}>
+            <Button size="lg" onClick={() => setActiveTab('settings')}>
               Settings
             </Button>
 
-            <Button size="lg" variant="light" onClick={() => setActiveTab('credits')}>
+            <Button size="lg" onClick={() => setActiveTab('credits')}>
               Credits
             </Button>
           </Stack>
@@ -434,6 +435,17 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
         }}
       >
         <Stack align="stretch" gap="xl" styles={{ root: { width: '100%' } }}>
+          <Image
+            src="/meta/logo/hardcore_ninja_logo.webp"
+            alt="Hardcore Ninja"
+            width={128}
+            height={128}
+            fit="contain"
+          />
+          <Title order={1} ta="center">
+            Hardcore Ninja
+          </Title>
+
           {renderContent()}
 
           {!isNetworkReady && (
