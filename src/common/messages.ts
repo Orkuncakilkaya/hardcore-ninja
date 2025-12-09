@@ -14,7 +14,9 @@ export type MessageType =
   | 'RESTART_GAME'
   | 'SPAWN_POINTS_REQUEST' // Legacy, might remove
   | 'SPAWN_POINT_RESPONSE' // Legacy, might remove
-  | 'MAP_CONFIG';
+  | 'MAP_CONFIG'
+  | 'PING'
+  | 'PONG';
 
 export interface BaseMessage {
   type: MessageType;
@@ -75,6 +77,16 @@ export interface RestartGameMessage extends BaseMessage {
   type: 'RESTART_GAME';
 }
 
+export interface PingMessage extends BaseMessage {
+  type: 'PING';
+  timestamp: number;
+}
+
+export interface PongMessage extends BaseMessage {
+  type: 'PONG';
+  timestamp: number;
+}
+
 export type NetworkMessage =
   | JoinRequestMessage
   | JoinResponseMessage
@@ -83,5 +95,8 @@ export type NetworkMessage =
   | SkillRequestMessage
   | StateRequestMessage
   | PlayerDiedMessage
+  | PlayerDiedMessage
   | StartGameMessage
-  | RestartGameMessage;
+  | RestartGameMessage
+  | PingMessage
+  | PongMessage;
