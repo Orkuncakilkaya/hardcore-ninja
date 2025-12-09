@@ -7,7 +7,7 @@ import { UIManager } from '../core/UIManager';
 import { AudioManager } from './AudioManager';
 import type { NetworkMessage, JoinRequestMessage } from '../common/messages';
 import type { GameState } from '../common/types';
-import { SKILL_CONFIG, SkillType, TICK_INTERVAL } from '../common/constants';
+import { SKILL_CONFIG, SkillType, TICK_INTERVAL, GameMode } from '../common/constants';
 import { DynamicMapLoader } from '../core/DynamicMapLoader.ts';
 
 // Declare custom event types
@@ -612,6 +612,7 @@ export class GameClient {
     this.entityManager.update(delta);
 
     // Update camera mode based on player state
+    const wasFreeCameraMode = this.isFreeCameraMode;
     this.updateCameraMode();
 
     // Camera Follow or Free Camera
@@ -627,9 +628,11 @@ export class GameClient {
         this.renderer.camera.position.z = localEntity.mesh.position.z + 10;
         this.renderer.camera.lookAt(localEntity.mesh.position);
         
-        // Update free camera position to current camera position when transitioning back
-        this.freeCameraPosition.copy(this.renderer.camera.position);
-        this.freeCameraTarget.copy(localEntity.mesh.position);
+        // Update free camera position only when transitioning from free camera to player-lock
+        if (wasFreeCameraMode) {
+          this.freeCameraPosition.copy(this.renderer.camera.position);
+          this.freeCameraTarget.copy(localEntity.mesh.position);
+        }
       }
     }
   }
@@ -650,7 +653,7 @@ export class GameClient {
     // Enable free camera only if:
     // 1. Player is dead
     // 2. Game is NOT in warmup mode
-    const isInRound = this.currentGameState.gameMode !== 'WARMUP';
+    const isInRound = this.currentGameState.gameMode !== GameMode.WARMUP;
     const shouldEnableFreeCamera = localPlayer.isDead && isInRound;
 
     // Transition to free camera mode
