@@ -1,0 +1,284 @@
+{
+  "$schema": "./map-schema.json",
+  "name": "Primitive Shapes Demo",
+  "version": "1.0",
+  "meshes": {
+    "ground_plane": {
+      "format": "primitive",
+      "primitiveType": "plane",
+      "primitiveParams": {
+        "width": 74,
+        "height": 74,
+        "widthSegments": 10,
+        "heightSegments": 10
+      },
+      "material": {
+        "color": 8947848,
+        "roughness": 0.8,
+        "metalness": 0.1
+      }
+    },
+    "crate": {
+      "primitiveType": "box",
+      "primitiveParams": {
+        "width": 4.5,
+        "height": 4.5,
+        "depth": 4.5
+      },
+      "textures": {
+        "color": "/resources/textures/crate_color.jpg"
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 4.5,
+          "height": 4.5,
+          "depth": 4.5
+        }
+      },
+      "format": "primitive"
+    },
+    "crate_long": {
+      "primitiveType": "box",
+      "primitiveParams": {
+        "width": 20,
+        "height": 2,
+        "depth": 12
+      },
+      "textures": {
+        "color": "/resources/textures/crate_color.jpg"
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 20,
+          "height": 2,
+          "depth": 12
+        }
+      },
+      "format": "primitive"
+    },
+    "wall": {
+      "format": "primitive",
+      "primitiveType": "box",
+      "primitiveParams": {
+        "width": 74,
+        "height": 1,
+        "depth": 2
+      },
+      "textures": {
+        "color": "/resources/textures/brick_color.png"
+      },
+      "material": {
+        "color": 4539972,
+        "roughness": 0.9,
+        "metalness": 0.1
+      },
+      "collision": {
+        "type": "box",
+        "dimensions": {
+          "width": 74,
+          "height": 1,
+          "depth": 2
+        }
+      }
+    }
+  },
+  "transforms": [
+    {
+      "id": "ground_plane",
+      "mesh": "ground_plane",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -90,
+        "y": 0,
+        "z": 0
+      },
+      "isPlayableArea": true
+    },
+    {
+      "id": "wall_north",
+      "mesh": "wall",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 37
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_south",
+      "mesh": "wall",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": -37
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_east",
+      "mesh": "wall",
+      "position": {
+        "x": 37,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "id": "wall_west",
+      "mesh": "wall",
+      "position": {
+        "x": -37,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "id": "box_bottom_right",
+      "mesh": "crate",
+      "position": {
+        "x": 25,
+        "y": 1.8,
+        "z": 25
+      }
+    },
+    {
+      "id": "box_bottom_left",
+      "mesh": "crate",
+      "position": {
+        "x": -25,
+        "y": 1.8,
+        "z": 25
+      }
+    },
+    {
+      "id": "box_top_left",
+      "mesh": "crate",
+      "position": {
+        "x": -25,
+        "y": 1.8,
+        "z": -25
+      }
+    },
+    {
+      "id": "box_top_right",
+      "mesh": "crate",
+      "position": {
+        "x": 25,
+        "y": 1.8,
+        "z": -25
+      }
+    },
+    {
+      "id": "box_middle",
+      "mesh": "crate_long",
+      "position": {
+        "x": 0,
+        "y": 0.4,
+        "z": 0
+      }
+    },
+    {
+      "id": "spawn_1",
+      "entity": "spawn",
+      "position": {
+        "x": -19,
+        "y": 0,
+        "z": 19
+      }
+    },
+    {
+      "id": "spawn_2",
+      "entity": "spawn",
+      "position": {
+        "x": 19,
+        "y": 0,
+        "z": 19
+      }
+    },
+    {
+      "id": "spawn_3",
+      "entity": "spawn",
+      "position": {
+        "x": -19,
+        "y": 0,
+        "z": -19
+      }
+    },
+    {
+      "id": "spawn_4",
+      "entity": "spawn",
+      "position": {
+        "x": 19,
+        "y": 0,
+        "z": -19
+      }
+    }
+  ],
+  "environment": {
+    "skybox": {
+      "type": "color",
+      "value": 8900331
+    },
+    "fog": {
+      "color": 8900331,
+      "near": 50,
+      "far": 100
+    },
+    "lighting": {
+      "ambient": {
+        "color": 16777215,
+        "intensity": 0.4
+      },
+      "directional": [
+        {
+          "color": 16777215,
+          "intensity": 0.8,
+          "position": {
+            "x": 10,
+            "y": 20,
+            "z": 10
+          },
+          "castShadow": true
+        }
+      ],
+      "point": [
+        {
+          "color": 16750848,
+          "intensity": 1.0,
+          "position": {
+            "x": 0,
+            "y": 5,
+            "z": 0
+          },
+          "distance": 25,
+          "decay": 2,
+          "castShadow": false
+        }
+      ]
+    }
+  }
+}

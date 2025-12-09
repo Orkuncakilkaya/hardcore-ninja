@@ -6,8 +6,6 @@ import { ServerMissile } from './ServerMissile';
 import { ServerLaserBeam } from './ServerLaserBeam';
 
 export class ServerPlayer {
-  private readonly mapLimit: number;
-
   public id: string;
   public username?: string; // Player's display name
   public avatar?: string; // Player's avatar (for future use)
@@ -55,9 +53,8 @@ export class ServerPlayer {
   // We need to refactor SkillSystem or create a ServerSkillSystem.
   // Let's assume we refactor SkillSystem later or mock it for now.
 
-  constructor(id: string, startPosition: Vector3, mapLimit: number = 35) {
+  constructor(id: string, startPosition: Vector3) {
     this.id = id;
-    this.mapLimit = mapLimit;
     this.position = new THREE.Vector3(startPosition.x, startPosition.y, startPosition.z);
     this.rotation = new THREE.Quaternion();
 
@@ -144,10 +141,6 @@ export class ServerPlayer {
           this.stopMovement();
         }
       }
-
-      // Map Boundary
-      this.position.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.x));
-      this.position.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, this.position.z));
     }
   }
 
@@ -204,10 +197,6 @@ export class ServerPlayer {
       // +1 buffer for latency/float errors
       return false;
     }
-
-    // Validate bounds (map limits) - Clamp to map edges
-    targetPos.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.x));
-    targetPos.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, targetPos.z));
 
     // Combine obstacles and other players into a single list of colliders
     const allColliders: THREE.Box3[] = [...obstacles];
@@ -321,10 +310,6 @@ export class ServerPlayer {
         .add(clampedDirection.multiplyScalar(SKILL_CONFIG.TELEPORT.range));
       finalTarget.y = target.y;
     }
-
-    // Validate bounds (map limits)
-    finalTarget.x = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.x));
-    finalTarget.z = Math.max(-this.mapLimit, Math.min(this.mapLimit, finalTarget.z));
 
     // Perform teleport
     this.teleportDestination.set(finalTarget.x, finalTarget.y, finalTarget.z);
