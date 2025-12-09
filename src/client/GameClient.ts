@@ -618,7 +618,7 @@ export class GameClient {
     // Camera Follow or Free Camera
     if (this.localPlayerId) {
       const localEntity = this.entityManager.getPlayer(this.localPlayerId);
-      
+
       if (this.isFreeCameraMode) {
         // Free camera mode - handle WASD panning
         this.updateFreeCamera(delta);
@@ -656,7 +656,7 @@ export class GameClient {
       // Initialize free camera at current camera position
       this.freeCameraPosition.copy(this.renderer.camera.position);
       this.freeCameraTarget.copy(localPlayer.mesh.position);
-    } 
+    }
     // Transition back to player-locked camera
     else if (!shouldEnableFreeCamera && this.isFreeCameraMode) {
       this.isFreeCameraMode = false;
@@ -666,7 +666,7 @@ export class GameClient {
   private updateFreeCamera(delta: number) {
     // Handle WASD keys for camera panning
     const moveAmount = this.cameraPanSpeed * delta;
-    
+
     // Reset the reusable move vector
     this.cameraMoveVector.set(0, 0, 0);
 
