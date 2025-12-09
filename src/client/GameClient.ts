@@ -91,6 +91,7 @@ export class GameClient {
   private freeCameraPosition: THREE.Vector3 = new THREE.Vector3(0, 20, 10);
   private freeCameraTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
   private cameraPanSpeed: number = 20; // Units per second
+  private cameraMoveVector: THREE.Vector3 = new THREE.Vector3(); // Reusable vector for camera movement
 
   constructor(networkManager: NetworkManager) {
     this.renderer = new Renderer();
@@ -612,7 +613,6 @@ export class GameClient {
     this.entityManager.update(delta);
 
     // Update camera mode based on player state
-    const wasFreeCameraMode = this.isFreeCameraMode;
     this.updateCameraMode();
 
     // Camera Follow or Free Camera
@@ -627,12 +627,6 @@ export class GameClient {
         this.renderer.camera.position.x = localEntity.mesh.position.x;
         this.renderer.camera.position.z = localEntity.mesh.position.z + 10;
         this.renderer.camera.lookAt(localEntity.mesh.position);
-        
-        // Update free camera position only when transitioning from free camera to player-lock
-        if (wasFreeCameraMode) {
-          this.freeCameraPosition.copy(this.renderer.camera.position);
-          this.freeCameraTarget.copy(localEntity.mesh.position);
-        }
       }
     }
   }
@@ -672,27 +666,29 @@ export class GameClient {
   private updateFreeCamera(delta: number) {
     // Handle WASD keys for camera panning
     const moveAmount = this.cameraPanSpeed * delta;
-    const moveVector = new THREE.Vector3();
+    
+    // Reset the reusable move vector
+    this.cameraMoveVector.set(0, 0, 0);
 
     // W/S for forward/backward (Z axis)
     if (this.inputManager.keys['KeyW']) {
-      moveVector.z -= moveAmount;
+      this.cameraMoveVector.z -= moveAmount;
     }
     if (this.inputManager.keys['KeyS']) {
-      moveVector.z += moveAmount;
+      this.cameraMoveVector.z += moveAmount;
     }
 
     // A/D for left/right (X axis)
     if (this.inputManager.keys['KeyA']) {
-      moveVector.x -= moveAmount;
+      this.cameraMoveVector.x -= moveAmount;
     }
     if (this.inputManager.keys['KeyD']) {
-      moveVector.x += moveAmount;
+      this.cameraMoveVector.x += moveAmount;
     }
 
     // Update camera position and target together
-    this.freeCameraPosition.add(moveVector);
-    this.freeCameraTarget.add(moveVector);
+    this.freeCameraPosition.add(this.cameraMoveVector);
+    this.freeCameraTarget.add(this.cameraMoveVector);
 
     // Apply the camera position
     this.renderer.camera.position.copy(this.freeCameraPosition);
