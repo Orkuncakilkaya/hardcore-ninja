@@ -86,6 +86,12 @@ export class GameClient {
   private movementSendInterval: number = TICK_INTERVAL * 1000; // Send at tick rate
   private pendingMovementTarget: THREE.Vector3 | null = null;
 
+  // Free camera for dead observers
+  private isFreeCameraMode: boolean = false;
+  private freeCameraPosition: THREE.Vector3 = new THREE.Vector3(0, 20, 10);
+  private freeCameraTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+  private cameraPanSpeed: number = 20; // Units per second
+
   constructor(networkManager: NetworkManager) {
     this.renderer = new Renderer();
     this.inputManager = new InputManager();
@@ -605,14 +611,88 @@ export class GameClient {
     // Update Entities (Interpolation)
     this.entityManager.update(delta);
 
-    // Camera Follow
+    // Update camera mode based on player state
+    this.updateCameraMode();
+
+    // Camera Follow or Free Camera
     if (this.localPlayerId) {
       const localEntity = this.entityManager.getPlayer(this.localPlayerId);
-      if (localEntity) {
+      
+      if (this.isFreeCameraMode) {
+        // Free camera mode - handle WASD panning
+        this.updateFreeCamera(delta);
+      } else if (localEntity) {
+        // Normal player-locked camera
         this.renderer.camera.position.x = localEntity.mesh.position.x;
         this.renderer.camera.position.z = localEntity.mesh.position.z + 10;
         this.renderer.camera.lookAt(localEntity.mesh.position);
+        
+        // Update free camera position to current camera position when transitioning back
+        this.freeCameraPosition.copy(this.renderer.camera.position);
+        this.freeCameraTarget.copy(localEntity.mesh.position);
       }
     }
+  }
+
+  private updateCameraMode() {
+    // Determine if free camera should be enabled
+    if (!this.localPlayerId || !this.currentGameState) {
+      this.isFreeCameraMode = false;
+      return;
+    }
+
+    const localPlayer = this.entityManager.getPlayer(this.localPlayerId);
+    if (!localPlayer) {
+      this.isFreeCameraMode = false;
+      return;
+    }
+
+    // Enable free camera only if:
+    // 1. Player is dead
+    // 2. Game is NOT in warmup mode
+    const isInRound = this.currentGameState.gameMode !== 'WARMUP';
+    const shouldEnableFreeCamera = localPlayer.isDead && isInRound;
+
+    // Transition to free camera mode
+    if (shouldEnableFreeCamera && !this.isFreeCameraMode) {
+      this.isFreeCameraMode = true;
+      // Initialize free camera at current camera position
+      this.freeCameraPosition.copy(this.renderer.camera.position);
+      this.freeCameraTarget.copy(localPlayer.mesh.position);
+    } 
+    // Transition back to player-locked camera
+    else if (!shouldEnableFreeCamera && this.isFreeCameraMode) {
+      this.isFreeCameraMode = false;
+    }
+  }
+
+  private updateFreeCamera(delta: number) {
+    // Handle WASD keys for camera panning
+    const moveAmount = this.cameraPanSpeed * delta;
+    const moveVector = new THREE.Vector3();
+
+    // W/S for forward/backward (Z axis)
+    if (this.inputManager.keys['KeyW']) {
+      moveVector.z -= moveAmount;
+    }
+    if (this.inputManager.keys['KeyS']) {
+      moveVector.z += moveAmount;
+    }
+
+    // A/D for left/right (X axis)
+    if (this.inputManager.keys['KeyA']) {
+      moveVector.x -= moveAmount;
+    }
+    if (this.inputManager.keys['KeyD']) {
+      moveVector.x += moveAmount;
+    }
+
+    // Update camera position and target together
+    this.freeCameraPosition.add(moveVector);
+    this.freeCameraTarget.add(moveVector);
+
+    // Apply the camera position
+    this.renderer.camera.position.copy(this.freeCameraPosition);
+    this.renderer.camera.lookAt(this.freeCameraTarget);
   }
 }
