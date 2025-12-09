@@ -595,6 +595,7 @@ export class DynamicMapLoader {
     transform: EntityTransform,
     meshDef: MeshDefinition
   ): THREE.Box3 | null {
+    // Playable areas do not have collision boxes; calling code does not need to check isPlayableArea again.
     if (transform.isPlayableArea) {
       return null;
     }
