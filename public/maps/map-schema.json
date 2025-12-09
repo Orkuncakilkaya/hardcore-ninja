@@ -1,0 +1,400 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DynamicMapConfig",
+  "description": "Schema for dynamic map configuration files",
+  "type": "object",
+  "required": ["name", "version", "meshes", "transforms"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the map"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the map"
+    },
+    "meshes": {
+      "type": "object",
+      "description": "Dictionary of mesh definitions that can be reused",
+      "additionalProperties": {
+        "$ref": "#/definitions/MeshDefinition"
+      }
+    },
+    "transforms": {
+      "type": "array",
+      "description": "Array of entity transforms (instances of meshes in the world)",
+      "items": {
+        "$ref": "#/definitions/EntityTransform"
+      },
+      "minItems": 1
+    },
+    "environment": {
+      "type": "object",
+      "description": "Environment settings",
+      "properties": {
+        "skybox": {
+          "type": "object",
+          "required": ["type", "value"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["color", "cubemap", "hdri"],
+              "description": "Type of skybox"
+            },
+            "value": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "number" }
+              ],
+              "description": "Color hex value or path to cubemap/HDRI"
+            }
+          }
+        },
+        "fog": {
+          "type": "object",
+          "required": ["color", "near", "far"],
+          "properties": {
+            "color": {
+              "type": "number",
+              "description": "Fog color"
+            },
+            "near": {
+              "type": "number",
+              "description": "Near distance for fog"
+            },
+            "far": {
+              "type": "number",
+              "description": "Far distance for fog"
+            }
+          }
+        },
+        "lighting": {
+          "type": "object",
+          "properties": {
+            "ambient": {
+              "type": "object",
+              "required": ["color", "intensity"],
+              "properties": {
+                "color": {
+                  "type": "number",
+                  "description": "Ambient light color"
+                },
+                "intensity": {
+                  "type": "number",
+                  "description": "Ambient light intensity"
+                }
+              }
+            },
+            "directional": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["color", "intensity", "position", "castShadow"],
+                "properties": {
+                  "color": {
+                    "type": "number",
+                    "description": "Directional light color"
+                  },
+                  "intensity": {
+                    "type": "number",
+                    "description": "Directional light intensity"
+                  },
+                  "position": {
+                    "$ref": "#/definitions/Vector3",
+                    "description": "Directional light position"
+                  },
+                  "castShadow": {
+                    "type": "boolean",
+                    "description": "Whether the light casts shadows"
+                  }
+                }
+              }
+            },
+            "point": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["color", "intensity", "position", "distance", "decay", "castShadow"],
+                "properties": {
+                  "color": {
+                    "type": "number",
+                    "description": "Point light color"
+                  },
+                  "intensity": {
+                    "type": "number",
+                    "description": "Point light intensity"
+                  },
+                  "position": {
+                    "$ref": "#/definitions/Vector3",
+                    "description": "Point light position"
+                  },
+                  "distance": {
+                    "type": "number",
+                    "description": "Point light distance"
+                  },
+                  "decay": {
+                    "type": "number",
+                    "description": "Point light decay"
+                  },
+                  "castShadow": {
+                    "type": "boolean",
+                    "description": "Whether the light casts shadows"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Vector3": {
+      "type": "object",
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "X coordinate"
+        },
+        "y": {
+          "type": "number",
+          "description": "Y coordinate"
+        },
+        "z": {
+          "type": "number",
+          "description": "Z coordinate"
+        }
+      }
+    },
+    "MeshDefinition": {
+      "type": "object",
+      "required": ["format"],
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["gltf", "obj", "primitive"],
+          "description": "Format of the mesh"
+        },
+        "meshFile": {
+          "type": "string",
+          "description": "Path to the mesh file (for gltf/obj)"
+        },
+        "primitiveType": {
+          "type": "string",
+          "enum": ["plane", "box", "sphere", "cylinder", "cone", "torus"],
+          "description": "Type of primitive shape"
+        },
+        "primitiveParams": {
+          "type": "object",
+          "description": "Parameters for primitive shapes",
+          "properties": {
+            "width": {
+              "type": "number",
+              "description": "Width"
+            },
+            "height": {
+              "type": "number",
+              "description": "Height"
+            },
+            "depth": {
+              "type": "number",
+              "description": "Depth of box"
+            },
+            "widthSegments": {
+              "type": "number",
+              "description": "Number of width segments"
+            },
+            "heightSegments": {
+              "type": "number",
+              "description": "Number of height segments"
+            },
+            "depthSegments": {
+              "type": "number",
+              "description": "Depth segments of box"
+            },
+            "radius": {
+              "type": "number",
+              "description": "Radius"
+            },
+            "radiusTop": {
+              "type": "number",
+              "description": "Radius of top of cylinder"
+            },
+            "radiusBottom": {
+              "type": "number",
+              "description": "Radius of bottom of cylinder"
+            },
+            "openEnded": {
+              "type": "boolean",
+              "description": "Whether cylinder/cone is open ended"
+            },
+            "radialSegments": {
+              "type": "number",
+              "description": "Number of radial segments"
+            },
+            "tube": {
+              "type": "number",
+              "description": "Tube radius of torus"
+            },
+            "tubularSegments": {
+              "type": "number",
+              "description": "Tubular segments of torus"
+            }
+          }
+        },
+        "textures": {
+          "type": "object",
+          "description": "Texture paths",
+          "properties": {
+            "color": {
+              "type": "string",
+              "description": "Path to color/diffuse texture"
+            },
+            "normal": {
+              "type": "string",
+              "description": "Path to normal map"
+            },
+            "roughness": {
+              "type": "string",
+              "description": "Path to roughness map"
+            },
+            "displacement": {
+              "type": "string",
+              "description": "Path to displacement map"
+            },
+            "metalness": {
+              "type": "string",
+              "description": "Path to metalness map"
+            },
+            "ambient": {
+              "type": "string",
+              "description": "Path to ambient occlusion map"
+            }
+          }
+        },
+        "scale": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Scale of the mesh"
+        },
+        "collision": {
+          "type": "object",
+          "required": ["type"],
+          "description": "Physics properties",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["box", "sphere", "mesh"],
+              "description": "Type of collision shape"
+            },
+            "dimensions": {
+              "type": "object",
+              "required": ["width", "height", "depth"],
+              "description": "For box collision",
+              "properties": {
+                "width": {
+                  "type": "number",
+                  "description": "Width of collision box"
+                },
+                "height": {
+                  "type": "number",
+                  "description": "Height of collision box"
+                },
+                "depth": {
+                  "type": "number",
+                  "description": "Depth of collision box"
+                }
+              }
+            },
+            "radius": {
+              "type": "number",
+              "description": "For sphere collision"
+            },
+            "offset": {
+              "$ref": "#/definitions/Vector3",
+              "description": "Offset from model center"
+            }
+          }
+        },
+        "material": {
+          "type": "object",
+          "description": "Material properties (if not using textures)",
+          "properties": {
+            "color": {
+              "type": "number",
+              "description": "Material color"
+            },
+            "roughness": {
+              "type": "number",
+              "description": "Material roughness"
+            },
+            "metalness": {
+              "type": "number",
+              "description": "Material metalness"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "format": { "enum": ["gltf", "obj"] } }
+          },
+          "then": {
+            "required": ["meshFile"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "format": { "enum": ["primitive"] } }
+          },
+          "then": {
+            "required": ["primitiveType", "primitiveParams"]
+          }
+        }
+      ]
+    },
+    "EntityTransform": {
+      "type": "object",
+      "required": ["id", "position"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this entity instance"
+        },
+        "mesh": {
+          "type": "string",
+          "description": "Reference to a mesh definition"
+        },
+        "entity": {
+          "type": "string",
+          "description": "Special entity type (e.g., 'spawn')"
+        },
+        "position": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Position of the entity"
+        },
+        "rotation": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Rotation of the entity in degrees"
+        },
+        "scale": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Scale of the entity"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Additional entity-specific properties"
+        },
+        "isPlayableArea": {
+          "type": "boolean",
+          "description": "Flag to mark this transform as the playable area"
+        }
+      },
+      "oneOf": [
+        { "required": ["mesh"] },
+        { "required": ["entity"] }
+      ]
+    }
+  }
+}

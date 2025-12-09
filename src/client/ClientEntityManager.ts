@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { Box } from '../entities/Box';
-import type { GameState, MapConfig } from '../common/types';
+import type { GameState } from '../common/types';
+import { type DynamicMapConfig } from '../common/types/MapTypes';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import { SKILL_CONFIG, SkillType } from '../common/constants';
 import { TeleportEffect } from './effects/TeleportEffect';
 import { MissileEffect } from './effects/MissileEffect';
@@ -46,13 +47,12 @@ interface ClientPlayer {
 export class ClientEntityManager {
   public scene: THREE.Scene;
   public players: Map<string, ClientPlayer> = new Map();
-  public boxes: Box[] = [];
-  public walls: Box[] = [];
   public missiles: Map<string, THREE.Group> = new Map();
   public laserBeams: Map<string, THREE.Group> = new Map();
   private laserPreviewLine?: THREE.Line; // For Laser Beam preview
   private localPlayerId: string | null = null;
   private audioManager: AudioManager | null = null;
+  private playableAreaMeshes: THREE.Object3D[] = []; // Store meshes marked as playable areas
 
   // Skill effect managers
   private teleportEffect: TeleportEffect;
@@ -105,140 +105,118 @@ export class ClientEntityManager {
     }
   }
 
-  public async loadMap(config: MapConfig, onProgress?: (progress: number) => void): Promise<void> {
-    // Load textures first and wait for them
-    await this.createGroundPlane(config.playableArea.size, onProgress);
-
-    // Create walls and boxes
-    config.walls.forEach(wall => {
-      const box = new Box(
-        wall.id,
-        new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z),
-        wall.dimensions.width,
-        wall.dimensions.height,
-        wall.dimensions.depth,
-        wall.color
-      );
-      this.walls.push(box);
-      this.scene.add(box.mesh);
-    });
-
-    config.boxes.forEach(box => {
-      const b = new Box(
-        box.id,
-        new THREE.Vector3(box.position.x, box.position.y, box.position.z),
-        box.dimensions.width,
-        box.dimensions.height,
-        box.dimensions.depth,
-        box.color
-      );
-      this.boxes.push(b);
-      this.scene.add(b.mesh);
-    });
+  public async loadMap(
+    config: DynamicMapConfig,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    await this.loadDynamicMap(config, onProgress);
   }
 
-  private createGroundPlane(size: number, onProgress?: (progress: number) => void): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const textureLoader = new THREE.TextureLoader();
-      let loadedCount = 0;
-      const totalTextures = 4;
-      const textures: THREE.Texture[] = [];
+  /**
+   * Load a map using the new dynamic format
+   * @param config Dynamic map configuration
+   * @param onProgress Optional progress callback
+   */
+  private async loadDynamicMap(
+    config: DynamicMapConfig,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    // Load all 3D models and textures
+    await DynamicMapLoader.loadAssets(config, onProgress);
 
-      const updateProgress = () => {
-        loadedCount++;
-        const progress = loadedCount / totalTextures;
-        if (onProgress) {
-          onProgress(progress);
+    // Process all transforms
+    for (const transform of config.transforms) {
+      // Skip spawn points (they don't have visual representation)
+      if (transform.entity === 'spawn') {
+        continue;
+      }
+
+      // Get the mesh definition
+      const meshDef = transform.mesh ? config.meshes[transform.mesh] : null;
+      if (!meshDef) {
+        console.warn(`No mesh definition found for transform ${transform.id}`);
+        continue;
+      }
+
+      // Create the 3D object
+      const object = DynamicMapLoader.createObject(transform);
+      if (object) {
+        // Add to scene
+        this.scene.add(object);
+
+        // If this is a playable area, store it in the playableAreaMeshes array
+        if (transform.isPlayableArea) {
+          this.playableAreaMeshes.push(object);
         }
-        if (loadedCount === totalTextures) {
-          const [colorTexture, normalTexture, roughnessTexture, displacementTexture] = textures;
+      }
+    }
 
-          // Configure texture wrapping and repeating
-          const repeat = size / 20; // Adjust tile size - smaller number = larger tiles
-          [colorTexture, normalTexture, roughnessTexture, displacementTexture].forEach(texture => {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(repeat, repeat);
-          });
+    // Apply environment settings if defined
+    if (config.environment) {
+      this.applyEnvironmentSettings(config.environment);
+    }
+  }
 
-          // Create ground plane geometry
-          const groundGeometry = new THREE.PlaneGeometry(size, size, 32, 32);
+  /**
+   * Apply environment settings from the map config
+   * @param environment Environment settings
+   */
+  private applyEnvironmentSettings(environment: DynamicMapConfig['environment']): void {
+    if (!environment) return;
 
-          // Create material with PBR textures
-          const groundMaterial = new THREE.MeshStandardMaterial({
-            map: colorTexture,
-            normalMap: normalTexture,
-            roughnessMap: roughnessTexture,
-            displacementMap: displacementTexture,
-            displacementScale: 0.05, // Reduced displacement to prevent effects from going underground
-            roughness: 0.8,
-            metalness: 0.1,
-          });
+    // Apply skybox if defined
+    if (environment.skybox) {
+      if (environment.skybox.type === 'color') {
+        this.scene.background = new THREE.Color(environment.skybox.value as number);
+      }
+      // TODO: Implement cubemap and HDRI skyboxes
+    }
 
-          // Create mesh
-          const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-          groundMesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-          groundMesh.position.y = 0;
-          groundMesh.receiveShadow = true; // Enable shadow receiving
-
-          this.scene.add(groundMesh);
-          resolve();
-        }
-      };
-
-      // Load texture maps with callbacks
-      const colorTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Color.jpg',
-        () => {
-          textures[0] = colorTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading color texture:', error);
-          reject(error);
-        }
+    // Apply fog if defined
+    if (environment.fog) {
+      this.scene.fog = new THREE.Fog(
+        environment.fog.color,
+        environment.fog.near,
+        environment.fog.far
       );
+    }
 
-      const normalTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_NormalGL.jpg',
-        () => {
-          textures[1] = normalTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading normal texture:', error);
-          reject(error);
-        }
-      );
+    // Apply lighting if defined
+    if (environment.lighting) {
+      // Ambient light
+      if (environment.lighting.ambient) {
+        const ambientLight = new THREE.AmbientLight(
+          environment.lighting.ambient.color,
+          environment.lighting.ambient.intensity
+        );
+        this.scene.add(ambientLight);
+      }
 
-      const roughnessTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Roughness.jpg',
-        () => {
-          textures[2] = roughnessTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading roughness texture:', error);
-          reject(error);
+      // Directional lights
+      if (environment.lighting.directional) {
+        for (const light of environment.lighting.directional) {
+          const directionalLight = new THREE.DirectionalLight(light.color, light.intensity);
+          directionalLight.position.set(light.position.x, light.position.y, light.position.z);
+          directionalLight.castShadow = light.castShadow;
+          this.scene.add(directionalLight);
         }
-      );
+      }
 
-      const displacementTexture = textureLoader.load(
-        '/resources/textures/Tiles108_1K-JPG/Tiles108_1K-JPG_Displacement.jpg',
-        () => {
-          textures[3] = displacementTexture;
-          updateProgress();
-        },
-        undefined,
-        error => {
-          console.error('Error loading displacement texture:', error);
-          reject(error);
+      // Point lights
+      if (environment.lighting.point) {
+        for (const light of environment.lighting.point) {
+          const pointLight = new THREE.PointLight(
+            light.color,
+            light.intensity,
+            light.distance,
+            light.decay
+          );
+          pointLight.position.set(light.position.x, light.position.y, light.position.z);
+          pointLight.castShadow = light.castShadow;
+          this.scene.add(pointLight);
         }
-      );
-    });
+      }
+    }
   }
 
   public updateState(gameState: GameState, myPeerId: string) {
@@ -746,6 +724,14 @@ export class ClientEntityManager {
 
   public getPlayer(id: string): ClientPlayer | undefined {
     return this.players.get(id);
+  }
+
+  /**
+   * Get the meshes marked as playable areas
+   * @returns Array of playable area meshes
+   */
+  public getPlayableAreaMeshes(): THREE.Object3D[] {
+    return this.playableAreaMeshes;
   }
 
   private createPlayerMesh(

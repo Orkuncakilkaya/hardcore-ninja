@@ -68,27 +68,6 @@ export interface GameState {
   roundWinnerId?: string;
 }
 
-export interface MapConfig {
-  name: string;
-  version: string;
-  playableArea: {
-    size: number;
-  };
-  spawnPoints: Vector3[];
-  walls: {
-    id: string;
-    position: Vector3;
-    dimensions: { width: number; height: number; depth: number };
-    color: number;
-  }[];
-  boxes: {
-    id: string;
-    position: Vector3;
-    dimensions: { width: number; height: number; depth: number };
-    color: number;
-  }[];
-}
-
 export interface InputState {
   keys: { [key: string]: boolean };
   mouse: { x: number; y: number; z: number; isMouseLeftDown?: boolean } | null;

@@ -1,8 +1,8 @@
 import { ServerEntityManager } from './ServerEntityManager';
 import { NetworkManager } from '../network/NetworkManager';
 import { TICK_RATE, TICK_INTERVAL, GameMode, GAME_CONFIG } from '../common/constants';
-import type { MapConfig } from '../common/types';
 import type { NetworkMessage } from '../common/messages';
+import type { DynamicMapConfig } from '../common/types/MapTypes';
 import * as THREE from 'three';
 import type { ServerPlayer } from './ServerPlayer.ts';
 
@@ -10,7 +10,8 @@ export class GameServer {
   private entityManager: ServerEntityManager;
   private networkManager: NetworkManager;
   private intervalId: number | null = null;
-  private mapConfig: MapConfig;
+  private mapConfig: DynamicMapConfig;
+  private mapPath: string;
 
   // Game state
   private gameMode: string = GameMode.WARMUP;
@@ -21,9 +22,10 @@ export class GameServer {
   private roundWinnerId: string | undefined = undefined;
   private playerRespawnEnabled: boolean = true; // In warmup mode, respawn is enabled
 
-  constructor(networkManager: NetworkManager, mapConfig: MapConfig) {
+  constructor(networkManager: NetworkManager, mapConfig: DynamicMapConfig, mapPath: string = '') {
     this.networkManager = networkManager;
     this.mapConfig = mapConfig;
+    this.mapPath = mapPath;
 
     this.entityManager = new ServerEntityManager();
     this.entityManager.loadMap(this.mapConfig);
@@ -82,6 +84,7 @@ export class GameServer {
           type: 'JOIN_RESPONSE',
           success: true,
           mapConfig: this.mapConfig,
+          mapPath: this.mapPath,
           playerId: playerId,
           spawnPosition: player.position,
         });

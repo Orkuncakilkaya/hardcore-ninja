@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { NetworkManager } from '../network/NetworkManager';
 import { GameClient } from '../client/GameClient';
 import { GameServer } from '../server/GameServer';
-import { MapLoader } from '../core/MapLoader';
+import { DynamicMapLoader } from '../core/DynamicMapLoader';
 import styles from './Menu.module.css';
 import LobbyControls from './LobbyControls';
 import Settings from './Settings';
@@ -19,6 +19,7 @@ import {
   CopyButton,
   Tooltip,
   rem,
+  Select,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Icon } from '@iconify/react';
@@ -42,7 +43,14 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [tempName, setTempName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [selectedMap, setSelectedMap] = useState('/maps/primitive_shapes_demo.json');
   const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Available maps
+  const availableMaps = [
+    { value: '/maps/primitive_shapes_demo.json', label: 'Default Map' },
+    { value: '/maps/dynamic_default_map.json', label: 'Models Map' },
+  ];
 
   const handleJoinGame = useCallback(
     (input: string) => {
@@ -185,12 +193,18 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
     window.history.pushState({ path: newUrl }, '', newUrl);
 
     try {
-      const mapConfig = await MapLoader.loadMap('/maps/default_map.json');
-      const server = new GameServer(networkManager, mapConfig);
-      server.start();
+      // Load dynamic map
+      try {
+        const dynamicMapConfig = await DynamicMapLoader.loadMap(selectedMap);
+        const server = new GameServer(networkManager, dynamicMapConfig, selectedMap);
+        server.start();
 
-      // Join as client
-      gameClient.joinGame(networkManager.peerId);
+        // Join as client
+        gameClient.joinGame(networkManager.peerId);
+      } catch (dynamicMapError) {
+        console.error('Failed to load dynamic map:', dynamicMapError);
+        setStatusMessage('Error loading map');
+      }
     } catch (e) {
       console.error('Failed to start server:', e);
       setStatusMessage('Error starting server');
@@ -283,6 +297,14 @@ export default function Menu({ networkManager, gameClient }: MenuProps) {
             )}
           </CopyButton>
         </Group>
+
+        <Select
+          label="Select Map"
+          placeholder="Choose a map"
+          data={availableMaps}
+          value={selectedMap}
+          onChange={value => setSelectedMap(value || '/maps/dynamic_default_map.json')}
+        />
 
         <Group grow>
           <Button variant="default" onClick={() => setShowHostMenu(false)}>
