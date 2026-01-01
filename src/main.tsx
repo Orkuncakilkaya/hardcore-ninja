@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './style.css';
+import './themes/base/fonts.css';
+
 import App from './App';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
